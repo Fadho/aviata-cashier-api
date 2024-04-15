@@ -28,7 +28,7 @@ const getBetHistory = catchAsync(async (req, res) => {
         return {
           ticketId: bet.id,
           selection: bet.selection,
-          cashier: cashier.name,
+          cashier: cashier.id,
           stake: bet.stake,
           result: bet.result,
           date: bet.createdAt,
@@ -52,7 +52,7 @@ const getBetHistory = catchAsync(async (req, res) => {
             ticketId: bet.id,
             selection: bet.selection,
             stake: bet.stake,
-            cashier: cashier.name,
+            cashier: cashier.id,
             result: bet.result,
             date: bet.createdAt,
           };
@@ -72,7 +72,7 @@ const getBetHistory = catchAsync(async (req, res) => {
       ticketId: bet.id,
       selection: bet.selection,
       stake: bet.stake,
-      cashier: cashier.name,
+      cashier: cashier.id,
 
       result: bet.result,
       date: bet.createdAt,
