@@ -1,11 +1,17 @@
 const mongoose = require('mongoose');
 const { toJSON, paginate } = require('./plugins');
 
-const betPlacedSchema = mongoose.Schema(
+const betsSchema = mongoose.Schema(
   {
     cashierId: {
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'Cashier',
+      required: true,
+    },
+    betType: {
+      type: String,
+      lowercase: true,
+      enum: ['single', 'multiple'],
       required: true,
     },
     selections: [
@@ -34,12 +40,12 @@ const betPlacedSchema = mongoose.Schema(
 );
 
 // add plugin that converts mongoose to json
-betPlacedSchema.plugin(toJSON);
-betPlacedSchema.plugin(paginate);
+betsSchema.plugin(toJSON);
+betsSchema.plugin(paginate);
 
 /**
  * @typedef BetPlaced
  */
-const BetPlaced = mongoose.model('BetPlaced', betPlacedSchema);
+const Bets = mongoose.model('Bets', betsSchema);
 
-module.exports = BetPlaced;
+module.exports = Bets;
