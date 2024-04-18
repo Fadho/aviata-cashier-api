@@ -27,7 +27,7 @@ const getUsersWhere = catchAsync(async (req, res) => {
   const users = await userService.getUsersWhereClientType(req.query.role);
   const mapperUsers = users.map((userItem) => {
     return {
-      username: userItem.name,
+      name: userItem.name,
       email: userItem.email,
       role: userItem.role,
     };

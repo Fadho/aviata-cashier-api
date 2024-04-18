@@ -28,6 +28,14 @@ const getBetHistory = {
     endDate: Joi.string(),
   }),
 };
+const getAccountingReports = {
+  query: Joi.object().keys({
+    clientType: Joi.string(),
+    betType: Joi.string(),
+    startDate: Joi.string(),
+    endDate: Joi.string(),
+  }),
+};
 
 const getBetPlacedById = {
   params: Joi.object().keys({
@@ -40,4 +48,5 @@ module.exports = {
   fetchBetPlaced,
   getBetPlacedById,
   getBetHistory,
+  getAccountingReports,
 };

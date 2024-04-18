@@ -8,10 +8,10 @@ const router = express.Router();
 
 router
   .route('/')
-  .post(auth('manageUsers'), validate(userValidation.createUser), userController.createUser)
+  .post(validate(userValidation.createUser), userController.createUser)
   .get(auth('getUsers'), validate(userValidation.getUsers), userController.getUsers);
 
-router.route('/client-type').get(auth('getUsers'), validate(userValidation.getUsers), userController.getUsersWhere);
+router.route('/client-type').get(auth('getUsers'), validate(userValidation.getUsersWhere), userController.getUsersWhere);
 
 router
   .route('/:userId')
