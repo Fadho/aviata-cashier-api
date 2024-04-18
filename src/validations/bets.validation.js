@@ -19,6 +19,15 @@ const fetchBetPlaced = {
     cashierId: Joi.string(),
   }),
 };
+const getBetHistory = {
+  query: Joi.object().keys({
+    username: Joi.string(),
+    clientType: Joi.string(),
+    betType: Joi.string(),
+    startDate: Joi.string(),
+    endDate: Joi.string(),
+  }),
+};
 
 const getBetPlacedById = {
   params: Joi.object().keys({
@@ -30,4 +39,5 @@ module.exports = {
   createBetPlaced,
   fetchBetPlaced,
   getBetPlacedById,
+  getBetHistory,
 };

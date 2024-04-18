@@ -5,4 +5,4 @@ module.exports.userService = require('./user.service');
 module.exports.shopService = require('./shop.service');
 module.exports.cashierService = require('./cashier.service');
 module.exports.selectionService = require('./selections.service');
-module.exports.betPlacedService = require('./betPlaced.service');
+module.exports.betsService = require('./bets.service');

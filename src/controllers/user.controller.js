@@ -23,6 +23,17 @@ const getUser = catchAsync(async (req, res) => {
   }
   res.send(user);
 });
+const getUsersWhere = catchAsync(async (req, res) => {
+  const users = await userService.getUsersWhereClientType(req.query.role);
+  const mapperUsers = users.map((userItem) => {
+    return {
+      username: userItem.name,
+      email: userItem.email,
+      role: userItem.role,
+    };
+  });
+  res.send(mapperUsers);
+});
 
 const updateUser = catchAsync(async (req, res) => {
   const user = await userService.updateUserById(req.params.userId, req.body);
@@ -40,4 +51,5 @@ module.exports = {
   getUser,
   updateUser,
   deleteUser,
+  getUsersWhere,
 };

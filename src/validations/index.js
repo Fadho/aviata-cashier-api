@@ -3,4 +3,4 @@ module.exports.userValidation = require('./user.validation');
 module.exports.shopValidation = require('./shop.validation');
 module.exports.cashierValidation = require('./cashier.validation');
 module.exports.selectionValidation = require('./selections.validation');
-module.exports.betPlacedValidation = require('./betPlaced.validation');
+module.exports.betsValidation = require('./bets.validation');

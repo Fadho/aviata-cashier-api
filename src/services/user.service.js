@@ -29,6 +29,15 @@ const queryUsers = async (filter, options) => {
 };
 
 /**
+ * Query for get users where
+ * @param {string} role - Mongo filter
+ * @returns {Promise<User>}
+ */
+const getUsersWhereClientType = async (role) => {
+  const users = await User.find({ role });
+  return users;
+};
+/**
  * Get user by id
  * @param {ObjectId} id
  * @returns {Promise<User>}
@@ -36,7 +45,22 @@ const queryUsers = async (filter, options) => {
 const getUserById = async (id) => {
   return User.findById(id);
 };
-
+/**
+ * Get user by username
+ * @param {string} username
+ * @returns {Promise<User>}
+ */
+const getUserByUsername = async (username) => {
+  return User.findOne({ name: username });
+};
+/**
+ * Get user by username
+ * @param {string} username
+ * @returns {Promise<User>}
+ */
+const getUserByRole = async (role) => {
+  return User.find({ role });
+};
 /**
  * Get last admin login
  * @returns {Promise<User>}
@@ -103,4 +127,7 @@ module.exports = {
   getUserByEmail,
   updateUserById,
   deleteUserById,
+  getUsersWhereClientType,
+  getUserByUsername,
+  getUserByRole,
 };
