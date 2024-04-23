@@ -3,7 +3,7 @@ const { objectId } = require('./custom.validation');
 
 const createBetPlaced = {
   body: Joi.object().keys({
-    selections: Joi.array().items(Joi.string().required().custom(objectId)).required(),
+    selections: Joi.array().items(Joi.object().keys({ odd: Joi.number().required(), stake: Joi.number().required() })),
     result: Joi.string().required().valid('win', 'loss'),
     winnings: Joi.number().required(),
     stake: Joi.number().required(),
