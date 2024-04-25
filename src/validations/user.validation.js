@@ -6,7 +6,11 @@ const createUser = {
     email: Joi.string().required().email(),
     password: Joi.string().required().custom(password),
     name: Joi.string().required(),
+    wallet: Joi.string(),
+    currency: Joi.string(),
+    mobile: Joi.string(),
     shopId: Joi.string().required().custom(objectId),
+    agentId: Joi.string().custom(objectId),
     role: Joi.string().required().valid('cashier', 'agent'),
   }),
 };
@@ -18,6 +22,11 @@ const getUsers = {
     sortBy: Joi.string(),
     limit: Joi.number().integer(),
     page: Joi.number().integer(),
+  }),
+};
+const getUsersWhere = {
+  query: Joi.object().keys({
+    role: Joi.string(),
   }),
 };
 
@@ -52,4 +61,5 @@ module.exports = {
   getUser,
   updateUser,
   deleteUser,
+  getUsersWhere,
 };

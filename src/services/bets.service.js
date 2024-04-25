@@ -32,22 +32,92 @@ const fetchBetPlaced = async () => {
  */
 const getBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
   const query = {};
+  if (!startDate || !endDate) {
+    if (betType) {
+      query.betType = betType;
+    }
 
-  if (betType) {
-    query.betType = betType;
+    if (cashierId) {
+      query.cashierId = cashierId;
+    }
+
+    return Bets.find({
+      ...query,
+    });
   }
+  if (startDate && endDate) {
+    if (betType) {
+      query.betType = betType;
+    }
 
-  if (cashierId) {
-    query.cashierId = cashierId;
+    if (cashierId) {
+      query.cashierId = cashierId;
+    }
+    if (!betType && !cashierId) {
+      const bets = await Bets.find({
+        createdAt: {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate),
+        },
+      });
+      return bets;
+    }
+
+    return Bets.find({
+      ...query,
+      createdAt: {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      },
+    });
   }
+};
+/**
+ * create a new shop account
+ * @param {Object} filter
+ * @returns {Promise<Bets>}
+ */
+const getAccountingReports = async ({ startDate, endDate, betType, cashierId }) => {
+  const query = {};
+  if (!startDate || !endDate) {
+    if (betType) {
+      query.betType = betType;
+    }
 
-  return Bets.find({
-    ...query,
-    createdAt: {
-      $gte: new Date(startDate),
-      $lte: new Date(endDate),
-    },
-  });
+    if (cashierId) {
+      query.cashierId = cashierId;
+    }
+
+    return Bets.find({
+      ...query,
+    });
+  }
+  if (startDate && endDate) {
+    if (betType) {
+      query.betType = betType;
+    }
+
+    if (cashierId) {
+      query.cashierId = cashierId;
+    }
+    if (!betType && !cashierId) {
+      const bets = await Bets.find({
+        createdAt: {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate),
+        },
+      });
+      return bets;
+    }
+
+    return Bets.find({
+      ...query,
+      createdAt: {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      },
+    });
+  }
 };
 
 /**
@@ -64,4 +134,5 @@ module.exports = {
   fetchBetPlaced,
   getBetPlacedById,
   getBetHistory,
+  getAccountingReports,
 };

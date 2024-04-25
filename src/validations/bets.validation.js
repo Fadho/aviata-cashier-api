@@ -3,7 +3,7 @@ const { objectId } = require('./custom.validation');
 
 const createBetPlaced = {
   body: Joi.object().keys({
-    selections: Joi.array().items(Joi.string().required().custom(objectId)).required(),
+    selections: Joi.array().items(Joi.object().keys({ odd: Joi.number().required(), stake: Joi.number().required() })),
     result: Joi.string().required().valid('win', 'loss'),
     winnings: Joi.number().required(),
     stake: Joi.number().required(),
@@ -28,6 +28,14 @@ const getBetHistory = {
     endDate: Joi.string(),
   }),
 };
+const getAccountingReports = {
+  query: Joi.object().keys({
+    clientType: Joi.string(),
+    betType: Joi.string(),
+    startDate: Joi.string(),
+    endDate: Joi.string(),
+  }),
+};
 
 const getBetPlacedById = {
   params: Joi.object().keys({
@@ -40,4 +48,5 @@ module.exports = {
   fetchBetPlaced,
   getBetPlacedById,
   getBetHistory,
+  getAccountingReports,
 };

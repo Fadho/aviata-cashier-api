@@ -16,8 +16,14 @@ const betsSchema = mongoose.Schema(
     },
     selections: [
       {
-        type: mongoose.SchemaTypes.ObjectId,
-        ref: 'Selections',
+        odd: {
+          type: Number,
+          required: true,
+        },
+        stake: {
+          type: Number,
+          required: true,
+        },
       },
     ],
     stake: {
@@ -31,6 +37,12 @@ const betsSchema = mongoose.Schema(
     result: {
       type: String,
       enum: ['win', 'loss'],
+      required: true,
+    },
+    payout: {
+      type: String,
+      enum: ['close', 'open'],
+      default: 'open',
       required: true,
     },
   },

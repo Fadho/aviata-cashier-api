@@ -9,8 +9,6 @@ const userSchema = mongoose.Schema(
     name: {
       type: String,
       required: true,
-      lowercase: true,
-      unique: true,
       trim: true,
     },
     email: {
@@ -25,11 +23,25 @@ const userSchema = mongoose.Schema(
         }
       },
     },
-    shopId: {
-      type: mongoose.SchemaTypes.ObjectId,
-      ref: 'Shop',
+    wallet: {
+      type: String,
+      required: true,
+      default: '10000',
+    },
+    currency: {
+      type: String,
+      required: true,
+      default: 'NGN',
+    },
+    mobile: {
+      type: String,
       required: true,
     },
+    agentId: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'user',
+    },
+
     password: {
       type: String,
       required: true,
