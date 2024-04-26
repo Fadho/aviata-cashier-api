@@ -39,7 +39,12 @@ const getAccountingReports = {
 
 const getBetPlacedById = {
   params: Joi.object().keys({
-    betPlacedId: Joi.string().custom(objectId),
+    id: Joi.string().custom(objectId),
+  }),
+};
+const cancelTicket = {
+  params: Joi.object().keys({
+    id: Joi.string().custom(objectId),
   }),
 };
 
@@ -49,4 +54,5 @@ module.exports = {
   getBetPlacedById,
   getBetHistory,
   getAccountingReports,
+  cancelTicket,
 };

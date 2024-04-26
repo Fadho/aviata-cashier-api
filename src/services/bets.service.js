@@ -1,4 +1,4 @@
-const Bets = require('../models/bets.model');
+const { Tickets } = require('../models');
 
 /**
  * create a new shop account
@@ -7,28 +7,28 @@ const Bets = require('../models/bets.model');
  * @param {number} winnings
  * @param {ObjectId[]} selections
  * @param {ObjectId} cashierId
- * @returns {Promise<Bets>}
+ * @returns {Promise<Tickets>}
  */
 const createBetPlaced = async (result, stake, winnings, selections, cashierId) => {
   if (selections.length > 1) {
-    return Bets.create({ result, stake, winnings, selections, cashierId, betType: 'multiple' });
+    return Tickets.create({ result, stake, winnings, selections, cashierId, betType: 'multiple' });
   }
-  return Bets.create({ result, stake, winnings, selections, cashierId, betType: 'single' });
+  return Tickets.create({ result, stake, winnings, selections, cashierId, betType: 'single' });
 };
 
 /**
  * create a new shop account
- * @returns {Promise<Bets>}
+ * @returns {Promise<Tickets>}
  */
 
 const fetchBetPlaced = async () => {
-  return Bets.find();
+  return Tickets.find();
 };
 
 /**
  * create a new shop account
  * @param {Object} filter
- * @returns {Promise<Bets>}
+ * @returns {Promise<Tickets>}
  */
 const getBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
   const query = {};
@@ -41,7 +41,7 @@ const getBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
       query.cashierId = cashierId;
     }
 
-    return Bets.find({
+    return Tickets.find({
       ...query,
     });
   }
@@ -54,7 +54,7 @@ const getBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
       query.cashierId = cashierId;
     }
     if (!betType && !cashierId) {
-      const bets = await Bets.find({
+      const bets = await Tickets.find({
         createdAt: {
           $gte: new Date(startDate),
           $lte: new Date(endDate),
@@ -63,54 +63,7 @@ const getBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
       return bets;
     }
 
-    return Bets.find({
-      ...query,
-      createdAt: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      },
-    });
-  }
-};
-/**
- * create a new shop account
- * @param {Object} filter
- * @returns {Promise<Bets>}
- */
-const getAccountingReports = async ({ startDate, endDate, betType, cashierId }) => {
-  const query = {};
-  if (!startDate || !endDate) {
-    if (betType) {
-      query.betType = betType;
-    }
-
-    if (cashierId) {
-      query.cashierId = cashierId;
-    }
-
-    return Bets.find({
-      ...query,
-    });
-  }
-  if (startDate && endDate) {
-    if (betType) {
-      query.betType = betType;
-    }
-
-    if (cashierId) {
-      query.cashierId = cashierId;
-    }
-    if (!betType && !cashierId) {
-      const bets = await Bets.find({
-        createdAt: {
-          $gte: new Date(startDate),
-          $lte: new Date(endDate),
-        },
-      });
-      return bets;
-    }
-
-    return Bets.find({
+    return Tickets.find({
       ...query,
       createdAt: {
         $gte: new Date(startDate),
@@ -123,10 +76,19 @@ const getAccountingReports = async ({ startDate, endDate, betType, cashierId }) 
 /**
  * Get user by id
  * @param {ObjectId} id
- * @returns {Promise<Bets>}
+ * @returns {Promise<Tickets>}
+ */
+const cancelTicket = async (id) => {
+  return Tickets.findByIdAndUpdate(id, { cancelled: true }, { new: true });
+};
+
+/**
+ * Get user by id
+ * @param {ObjectId} id
+ * @returns {Promise<Tickets>}
  */
 const getBetPlacedById = async (id) => {
-  return Bets.findById(id);
+  return Tickets.findById(id);
 };
 
 module.exports = {
@@ -134,5 +96,5 @@ module.exports = {
   fetchBetPlaced,
   getBetPlacedById,
   getBetHistory,
-  getAccountingReports,
+  cancelTicket,
 };

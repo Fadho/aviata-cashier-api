@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const { toJSON, paginate } = require('./plugins');
 
-const betsSchema = mongoose.Schema(
+const ticketSchema = mongoose.Schema(
   {
     cashierId: {
       type: mongoose.SchemaTypes.ObjectId,
@@ -45,6 +45,11 @@ const betsSchema = mongoose.Schema(
       default: 'open',
       required: true,
     },
+    cancelled: {
+      type: Boolean,
+      default: false,
+      required: true,
+    },
   },
   {
     timestamps: true,
@@ -52,12 +57,12 @@ const betsSchema = mongoose.Schema(
 );
 
 // add plugin that converts mongoose to json
-betsSchema.plugin(toJSON);
-betsSchema.plugin(paginate);
+ticketSchema.plugin(toJSON);
+ticketSchema.plugin(paginate);
 
 /**
  * @typedef BetPlaced
  */
-const Bets = mongoose.model('Bets', betsSchema);
+const Tickets = mongoose.model('Tickets', ticketSchema);
 
-module.exports = Bets;
+module.exports = Tickets;

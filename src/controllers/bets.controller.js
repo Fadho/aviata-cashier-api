@@ -734,14 +734,30 @@ const getAccountingReports = catchAsync(async (req, res) => {
     throw new ApiError(httpStatus.NOT_FOUND, error.message);
   }
 });
+
 const getBetPlacedById = catchAsync(async (req, res) => {
   try {
-    const id = req.params.betPlacedId;
+    const { id } = req.params;
     const betPlaced = await betsService.getBetPlacedById(id);
     if (!betPlaced) {
       throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record not found');
     }
     res.status(httpStatus.CREATED).send(betPlaced);
+  } catch (error) {
+    throw new ApiError(httpStatus.NOT_FOUND, error.message);
+  }
+});
+
+const cancelTicket = catchAsync(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const betPlaced = await betsService.getBetPlacedById(id);
+    if (!betPlaced) {
+      throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record not found');
+    }
+    const betCancelled = await betsService.cancelTicket(id);
+
+    res.status(httpStatus.CREATED).send(betCancelled);
   } catch (error) {
     throw new ApiError(httpStatus.NOT_FOUND, error.message);
   }
@@ -754,4 +770,5 @@ module.exports = {
   getBetHistory,
   getAccountingReports,
   getGamingActivity,
+  cancelTicket,
 };
