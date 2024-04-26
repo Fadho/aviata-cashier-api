@@ -5,9 +5,10 @@ const createBetPlaced = {
   body: Joi.object().keys({
     selections: Joi.array().items(Joi.object().keys({ odd: Joi.number().required(), stake: Joi.number().required() })),
     result: Joi.string().required().valid('win', 'loss'),
-    winnings: Joi.number().required(),
+    potentialWinnings: Joi.number().required(),
     stake: Joi.number().required(),
     cashierId: Joi.string().required().custom(objectId),
+    roundId: Joi.string().required().custom(objectId),
   }),
 };
 const fetchBetPlaced = {

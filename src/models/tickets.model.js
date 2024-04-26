@@ -3,6 +3,10 @@ const { toJSON, paginate } = require('./plugins');
 
 const ticketSchema = mongoose.Schema(
   {
+    roundId: {
+      type: String,
+      required: true,
+    },
     cashierId: {
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'Cashier',
@@ -27,6 +31,10 @@ const ticketSchema = mongoose.Schema(
       },
     ],
     stake: {
+      type: Number,
+      required: true,
+    },
+    potentialWinnings: {
       type: Number,
       required: true,
     },
