@@ -52,7 +52,7 @@ if (config.env === 'production') {
 
 if (config.env === 'production') {
   // v1 api routes
-  app.use('cashier/v1', routes);
+  app.use('/cashier/v1', routes);
 } else {
   // v1 api routes
   app.use('/v1', routes);
