@@ -38,14 +38,9 @@ const ticketSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
-    winnings: {
-      type: Number,
-      required: true,
-    },
     result: {
       type: String,
       enum: ['win', 'loss'],
-      required: true,
     },
     payout: {
       type: String,

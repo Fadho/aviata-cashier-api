@@ -24,33 +24,9 @@ const fetchBetPlaced = catchAsync(async (req, res) => {
 const getBetHistory = catchAsync(async (req, res) => {
   try {
     const { startDate, endDate, username, betType, clientType } = req.query;
+    let betHistory = [];
     if ((!startDate || !endDate) && !username && !betType && !clientType) {
-      const betHistory = await betsService.getBetHistory({});
-
-      const mappedBetHistory = await Promise.all(
-        betHistory.map(async (bet) => {
-          if (bet.result === 'loss')
-            return {
-              ticketId: bet.id,
-              stake: bet.stake,
-              result: bet.result,
-              date: bet.createdAt,
-              winnings: 0,
-              cashier: bet.cashierId,
-              selections: bet.selections,
-            };
-          return {
-            ticketId: bet.id,
-            stake: bet.stake,
-            result: bet.result,
-            date: bet.createdAt,
-            winnings: bet.winnings,
-            cashier: bet.cashierId,
-            selections: bet.selections,
-          };
-        })
-      );
-      return res.status(httpStatus.CREATED).send(mappedBetHistory);
+      betHistory = await betsService.getBetHistory({});
     }
     if (startDate && endDate) {
       if (username) {
@@ -58,31 +34,7 @@ const getBetHistory = catchAsync(async (req, res) => {
         if (!user) {
           throw new ApiError(httpStatus.NOT_FOUND, 'Bet Placed Record not found');
         }
-        const betHistory = await betsService.getBetHistory({ cashierId: user.id, startDate, endDate });
-        const mappedBetHistory = await Promise.all(
-          betHistory.map(async (bet) => {
-            if (bet.result === 'loss')
-              return {
-                ticketId: bet.id,
-                stake: bet.stake,
-                result: bet.result,
-                date: bet.createdAt,
-                winnings: 0,
-                cashier: bet.cashierId,
-                selections: bet.selections,
-              };
-            return {
-              ticketId: bet.id,
-              stake: bet.stake,
-              result: bet.result,
-              date: bet.createdAt,
-              winnings: bet.winnings,
-              cashier: bet.cashierId,
-              selections: bet.selections,
-            };
-          })
-        );
-        return res.status(httpStatus.CREATED).send(mappedBetHistory);
+        betHistory = await betsService.getBetHistory({ cashierId: user.id, startDate, endDate });
       }
       if (clientType) {
         const user = await userService.getUserByRole(clientType);
@@ -91,7 +43,7 @@ const getBetHistory = catchAsync(async (req, res) => {
         }
         const bets = await Promise.all(
           user.map(async (userItem) => {
-            const betHistory = await betsService.getBetHistory({ cashierId: userItem.id, startDate, endDate });
+            betHistory = await betsService.getBetHistory({ cashierId: userItem.id, startDate, endDate });
             const mappedBetHistory = await Promise.all(
               betHistory.map(async (bet) => {
                 if (bet.result === 'loss')
@@ -123,90 +75,16 @@ const getBetHistory = catchAsync(async (req, res) => {
         return res.status(httpStatus.CREATED).send(flattenedArray);
       }
       if (betType) {
-        const betHistory = await betsService.getBetHistory({ startDate, endDate, betType });
-        const mappedBetHistory = await Promise.all(
-          betHistory.map(async (bet) => {
-            if (bet.result === 'loss')
-              return {
-                ticketId: bet.id,
-                stake: bet.stake,
-                result: bet.result,
-                date: bet.createdAt,
-                winnings: 0,
-                cashier: bet.cashierId,
-                selections: bet.selections,
-              };
-            return {
-              ticketId: bet.id,
-              stake: bet.stake,
-              result: bet.result,
-              date: bet.createdAt,
-              winnings: bet.winnings,
-              cashier: bet.cashierId,
-              selections: bet.selections,
-            };
-          })
-        );
-
-        return res.status(httpStatus.CREATED).send(mappedBetHistory);
+        betHistory = await betsService.getBetHistory({ startDate, endDate, betType });
       }
-      const betHistory = await betsService.getBetHistory({ startDate, endDate });
-
-      const mappedBetHistory = await Promise.all(
-        betHistory.map(async (bet) => {
-          if (bet.result === 'loss')
-            return {
-              ticketId: bet.id,
-              stake: bet.stake,
-              result: bet.result,
-              date: bet.createdAt,
-              winnings: 0,
-              cashier: bet.cashierId,
-              selections: bet.selections,
-            };
-          return {
-            ticketId: bet.id,
-            stake: bet.stake,
-            result: bet.result,
-            date: bet.createdAt,
-            winnings: bet.winnings,
-            cashier: bet.cashierId,
-            selections: bet.selections,
-          };
-        })
-      );
-      return res.status(httpStatus.CREATED).send(mappedBetHistory);
+      betHistory = await betsService.getBetHistory({ startDate, endDate });
     }
     if (username) {
       const user = await userService.getUserByUsername(username);
       if (!user) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Bet Placed Record not found');
       }
-      const betHistory = await betsService.getBetHistory({ cashierId: user.id });
-      const mappedBetHistory = await Promise.all(
-        betHistory.map(async (bet) => {
-          if (bet.result === 'loss')
-            return {
-              ticketId: bet.id,
-              stake: bet.stake,
-              result: bet.result,
-              date: bet.createdAt,
-              winnings: 0,
-              cashier: bet.cashierId,
-              selections: bet.selections,
-            };
-          return {
-            ticketId: bet.id,
-            stake: bet.stake,
-            result: bet.result,
-            date: bet.createdAt,
-            winnings: bet.winnings,
-            cashier: bet.cashierId,
-            selections: bet.selections,
-          };
-        })
-      );
-      return res.status(httpStatus.CREATED).send(mappedBetHistory);
+      betHistory = await betsService.getBetHistory({ cashierId: user.id });
     }
     if (clientType) {
       const user = await userService.getUserByRole(clientType);
@@ -215,7 +93,7 @@ const getBetHistory = catchAsync(async (req, res) => {
       }
       const bets = await Promise.all(
         user.map(async (userItem) => {
-          const betHistory = await betsService.getBetHistory({ cashierId: userItem.id });
+          betHistory = await betsService.getBetHistory({ cashierId: userItem.id });
           const mappedBetHistory = await Promise.all(
             betHistory.map(async (bet) => {
               if (bet.result === 'loss')
@@ -247,33 +125,35 @@ const getBetHistory = catchAsync(async (req, res) => {
       return res.status(httpStatus.CREATED).send(flattenedArray);
     }
     if (betType) {
-      const betHistory = await betsService.getBetHistory({ betType });
-      const mappedBetHistory = await Promise.all(
-        betHistory.map(async (bet) => {
-          if (bet.result === 'loss')
-            return {
-              ticketId: bet.id,
-              stake: bet.stake,
-              result: bet.result,
-              date: bet.createdAt,
-              winnings: 0,
-              cashier: bet.cashierId,
-              selections: bet.selections,
-            };
+      betHistory = await betsService.getBetHistory({ betType });
+    }
+    const mappedBetHistory = await Promise.all(
+      betHistory.map(async (bet) => {
+        if (bet.result === 'loss')
           return {
             ticketId: bet.id,
             stake: bet.stake,
             result: bet.result,
             date: bet.createdAt,
-            winnings: bet.winnings,
+            winnings: 0,
+            potentialWinnings: bet.potentialWinnings,
             cashier: bet.cashierId,
             selections: bet.selections,
           };
-        })
-      );
+        return {
+          ticketId: bet.id,
+          stake: bet.stake,
+          result: bet.result,
+          date: bet.createdAt,
+          potentialWinnings: bet.potentialWinnings,
+          winnings: bet.potentialWinnings,
+          cashier: bet.cashierId,
+          selections: bet.selections,
+        };
+      })
+    );
 
-      return res.status(httpStatus.CREATED).send(mappedBetHistory);
-    }
+    return res.status(httpStatus.CREATED).send(mappedBetHistory);
   } catch (error) {
     throw new ApiError(httpStatus.NOT_FOUND, error.message);
   }
@@ -309,17 +189,17 @@ const getGamingActivity = catchAsync(async (req, res) => {
             cancelledbetHistory = await betsService.getCancelledBetHistory({ cashierId: userItem.id, startDate, endDate });
 
             const sumofStakes = betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
-            const winCount = betHistory.reduce((count, bet) => count + bet.winnings, 0);
+            const winCount = betHistory.reduce((count, bet) => count + bet.potentialWinnings, 0);
 
             return {
-              winnings: winCount,
+              potentialWinnings: winCount,
               totalStake: sumofStakes,
               numberOfBets: betHistory.length,
             };
           })
         );
-        const reversal = cancelledbetHistory.reduce((accumulator, obj) => accumulator + obj.winnings, 0);
-        const winnings = bets.reduce((accumulator, obj) => accumulator + obj.winnings, 0);
+        const reversal = cancelledbetHistory.reduce((accumulator, obj) => accumulator + obj.potentialWinnings, 0);
+        const winnings = bets.reduce((accumulator, obj) => accumulator + obj.potentialWinnings, 0);
         const numberOfBets = bets.reduce((accumulator, obj) => accumulator + obj.numberOfBets, 0);
         const totalStake = bets.reduce((accumulator, obj) => accumulator + obj.totalStake, 0);
         const response = {
@@ -360,19 +240,19 @@ const getGamingActivity = catchAsync(async (req, res) => {
             return accumulator + obj.stake;
           }, 0);
           const winCount = betHistory.reduce((count, bet) => {
-            return count + bet.winnings;
+            return count + bet.potentialWinnings;
           }, 0);
 
           return {
-            winnings: winCount,
+            potentialWinnings: winCount,
             totalStake: sumofStakes,
             numberOfBets: betHistory.length,
           };
         })
       );
-      const reversal = cancelledbetHistory.reduce((accumulator, obj) => accumulator + obj.winnings, 0);
+      const reversal = cancelledbetHistory.reduce((accumulator, obj) => accumulator + obj.potentialWinnings, 0);
 
-      const winnings = bets.reduce((accumulator, obj) => accumulator + obj.winnings, 0);
+      const winnings = bets.reduce((accumulator, obj) => accumulator + obj.potentialWinnings, 0);
       const numberOfBets = bets.reduce((accumulator, obj) => accumulator + obj.numberOfBets, 0);
       const totalStake = bets.reduce((accumulator, obj) => accumulator + obj.totalStake, 0);
       const response = {
@@ -380,7 +260,7 @@ const getGamingActivity = catchAsync(async (req, res) => {
         winnings,
         ggr: (Number(winnings) / Number(totalStake)) * 100,
         turnover: Number(((Number(totalStake) - Number(reversal) / Number(winnings)) * 100).toFixed(3)),
-        margin: Number(((Number(totalStake) / Number(winnings)) * 100).toFixed(3)),
+        margin: Number(((Number(totalStake) / Number(winnings)) * 100).toFixed(2)),
       };
       return res.status(httpStatus.CREATED).send(response);
     }
@@ -396,20 +276,20 @@ const getGamingActivity = catchAsync(async (req, res) => {
 
       if (!cashierData[cashier.name]) {
         cashierData[cashier.name] = {
-          winnings: 0,
+          potentialWinnings: 0,
           numberOfBets: 0,
           totalStake: 0,
         };
       }
 
       cashierData[cashier.name].totalStake += bet.stake;
-      cashierData[cashier.name].winnings += bet.winnings;
+      cashierData[cashier.name].potentialWinnings += bet.potentialWinnings;
       cashierData[cashier.name].numberOfBets = betHistory.length;
     }
 
     const mappedBetHistory = Object.values(cashierData);
-    const winnings = mappedBetHistory.reduce((accumulator, obj) => accumulator + obj.winnings, 0);
-    const reversal = cancelledbetHistory.reduce((accumulator, obj) => accumulator + obj.winnings, 0);
+    const winnings = mappedBetHistory.reduce((accumulator, obj) => accumulator + obj.potentialWinnings, 0);
+    const reversal = cancelledbetHistory.reduce((accumulator, obj) => accumulator + obj.potentialWinnings, 0);
 
     const totalStake = mappedBetHistory.reduce((accumulator, obj) => accumulator + obj.totalStake, 0);
     const response = {
@@ -444,7 +324,7 @@ const getAccountingReports = catchAsync(async (req, res) => {
             betHistory = await betsService.getBetHistory({ cashierId: userItem.id, startDate, endDate });
 
             const totalStake = betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
-            const totalWinnings = betHistory.reduce((count, bet) => count + bet.winnings, 0);
+            const totalWinnings = betHistory.reduce((count, bet) => count + bet.potentialWinnings, 0);
 
             return {
               totalWinnings,
@@ -473,7 +353,7 @@ const getAccountingReports = catchAsync(async (req, res) => {
           betHistory = await betsService.getBetHistory({ cashierId: userItem.id });
 
           const totalStake = betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
-          const totalWinnings = betHistory.reduce((count, bet) => count + bet.winnings, 0);
+          const totalWinnings = betHistory.reduce((count, bet) => count + bet.potentialWinnings, 0);
 
           return {
             totalWinnings,
@@ -507,7 +387,7 @@ const getAccountingReports = catchAsync(async (req, res) => {
         };
       }
 
-      cashierData[cashier.name].totalWinnings += bet.winnings;
+      cashierData[cashier.name].totalWinnings += bet.potentialWinnings;
       cashierData[cashier.name].totalStake += bet.stake;
     }
     let mappedBetHistory = Object.values(cashierData);
@@ -549,6 +429,15 @@ const cancelTicket = catchAsync(async (req, res) => {
     throw new ApiError(httpStatus.NOT_FOUND, error.message);
   }
 });
+const cashoutTicket = catchAsync(async (req, res) => {
+  try {
+    const { cashierId, roundId, odd } = req.body;
+
+    res.status(httpStatus.CREATED).send({ cashierId, roundId, odd });
+  } catch (error) {
+    throw new ApiError(httpStatus.NOT_FOUND, error.message);
+  }
+});
 
 module.exports = {
   createBetPlaced,
@@ -558,4 +447,5 @@ module.exports = {
   getAccountingReports,
   getGamingActivity,
   cancelTicket,
+  cashoutTicket,
 };
