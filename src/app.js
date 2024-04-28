@@ -47,11 +47,16 @@ passport.use('jwt', jwtStrategy);
 
 // limit repeated failed requests to auth endpoints
 if (config.env === 'production') {
-  app.use('/v1/auth', authLimiter);
+  app.use('/cashier/v1/auth', authLimiter);
 }
 
-// v1 api routes
-app.use('/v1', routes);
+if (config.env === 'production') {
+  // v1 api routes
+  app.use('cashier/v1', routes);
+} else {
+  // v1 api routes
+  app.use('/v1', routes);
+}
 
 app.get('/', (req, res) => {
   res.status(httpStatus.OK).json({
