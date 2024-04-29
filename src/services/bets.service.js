@@ -1,4 +1,6 @@
-const Bets = require('../models/bets.model');
+/* eslint-disable no-restricted-syntax */
+
+const { Tickets } = require('../models');
 
 /**
  * create a new shop account
@@ -7,28 +9,87 @@ const Bets = require('../models/bets.model');
  * @param {number} winnings
  * @param {ObjectId[]} selections
  * @param {ObjectId} cashierId
- * @returns {Promise<Bets>}
+ * @returns {Promise<Tickets>}
  */
-const createBetPlaced = async (result, stake, winnings, selections, cashierId) => {
+const createBetPlaced = async (result, stake, selections, cashierId, potentialWinnings, roundId) => {
   if (selections.length > 1) {
-    return Bets.create({ result, stake, winnings, selections, cashierId, betType: 'multiple' });
+    return Tickets.create({
+      result,
+      stake,
+      selections,
+      cashierId,
+      betType: 'multiple',
+      potentialWinnings,
+      roundId,
+    });
   }
-  return Bets.create({ result, stake, winnings, selections, cashierId, betType: 'single' });
+  return Tickets.create({ result, stake, selections, cashierId, betType: 'single', potentialWinnings, roundId });
 };
 
 /**
  * create a new shop account
- * @returns {Promise<Bets>}
+ * @returns {Promise<Tickets>}
  */
 
 const fetchBetPlaced = async () => {
-  return Bets.find();
+  return Tickets.find();
 };
 
 /**
  * create a new shop account
  * @param {Object} filter
- * @returns {Promise<Bets>}
+ * @returns {Promise<Tickets>}
+ */
+const getCancelledBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
+  const query = {};
+  if (!startDate || !endDate) {
+    if (betType) {
+      query.betType = betType;
+    }
+
+    if (cashierId) {
+      query.cashierId = cashierId;
+    }
+
+    return Tickets.find({
+      ...query,
+      cancelled: true,
+    });
+  }
+  if (startDate && endDate) {
+    if (betType) {
+      query.betType = betType;
+    }
+
+    if (cashierId) {
+      query.cashierId = cashierId;
+    }
+    if (!betType && !cashierId) {
+      const bets = await Tickets.find({
+        cancelled: true,
+        createdAt: {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate),
+        },
+      });
+      return bets;
+    }
+
+    return Tickets.find({
+      ...query,
+      cancelled: true,
+
+      createdAt: {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      },
+    });
+  }
+};
+/**
+ * create a new shop account
+ * @param {Object} filter
+ * @returns {Promise<Tickets>}
  */
 const getBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
   const query = {};
@@ -41,7 +102,7 @@ const getBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
       query.cashierId = cashierId;
     }
 
-    return Bets.find({
+    return Tickets.find({
       ...query,
     });
   }
@@ -54,7 +115,7 @@ const getBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
       query.cashierId = cashierId;
     }
     if (!betType && !cashierId) {
-      const bets = await Bets.find({
+      const bets = await Tickets.find({
         createdAt: {
           $gte: new Date(startDate),
           $lte: new Date(endDate),
@@ -63,7 +124,7 @@ const getBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
       return bets;
     }
 
-    return Bets.find({
+    return Tickets.find({
       ...query,
       createdAt: {
         $gte: new Date(startDate),
@@ -74,59 +135,65 @@ const getBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
 };
 /**
  * create a new shop account
- * @param {Object} filter
- * @returns {Promise<Bets>}
+ * @param {String} cashierId
+ * @param {String} roundId
+ * @param {Number}  odd
+ * @returns {Promise<Tickets>}
  */
-const getAccountingReports = async ({ startDate, endDate, betType, cashierId }) => {
-  const query = {};
-  if (!startDate || !endDate) {
-    if (betType) {
-      query.betType = betType;
+async function updateBetsAndCalculateWinnings(cashierId, roundId, odd) {
+  // Find all bets for the provided cashierId and roundId
+  // const bets = await Tickets.find({ cashierId, roundId });
+  const bets = await Tickets.find({ cashierId, roundId });
+  // Loop through each bet
+  for (const bet of bets) {
+    let cumulativeWinnings = 0;
+    let atLeastOneSelectionWins = false;
+
+    // Loop through each selection in the bet
+    for (const selection of bet.selections) {
+      // Calculate user winnings based on the selection odd and the provided odd
+      if (selection.odd < odd) {
+        selection.winnings = selection.stake * selection.odd;
+        cumulativeWinnings += selection.winnings;
+        atLeastOneSelectionWins = true;
+      } else {
+        selection.winnings = 0; // If the selection odd is not less than the provided odd, set winnings to 0
+      }
     }
 
-    if (cashierId) {
-      query.cashierId = cashierId;
-    }
+    // Update cumulative winnings and result for the bet
+    bet.winnings = cumulativeWinnings;
+    bet.result = atLeastOneSelectionWins ? 'win' : 'loss';
 
-    return Bets.find({
-      ...query,
-    });
+    // Save the updated bet object to the database
+    return bet.save();
   }
-  if (startDate && endDate) {
-    if (betType) {
-      query.betType = betType;
-    }
+}
 
-    if (cashierId) {
-      query.cashierId = cashierId;
-    }
-    if (!betType && !cashierId) {
-      const bets = await Bets.find({
-        createdAt: {
-          $gte: new Date(startDate),
-          $lte: new Date(endDate),
-        },
-      });
-      return bets;
-    }
-
-    return Bets.find({
-      ...query,
-      createdAt: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      },
-    });
-  }
+/**
+ * Get user by id
+ * @param {ObjectId} id
+ * @returns {Promise<Tickets>}
+ */
+const payoutTicket = async (id) => {
+  return Tickets.findByIdAndUpdate(id, { payout: true }, { new: true });
+};
+/**
+ * Get user by id
+ * @param {ObjectId} id
+ * @returns {Promise<Tickets>}
+ */
+const cancelTicket = async (id) => {
+  return Tickets.findByIdAndUpdate(id, { cancelled: true }, { new: true });
 };
 
 /**
  * Get user by id
  * @param {ObjectId} id
- * @returns {Promise<Bets>}
+ * @returns {Promise<Tickets>}
  */
 const getBetPlacedById = async (id) => {
-  return Bets.findById(id);
+  return Tickets.findById(id);
 };
 
 module.exports = {
@@ -134,5 +201,8 @@ module.exports = {
   fetchBetPlaced,
   getBetPlacedById,
   getBetHistory,
-  getAccountingReports,
+  cancelTicket,
+  payoutTicket,
+  getCancelledBetHistory,
+  updateBetsAndCalculateWinnings,
 };

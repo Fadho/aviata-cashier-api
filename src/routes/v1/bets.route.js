@@ -9,9 +9,12 @@ router
   .route('/')
   .post(validate(betsValidation.createBetPlaced), betsController.createBetPlaced)
   .get(validate(betsValidation.fetchBetPlaced), betsController.fetchBetPlaced);
-router.route('/id/:betPlacedId').get(validate(betsValidation.getBetPlacedById), betsController.getBetPlacedById);
+router.route('/fetch/:id').get(validate(betsValidation.getBetPlacedById), betsController.getBetPlacedById);
+router.route('/cancel/:id').get(validate(betsValidation.cancelTicket), betsController.cancelTicket);
 router.route('/history').get(validate(betsValidation.getBetHistory), betsController.getBetHistory);
 router.route('/ticket-reports').get(validate(betsValidation.getAccountingReports), betsController.getAccountingReports);
 router.route('/gaming-activity').get(validate(betsValidation.getBetHistory), betsController.getGamingActivity);
+router.route('/cashout').post(validate(betsValidation.cashoutTicket), betsController.cashoutTicket);
+router.route('/payout/:id').post(validate(betsValidation.getBetPlacedById), betsController.payoutTicket);
 
 module.exports = router;
