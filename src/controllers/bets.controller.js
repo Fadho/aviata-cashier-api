@@ -432,8 +432,18 @@ const cancelTicket = catchAsync(async (req, res) => {
 const cashoutTicket = catchAsync(async (req, res) => {
   try {
     const { cashierId, roundId, odd } = req.body;
+    await betsService.updateBetsAndCalculateWinnings(cashierId, roundId, odd);
+    res.status(httpStatus.CREATED).send({ message: 'Bets updated successfully' });
+  } catch (error) {
+    throw new ApiError(httpStatus.NOT_FOUND, error.message);
+  }
+});
+const payoutTicket = catchAsync(async (req, res) => {
+  try {
+    const { id } = req.params;
+    await betsService.payoutTicket(id);
 
-    res.status(httpStatus.CREATED).send({ cashierId, roundId, odd });
+    res.status(httpStatus.CREATED).send({ message: 'Payout Successful' });
   } catch (error) {
     throw new ApiError(httpStatus.NOT_FOUND, error.message);
   }
@@ -448,4 +458,5 @@ module.exports = {
   getGamingActivity,
   cancelTicket,
   cashoutTicket,
+  payoutTicket,
 };

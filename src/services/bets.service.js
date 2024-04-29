@@ -1,3 +1,5 @@
+/* eslint-disable no-restricted-syntax */
+
 const { Tickets } = require('../models');
 
 /**
@@ -131,7 +133,51 @@ const getBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
     });
   }
 };
+/**
+ * create a new shop account
+ * @param {String} cashierId
+ * @param {String} roundId
+ * @param {Number}  odd
+ * @returns {Promise<Tickets>}
+ */
+async function updateBetsAndCalculateWinnings(cashierId, roundId, odd) {
+  // Find all bets for the provided cashierId and roundId
+  // const bets = await Tickets.find({ cashierId, roundId });
+  const bets = await Tickets.find({ cashierId, roundId });
+  // Loop through each bet
+  for (const bet of bets) {
+    let cumulativeWinnings = 0;
+    let atLeastOneSelectionWins = false;
 
+    // Loop through each selection in the bet
+    for (const selection of bet.selections) {
+      // Calculate user winnings based on the selection odd and the provided odd
+      if (selection.odd < odd) {
+        selection.winnings = selection.stake * selection.odd;
+        cumulativeWinnings += selection.winnings;
+        atLeastOneSelectionWins = true;
+      } else {
+        selection.winnings = 0; // If the selection odd is not less than the provided odd, set winnings to 0
+      }
+    }
+
+    // Update cumulative winnings and result for the bet
+    bet.winnings = cumulativeWinnings;
+    bet.result = atLeastOneSelectionWins ? 'win' : 'loss';
+
+    // Save the updated bet object to the database
+    return bet.save();
+  }
+}
+
+/**
+ * Get user by id
+ * @param {ObjectId} id
+ * @returns {Promise<Tickets>}
+ */
+const payoutTicket = async (id) => {
+  return Tickets.findByIdAndUpdate(id, { payout: true }, { new: true });
+};
 /**
  * Get user by id
  * @param {ObjectId} id
@@ -156,5 +202,7 @@ module.exports = {
   getBetPlacedById,
   getBetHistory,
   cancelTicket,
+  payoutTicket,
   getCancelledBetHistory,
+  updateBetsAndCalculateWinnings,
 };
