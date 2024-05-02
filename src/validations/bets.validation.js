@@ -7,7 +7,7 @@ const createBetPlaced = {
     potentialWinnings: Joi.number().required(),
     stake: Joi.number().required(),
     cashierId: Joi.string().required().custom(objectId),
-    roundId: Joi.string().required().custom(objectId),
+    roundId: Joi.string().required(),
   }),
 };
 const fetchBetPlaced = {
