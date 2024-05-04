@@ -176,13 +176,19 @@ async function updateBetsAndCalculateWinnings(cashierId, roundId, odd) {
  * @returns {Promise<Tickets>}
  */
 const payoutTicket = async (id) => {
-  const ticket = Tickets.findById(id);
+  const ticket = await Tickets.findById(id);
 
-  if (ticket.payout) return { ticket, message: 'Payout as been paid' };
-  return {
-    ticket: await Tickets.findByIdAndUpdate(id, { payout: true }, { new: true }),
-    message: `payout ${ticket.winnings}`,
-  };
+  if (ticket) {
+    // eslint-disable-next-line no-extra-boolean-cast
+    if (ticket.winnings === Number) return { ticket, message: 'Round has not ended yet.' };
+    if (ticket.payout) return { ticket, message: `Payout as been collected` };
+    return {
+      ticket: await Tickets.findByIdAndUpdate(id, { payout: true }, { new: true }),
+      message: `Payout varified - proceed with payment`,
+    };
+  }
+
+  return { ticket: null, message: 'invalid ticket' };
 };
 /**
  * Get user by id
