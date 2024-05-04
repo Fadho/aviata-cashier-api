@@ -184,7 +184,7 @@ const payoutTicket = async (id) => {
     if (ticket.payout) return { ticket, message: `Payout as been collected` };
     return {
       ticket: await Tickets.findByIdAndUpdate(id, { payout: true }, { new: true }),
-      message: `Payout varified - proceed with payment`,
+      message: `Payout verified - proceed with payment`,
     };
   }
 
