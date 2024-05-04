@@ -441,9 +441,10 @@ const cashoutTicket = catchAsync(async (req, res) => {
 const payoutTicket = catchAsync(async (req, res) => {
   try {
     const { id } = req.params;
-    await betsService.payoutTicket(id);
+    const { ticket, message } = await betsService.payoutTicket(id);
 
-    res.status(httpStatus.CREATED).send({ message: 'Payout Successful' });
+    if (ticket) return res.status(httpStatus.CREATED).send({ message });
+    return res.status(httpStatus.NOT_FOUND).send({ message });
   } catch (error) {
     throw new ApiError(httpStatus.NOT_FOUND, error.message);
   }

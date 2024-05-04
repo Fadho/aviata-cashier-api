@@ -176,7 +176,13 @@ async function updateBetsAndCalculateWinnings(cashierId, roundId, odd) {
  * @returns {Promise<Tickets>}
  */
 const payoutTicket = async (id) => {
-  return Tickets.findByIdAndUpdate(id, { payout: true }, { new: true });
+  const ticket = Tickets.findById(id);
+
+  if (ticket.payout) return { ticket, message: 'Payout as been paid' };
+  return {
+    ticket: await Tickets.findByIdAndUpdate(id, { payout: true }, { new: true }),
+    message: `payout ${ticket.winnings}`,
+  };
 };
 /**
  * Get user by id
