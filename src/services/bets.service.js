@@ -179,7 +179,6 @@ const payoutTicket = async (id) => {
   const ticket = await Tickets.findById(id);
 
   if (ticket) {
-    // eslint-disable-next-line no-extra-boolean-cast
     if (ticket.winnings === Number) return { ticket, message: 'Round has not ended yet.' };
     if (ticket.payout) return { ticket, message: `Payout as been collected` };
     return {

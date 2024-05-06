@@ -51,7 +51,7 @@ const cashoutTicket = {
   body: Joi.object().keys({
     odd: Joi.number().required(),
     cashierId: Joi.string().required().custom(objectId),
-    roundId: Joi.string().required().custom(objectId),
+    roundId: Joi.string().required(),
   }),
 };
 
