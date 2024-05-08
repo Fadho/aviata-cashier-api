@@ -8,6 +8,14 @@ const { betsService, userService } = require('../services');
 
 const createBetPlaced = catchAsync(async (req, res) => {
   const { result, stake, selections, cashierId, potentialWinnings, roundId } = req.body;
+  const user = await userService.getUserById(cashierId);
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Cashier with provided ID not found');
+  }
+  if (user.wallet - stake < 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'bet cannot be placed, Insuffecient Funds');
+  }
+  await userService.updateUserById(cashierId, { wallet: user.wallet - stake });
   const betPlaced = await betsService.createBetPlaced(result, stake, selections, cashierId, potentialWinnings, roundId);
   res.status(httpStatus.CREATED).send(betPlaced);
 });
