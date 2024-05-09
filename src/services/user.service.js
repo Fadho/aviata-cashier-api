@@ -65,12 +65,11 @@ const getUserByRole = async (role) => {
  * Get last admin login
  * @returns {Promise<User>}
  */
-const getLastAdminLogin = async () => {
-  const today = Date.now();
-  today.setDate(today.getDate());
-  today.setHours(0, 0, 0, 0); // Set the time to midnight for today
+const getLastAdminLogin = async (userId) => {
+  const today = new Date(); // Create a Date object for the current date and time
+  today.setHours(0, 0, 0, 0); // Set the time to midnight
 
-  const user = await User.findOne().sort({ lastlogin: -1 });
+  const user = await User.findById(userId).sort({ lastlogin: -1 });
 
   if (user.lastlogin > today) {
     return user;

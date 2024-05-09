@@ -1,6 +1,25 @@
 const allRoles = {
   user: [],
-  admin: ['getUsers', 'manageUsers', 'updateCashier', 'addCashier', 'updateGame'],
+  super: [
+    'getUsers',
+    'manageUsers',
+    'updateCashier',
+    'addCashier',
+    'updateGame',
+    'createGameConfig',
+    'getGameConfig',
+    'manageGameConfig',
+  ],
+  admin: [
+    'getUsers',
+    'manageUsers',
+    'updateCashier',
+    'addCashier',
+    'updateGame',
+    'createGameConfig',
+    'getGameConfig',
+    'manageGameConfig',
+  ],
   cashier: ['placeBet', 'fetchBets'],
 };
 
