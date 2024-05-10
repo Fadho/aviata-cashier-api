@@ -35,7 +35,7 @@ const userSchema = mongoose.Schema(
     },
     mobile: {
       type: String,
-      required: true,
+      // required: true,
     },
     agentId: {
       type: mongoose.SchemaTypes.ObjectId,
