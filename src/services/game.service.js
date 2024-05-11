@@ -1,6 +1,6 @@
-const httpStatus = require('http-status');
+// const httpStatus = require('http-status');
 const userService = require('./user.service');
-const ApiError = require('../utils/ApiError');
+// const ApiError = require('../utils/ApiError');
 const { GameConfig, Game } = require('../models');
 
 /**
@@ -9,9 +9,7 @@ const { GameConfig, Game } = require('../models');
  */
 const authenticateGame = async (id) => {
   const user = await userService.getLastAdminLogin(id);
-  // if (user) {
-  //   throw new ApiError(httpStatus.UNAUTHORIZED, 'Unauthorized');
-  // }
+
   return user;
 };
 
@@ -61,8 +59,8 @@ const updateGameData = async (id, body) => {
   return { data: game, message: 'Game Data updated successfully.' };
 };
 
-const getGameData = async (id) => {
-  const game = await Game.find({ agentId: id });
+const getGameData = async () => {
+  const game = await Game.findOne();
   return game;
 };
 

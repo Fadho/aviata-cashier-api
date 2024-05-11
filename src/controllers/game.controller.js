@@ -1,11 +1,12 @@
 const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
-const { gameService } = require('../services');
+const { gameService, tokenService } = require('../services');
 
 const authenticateGame = catchAsync(async (req, res) => {
-  const result = await gameService.authenticateGame(req.params.id);
-  res.send(result);
+  const user = await gameService.authenticateGame(req.params.id);
+  const tokens = await tokenService.generateAuthTokens(user);
+  res.send({ user, tokens });
 });
 
 const createGameConfig = catchAsync(async (req, res) => {
@@ -20,8 +21,14 @@ const createGameData = catchAsync(async (req, res) => {
 
 const getGame = catchAsync(async (req, res) => {
   const data = await gameService.getGameConfig(req.params.agentId);
-  // data = data.data;
-  // console.log(req.params.agentId);
+  if (!data) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
+  }
+  res.send(data);
+});
+
+const getGameData = catchAsync(async (req, res) => {
+  const data = await gameService.getGameData();
   if (!data) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
   }
@@ -45,4 +52,5 @@ module.exports = {
   updateGameData,
   authenticateGame,
   createGameData,
+  getGameData,
 };

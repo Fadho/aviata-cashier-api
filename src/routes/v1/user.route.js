@@ -6,17 +6,16 @@ const userController = require('../../controllers/user.controller');
 
 const router = express.Router();
 
-router
-  .route('/')
-  .post(validate(userValidation.createUser), userController.createUser)
-  .get(auth('getUsers'), validate(userValidation.getUsers), userController.getUsers);
+router.route('/').get(auth('getUsers'), validate(userValidation.getUser), userController.getUser);
+// .post(validate(userValidation.createUser), userController.createUser)
+// .get(auth('getUsers'), validate(userValidation.getUsers), userController.getUsers);
 
-router.route('/client-type').get(auth('getUsers'), validate(userValidation.getUsersWhere), userController.getUsersWhere);
+// router.route('/client-type').get(auth('getUsers'), validate(userValidation.getUsersWhere), userController.getUsersWhere);
 
-router
-  .route('/:userId')
-  .get(auth('getUsers'), validate(userValidation.getUser), userController.getUser)
-  .patch(auth('manageUsers'), validate(userValidation.updateUser), userController.updateUser)
-  .delete(auth('manageUsers'), validate(userValidation.deleteUser), userController.deleteUser);
+// router
+//   .route('/:userId')
+//   .get(auth('getUsers'), validate(userValidation.getUser), userController.getUser)
+//   .patch(auth('manageUsers'), validate(userValidation.updateUser), userController.updateUser)
+//   .delete(auth('manageUsers'), validate(userValidation.deleteUser), userController.deleteUser);
 
 module.exports = router;

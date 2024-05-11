@@ -12,13 +12,14 @@ router
 
 router
   .route('/gameData')
+  .get(gameController.getGameData)
   .post(auth('createGameConfig'), validate(gameValidation.createGameData), gameController.createGameData);
 
 router
   .route('/gameData/:agentId')
   .patch(auth('manageGameConfig'), validate(gameValidation.updateGameData), gameController.updateGameData);
 
-router.route('/:agentId').get(gameController.authenticateGame);
+router.route('/authenticateGame/:id').get(gameController.authenticateGame);
 
 router
   .route('/gameConfig/:agentId')
