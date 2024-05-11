@@ -8,14 +8,11 @@ const ApiError = require('../utils/ApiError');
  * @returns {Promise<Currency>}
  */
 const createCurrency = async (currencyBody) => {
-  if (await Currency.isEmailTaken(currencyBody.email)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
-  }
   return Currency.create(currencyBody);
 };
 
 /**
- * Query for currencys
+ * Query for currencies
  * @param {Object} filter - Mongo filter
  * @param {Object} options - Query options
  * @param {string} [options.sortBy] - Sort option in the format: sortField:(desc|asc)
@@ -23,65 +20,13 @@ const createCurrency = async (currencyBody) => {
  * @param {number} [options.page] - Current page (default = 1)
  * @returns {Promise<QueryResult>}
  */
-const queryCurrencys = async (filter, options) => {
-  const currencys = await Currency.paginate(filter, options);
-  return currencys;
+const queryCurrencies = async (filter, options) => {
+  const currencies = await Currency.paginate(filter, options);
+  return currencies;
 };
 
-/**
- * Query for get currencys where
- * @param {string} role - Mongo filter
- * @returns {Promise<Currency>}
- */
-const getCurrencysWhereClientType = async (role) => {
-  const currencys = await Currency.find({ role });
-  return currencys;
-};
-/**
- * Get currency by id
- * @param {ObjectId} id
- * @returns {Promise<Currency>}
- */
 const getCurrencyById = async (id) => {
   return Currency.findById(id);
-};
-/**
- * Get currency by currencyname
- * @param {string} currencyname
- * @returns {Promise<Currency>}
- */
-const getCurrencyByCurrencyname = async (currencyname) => {
-  return Currency.findOne({ name: currencyname });
-};
-/**
- * Get currency by currencyname
- * @param {string} currencyname
- * @returns {Promise<Currency>}
- */
-const getCurrencyByRole = async (role) => {
-  return Currency.find({ role });
-};
-/**
- * Get last admin login
- * @returns {Promise<Currency>}
- */
-const getLastAdminLogin = async (currencyId) => {
-  const today = new Date(); // Create a Date object for the current date and time
-  today.setHours(0, 0, 0, 0); // Set the time to midnight
-
-  const currency = await Currency.findById(currencyId);
-  if (currency.lastlogin > today) {
-    return currency;
-  }
-};
-
-/**
- * Get currency by email
- * @param {string} email
- * @returns {Promise<Currency>}
- */
-const getCurrencyByEmail = async (email) => {
-  return Currency.findOne({ email });
 };
 
 /**
@@ -119,13 +64,8 @@ const deleteCurrencyById = async (currencyId) => {
 
 module.exports = {
   createCurrency,
-  queryCurrencys,
-  getCurrencyById,
-  getLastAdminLogin,
-  getCurrencyByEmail,
+  queryCurrencies,
   updateCurrencyById,
   deleteCurrencyById,
-  getCurrencysWhereClientType,
-  getCurrencyByCurrencyname,
-  getCurrencyByRole,
+  getCurrencyById,
 };

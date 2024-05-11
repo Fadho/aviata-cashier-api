@@ -9,6 +9,9 @@ const allRoles = {
     'createGameConfig',
     'getGameConfig',
     'manageGameConfig',
+    'createCurrency',
+    'manageCurrency',
+    'getCurrencies',
   ],
   admin: [
     'getUsers',
@@ -19,6 +22,7 @@ const allRoles = {
     'createGameConfig',
     'getGameConfig',
     'manageGameConfig',
+    'getCurrencies',
   ],
   cashier: ['placeBet', 'fetchBets'],
 };

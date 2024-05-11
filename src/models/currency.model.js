@@ -1,24 +1,21 @@
 const mongoose = require('mongoose');
-const { toJSON } = require('./plugins');
+const { toJSON, paginate } = require('./plugins');
 
 const currencySchema = mongoose.Schema({
   decimals: {
     type: mongoose.SchemaTypes.Number,
     required: true,
-    default: 10,
   },
   exchangeRate: {
     type: mongoose.SchemaTypes.Number,
     required: true,
-    default: 30,
   },
   updateType: {
-    type: mongoose.SchemaTypes.Number,
+    type: mongoose.SchemaTypes.String,
     required: true,
   },
   status: {
     type: mongoose.SchemaTypes.String,
-    ref: 'User',
     required: true,
   },
   countryId: {
@@ -44,6 +41,8 @@ const currencySchema = mongoose.Schema({
 
 // add plugin that converts mongoose to json
 currencySchema.plugin(toJSON);
+currencySchema.plugin(paginate);
+
 /**
  * @typedef Currency
  */

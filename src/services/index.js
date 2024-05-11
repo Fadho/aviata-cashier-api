@@ -7,3 +7,4 @@ module.exports.cashierService = require('./cashier.service');
 module.exports.selectionService = require('./selections.service');
 module.exports.betsService = require('./bets.service');
 module.exports.gameService = require('./game.service');
+module.exports.currencyService = require('./currency.service');
