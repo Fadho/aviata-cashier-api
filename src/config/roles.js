@@ -20,7 +20,7 @@ const allRoles = {
     'getGameConfig',
     'manageGameConfig',
   ],
-  cashier: ['placeBet', 'fetchBets', 'getUser'],
+  cashier: ['placeBet', 'fetchBets'],
 };
 
 const roles = Object.keys(allRoles);
