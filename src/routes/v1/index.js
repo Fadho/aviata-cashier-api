@@ -7,6 +7,7 @@ const cashierRoute = require('./cashier.route');
 const gameRoute = require('./game.route');
 const userRoute = require('./user.route');
 const currencyRoute = require('./currency.route');
+const walletRoute = require('./wallet.route');
 // const config = require('../../config/config');
 
 const router = express.Router();
@@ -43,6 +44,10 @@ const defaultRoutes = [
   {
     path: '/currency',
     route: currencyRoute,
+  },
+  {
+    path: '/wallet',
+    route: walletRoute,
   },
 ];
 

@@ -2,11 +2,17 @@ const httpStatus = require('http-status');
 const pick = require('../utils/pick');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
-const { userService } = require('../services');
+const { userService, walletService } = require('../services');
 
 const createUser = catchAsync(async (req, res) => {
-  const user = await userService.createUser(req.body);
-  res.status(httpStatus.CREATED).send(user);
+  try {
+    let user = await userService.createUser(req.body);
+    const wallet = await walletService.createWallet(user.currencyId, user.id, req.body.wallet, true);
+    user = await userService.getAndUpdateWallet(user.id, wallet.id);
+    res.status(httpStatus.CREATED).send(user);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
 });
 
 const getUsers = catchAsync(async (req, res) => {
