@@ -12,18 +12,22 @@ const { Tickets } = require('../models');
  * @returns {Promise<Tickets>}
  */
 const createBetPlaced = async (result, stake, selections, cashierId, potentialWinnings, roundId) => {
+  const timestamp = new Date().getTime(); // Get current timestamp
+  const ticketId = timestamp.toString();
+
   if (selections.length > 1) {
     return Tickets.create({
       result,
       stake,
       selections,
       cashierId,
+      ticketId,
       betType: 'multiple',
       potentialWinnings,
       roundId,
     });
   }
-  return Tickets.create({ result, stake, selections, cashierId, betType: 'single', potentialWinnings, roundId });
+  return Tickets.create({ result, stake, selections, cashierId, ticketId, betType: 'single', potentialWinnings, roundId });
 };
 
 /**
@@ -86,6 +90,7 @@ const getCancelledBetHistory = async ({ startDate, endDate, betType, cashierId }
     });
   }
 };
+
 /**
  * create a new shop account
  * @param {Object} filter
@@ -133,6 +138,7 @@ const getBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
     });
   }
 };
+
 /**
  * create a new shop account
  * @param {String} cashierId
@@ -164,6 +170,7 @@ async function updateBetsAndCalculateWinnings(cashierId, roundId, odd) {
     // Update cumulative winnings and result for the bet
     bet.winnings = cumulativeWinnings;
     bet.result = atLeastOneSelectionWins ? 'win' : 'loss';
+    bet.roundHasEnded = true;
 
     // Save the updated bet object to the database
     return bet.save();
@@ -176,13 +183,18 @@ async function updateBetsAndCalculateWinnings(cashierId, roundId, odd) {
  * @returns {Promise<Tickets>}
  */
 const payoutTicket = async (id) => {
-  const ticket = await Tickets.findById(id);
+  let ticket = await Tickets.find({ ticketId: id });
+  // eslint-disable-next-line prefer-destructuring
+  ticket = ticket[0];
 
   if (ticket) {
-    if (ticket.winnings === Number) return { ticket, message: 'Round has not ended yet.' };
+    if (!ticket.roundHasEnded) return { ticket, message: 'Round has not ended yet.' };
     if (ticket.payout) return { ticket, message: `Payout as been collected` };
+
+    ticket = await Tickets.updateOne({ ticketId: id }, { payout: true }, { new: true });
+
     return {
-      ticket: await Tickets.findByIdAndUpdate(id, { payout: true }, { new: true }),
+      ticket,
       message: `Payout verified - proceed with payment`,
     };
   }

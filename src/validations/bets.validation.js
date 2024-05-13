@@ -39,7 +39,7 @@ const getAccountingReports = {
 
 const getBetPlacedById = {
   params: Joi.object().keys({
-    id: Joi.string().custom(objectId),
+    id: Joi.string(),
   }),
 };
 const cancelTicket = {
