@@ -6,8 +6,10 @@ const userController = require('../../controllers/user.controller');
 
 const router = express.Router();
 
-router.route('/').get(auth(), validate(userValidation.getUser), userController.getUser);
-// .post(validate(userValidation.createUser), userController.createUser)
+router
+  .route('/')
+  .get(auth(), validate(userValidation.getUser), userController.getUser)
+  .post(validate(userValidation.createUser), userController.createUser);
 // .get(auth('getUsers'), validate(userValidation.getUsers), userController.getUsers);
 
 // router.route('/client-type').get(auth('getUsers'), validate(userValidation.getUsersWhere), userController.getUsersWhere);

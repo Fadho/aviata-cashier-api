@@ -12,6 +12,8 @@ const allRoles = {
     'createCurrency',
     'manageCurrency',
     'getCurrencies',
+    'fundWallet',
+    'convertWallet',
   ],
   admin: [
     'getUsers',
@@ -23,6 +25,8 @@ const allRoles = {
     'getGameConfig',
     'manageGameConfig',
     'getCurrencies',
+    'fundWallet',
+    'convertWallet',
   ],
   cashier: ['placeBet', 'fetchBets'],
 };

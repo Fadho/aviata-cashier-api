@@ -23,15 +23,16 @@ const userSchema = mongoose.Schema(
         }
       },
     },
-    wallet: {
-      type: String,
+    wallets: [
+      {
+        type: mongoose.SchemaTypes.ObjectId,
+        ref: 'Wallets',
+      },
+    ],
+    currencyId: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'Currency',
       required: true,
-      default: '10000',
-    },
-    currency: {
-      type: String,
-      required: true,
-      default: 'NGN',
     },
     mobile: {
       type: String,

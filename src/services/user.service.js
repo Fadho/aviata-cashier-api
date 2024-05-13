@@ -7,6 +7,21 @@ const ApiError = require('../utils/ApiError');
  * @param {Object} userBody
  * @returns {Promise<User>}
  */
+const getAndUpdateWallet = async (id, walletId) => {
+  const user = await User.findById(id);
+  return User.findByIdAndUpdate(
+    id,
+    {
+      wallets: [...user.wallets, walletId],
+    },
+    { new: true }
+  );
+};
+/**
+ * Create a user
+ * @param {Object} userBody
+ * @returns {Promise<User>}
+ */
 const createUser = async (userBody) => {
   if (await User.isEmailTaken(userBody.email)) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
@@ -128,4 +143,5 @@ module.exports = {
   getUsersWhereClientType,
   getUserByUsername,
   getUserByRole,
+  getAndUpdateWallet,
 };
