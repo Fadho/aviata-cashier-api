@@ -15,7 +15,7 @@ const getAndUpdateWallet = async (id, walletId) => {
       wallets: [...user.wallets, walletId],
     },
     { new: true }
-  );
+  ).populate('wallets');
 };
 /**
  * Create a user
@@ -58,7 +58,7 @@ const getUsersWhereClientType = async (role) => {
  * @returns {Promise<User>}
  */
 const getUserById = async (id) => {
-  return User.findById(id);
+  return User.findById(id).populate('wallets');
 };
 /**
  * Get user by username
@@ -66,7 +66,7 @@ const getUserById = async (id) => {
  * @returns {Promise<User>}
  */
 const getUserByUsername = async (username) => {
-  return User.findOne({ name: username });
+  return User.findOne({ name: username }).populate('wallets');
 };
 /**
  * Get user by username
@@ -96,7 +96,7 @@ const getLastAdminLogin = async (userId) => {
  * @returns {Promise<User>}
  */
 const getUserByEmail = async (email) => {
-  return User.findOne({ email });
+  return User.findOne({ email }).populate('wallets');
 };
 
 /**
@@ -106,7 +106,7 @@ const getUserByEmail = async (email) => {
  * @returns {Promise<User>}
  */
 const updateUserById = async (userId, updateBody) => {
-  const user = await getUserById(userId);
+  const user = await getUserById(userId).populate('wallets');
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
