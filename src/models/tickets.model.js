@@ -12,6 +12,10 @@ const ticketSchema = mongoose.Schema(
       ref: 'Cashier',
       required: true,
     },
+    ticketId: {
+      type: mongoose.SchemaTypes.String,
+      unique: true,
+    },
     betType: {
       type: String,
       lowercase: true,
@@ -37,6 +41,11 @@ const ticketSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
+    winnings: {
+      type: Number,
+      default: 0,
+      required: true,
+    },
     potentialWinnings: {
       type: Number,
       required: true,
@@ -44,6 +53,11 @@ const ticketSchema = mongoose.Schema(
     result: {
       type: String,
       enum: ['win', 'loss'],
+    },
+    roundHasEnded: {
+      type: Boolean,
+      default: false,
+      required: true,
     },
     payout: {
       type: Boolean,
