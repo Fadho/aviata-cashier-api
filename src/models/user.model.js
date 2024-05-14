@@ -32,7 +32,7 @@ const userSchema = mongoose.Schema(
     currencyId: {
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'Currency',
-      required: true,
+      // required: true,
     },
     mobile: {
       type: String,
