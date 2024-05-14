@@ -7,7 +7,7 @@ const { userService, walletService } = require('../services');
 const createUser = catchAsync(async (req, res) => {
   try {
     let user = await userService.createUser(req.body);
-    const wallet = await walletService.createWallet(user.currencyId, user.id, req.body.wallet, true);
+    const wallet = await walletService.createWallet(req.body.currencyId, user.id, req.body.wallet, true);
     user = await userService.getAndUpdateWallet(user.id, wallet.id);
     res.status(httpStatus.CREATED).send(user);
   } catch (error) {

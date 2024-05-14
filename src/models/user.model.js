@@ -29,11 +29,6 @@ const userSchema = mongoose.Schema(
         ref: 'Wallets',
       },
     ],
-    currencyId: {
-      type: mongoose.SchemaTypes.ObjectId,
-      ref: 'Currency',
-      // required: true,
-    },
     mobile: {
       type: String,
       // required: true,
