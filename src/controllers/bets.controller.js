@@ -4,7 +4,7 @@
 const httpStatus = require('http-status');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
-const { betsService, userService, walletService } = require('../services');
+const { betsService, userService } = require('../services');
 
 const createBetPlaced = catchAsync(async (req, res) => {
   const { result, stake, selections, cashierId, potentialWinnings, roundId } = req.body;
@@ -12,14 +12,10 @@ const createBetPlaced = catchAsync(async (req, res) => {
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Cashier with provided ID not found');
   }
-  const userWallet = await walletService.findWallet('-', user.id, true);
-
-  if (userWallet[0].balance - stake < 0) {
+  if (user.wallet - stake < 0) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'bet cannot be placed, Insuffecient Funds');
   }
-
-  await walletService.updateWallet(userWallet[0].id, userWallet[0].balance - stake);
-  // await userService.updateUserById(cashierId, { wallet: user.wallet - stake });
+  await userService.updateUserById(cashierId, { wallet: user.wallet - stake });
   const betPlaced = await betsService.createBetPlaced(result, stake, selections, cashierId, potentialWinnings, roundId);
   res.status(httpStatus.CREATED).send(betPlaced);
 });

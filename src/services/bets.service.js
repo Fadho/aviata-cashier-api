@@ -1,5 +1,7 @@
+/* eslint-disable no-plusplus */
+/* eslint-disable no-await-in-loop */
 /* eslint-disable no-restricted-syntax */
-
+const mongoose = require('mongoose');
 const { Tickets } = require('../models');
 
 /**
@@ -146,35 +148,47 @@ const getBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
  * @param {Number}  odd
  * @returns {Promise<Tickets>}
  */
+
 async function updateBetsAndCalculateWinnings(cashierId, roundId, odd) {
-  // Find all bets for the provided cashierId and roundId
-  // const bets = await Tickets.find({ cashierId, roundId });
-  const bets = await Tickets.find({ cashierId, roundId });
-  // Loop through each bet
-  for (const bet of bets) {
-    let cumulativeWinnings = 0;
-    let atLeastOneSelectionWins = false;
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  const maxRetries = 3; // Maximum number of retries
+  let currentAttempt = 0;
 
-    // Loop through each selection in the bet
-    for (const selection of bet.selections) {
-      // Calculate user winnings based on the selection odd and the provided odd
-      if (selection.odd < odd) {
-        selection.winnings = selection.stake * selection.odd;
-        cumulativeWinnings += selection.winnings;
-        atLeastOneSelectionWins = true;
-      } else {
-        selection.winnings = 0; // If the selection odd is not less than the provided odd, set winnings to 0
+  while (currentAttempt < maxRetries) {
+    try {
+      const bets = await Tickets.find({ cashierId, roundId }).session(session);
+      for (const bet of bets) {
+        let cumulativeWinnings = 0;
+        let atLeastOneSelectionWins = false;
+
+        for (const selection of bet.selections) {
+          if (selection.odd < odd) {
+            selection.winnings = selection.stake * selection.odd;
+            cumulativeWinnings += selection.winnings;
+            atLeastOneSelectionWins = true;
+          } else {
+            selection.winnings = 0;
+          }
+        }
+
+        bet.winnings = cumulativeWinnings;
+        bet.result = atLeastOneSelectionWins ? 'win' : 'loss';
+        bet.roundHasEnded = true;
+
+        // eslint-disable-next-line no-await-in-loop
+        await bet.save({ session });
       }
+      await session.commitTransaction();
+      break; // Break the loop on successful transaction
+    } catch (error) {
+      await session.abortTransaction();
+      if (currentAttempt === maxRetries - 1) throw error; // Throw error on last attempt
+    } finally {
+      currentAttempt++;
     }
-
-    // Update cumulative winnings and result for the bet
-    bet.winnings = cumulativeWinnings;
-    bet.result = atLeastOneSelectionWins ? 'win' : 'loss';
-    bet.roundHasEnded = true;
-
-    // Save the updated bet object to the database
-    return bet.save();
   }
+  session.endSession();
 }
 
 /**

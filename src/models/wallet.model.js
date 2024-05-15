@@ -11,7 +11,7 @@ const walletSchema = mongoose.Schema(
     currencyId: {
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'Currency',
-      required: true,
+      // required: true,
     },
     balance: {
       type: Number,

@@ -1,7 +1,7 @@
 const Joi = require('joi');
 const { objectId } = require('./custom.validation');
 
-const createWallet = {
+const convertWallet = {
   body: Joi.object().keys({
     fromCurrencyId: Joi.string().required().custom(objectId),
     toCurrencyId: Joi.string().required().custom(objectId),
@@ -9,6 +9,16 @@ const createWallet = {
     amount: Joi.number(),
   }),
 };
+
+const createWallet = {
+  body: Joi.object().keys({
+    currencyId: Joi.string().custom(objectId),
+    userId: Joi.string().custom(objectId),
+    amount: Joi.number(),
+    primaryWallet: Joi.boolean(),
+  }),
+};
+
 const fundWallet = {
   body: Joi.object().keys({
     currencyId: Joi.string().custom(objectId),
@@ -20,4 +30,5 @@ const fundWallet = {
 module.exports = {
   createWallet,
   fundWallet,
+  convertWallet,
 };

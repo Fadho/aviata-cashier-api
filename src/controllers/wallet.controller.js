@@ -40,6 +40,7 @@ const fundWallet = catchAsync(async (req, res) => {
 
   return res.status(httpStatus.CREATED).send(wallet);
 });
+
 const convertWallet = catchAsync(async (req, res) => {
   const { fromCurrencyId, toCurrencyId, amount, userId } = req.body;
 
@@ -64,4 +65,9 @@ const convertWallet = catchAsync(async (req, res) => {
   return res.status(httpStatus.CREATED).send(fundUserWallet);
 });
 
-module.exports = { convertWallet, fundWallet };
+const createWallet = catchAsync(async (req, res) => {
+  const wallet = walletService.createWallet(req.body.currencyId, req.body.userId, req.body.balance);
+  return res.status(httpStatus.CREATED).send(wallet);
+});
+
+module.exports = { convertWallet, fundWallet, createWallet };
