@@ -445,15 +445,17 @@ const cancelTicket = catchAsync(async (req, res) => {
     throw new ApiError(httpStatus.NOT_FOUND, error.message);
   }
 });
+
 const cashoutTicket = catchAsync(async (req, res) => {
   try {
-    const { cashierId, roundId, odd } = req.body;
-    await betsService.updateBetsAndCalculateWinnings(cashierId, roundId, odd);
+    const { roundId, odd } = req.body;
+    await betsService.updateBetsAndCalculateWinnings(roundId, odd);
     res.status(httpStatus.CREATED).send({ message: 'Bets updated successfully' });
   } catch (error) {
     throw new ApiError(httpStatus.NOT_FOUND, error.message);
   }
 });
+
 const payoutTicket = catchAsync(async (req, res) => {
   try {
     const { ticket, message } = await betsService.payoutTicket(req.params.id);

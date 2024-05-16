@@ -135,7 +135,7 @@ const getBetHistory = async (filter, options, startDate, endDate) => {
  * @returns {Promise<Tickets>}
  */
 
-async function updateBetsAndCalculateWinnings(cashierId, roundId, odd) {
+async function updateBetsAndCalculateWinnings(roundId, odd) {
   const session = await mongoose.startSession();
   session.startTransaction();
   const maxRetries = 3; // Maximum number of retries
@@ -143,10 +143,13 @@ async function updateBetsAndCalculateWinnings(cashierId, roundId, odd) {
 
   while (currentAttempt < maxRetries) {
     try {
-      const bets = await Tickets.find({ cashierId, roundId }).session(session);
+      const bets = await Tickets.find({ roundId }).session(session);
+      console.log(bets);
       for (const bet of bets) {
         let cumulativeWinnings = 0;
         let atLeastOneSelectionWins = false;
+
+        if (bet.roundHasEnded) break;
 
         for (const selection of bet.selections) {
           if (selection.odd < odd) {

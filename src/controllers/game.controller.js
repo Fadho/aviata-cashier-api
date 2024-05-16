@@ -24,7 +24,7 @@ const getGame = catchAsync(async (req, res) => {
   if (!data) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
   }
-  res.status(httpStatus.FOUND).send(data);
+  res.status(httpStatus.OK).send(data);
 });
 
 const getGameData = catchAsync(async (req, res) => {
@@ -32,7 +32,7 @@ const getGameData = catchAsync(async (req, res) => {
   if (!data) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
   }
-  res.status(httpStatus.FOUND).send(data);
+  res.status(httpStatus.OK).send(data);
 });
 
 const getGameSettings = catchAsync(async (req, res) => {
@@ -42,7 +42,7 @@ const getGameSettings = catchAsync(async (req, res) => {
   if (!data) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
   }
-  res.status(httpStatus.FOUND).send(data);
+  res.status(httpStatus.OK).send(data);
 });
 
 const updateGameConfig = catchAsync(async (req, res) => {

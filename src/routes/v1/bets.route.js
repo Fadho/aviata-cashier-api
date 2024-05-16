@@ -9,6 +9,7 @@ router
   .route('/')
   .post(validate(betsValidation.createBetPlaced), betsController.createBetPlaced)
   .get(validate(betsValidation.fetchBetPlaced), betsController.fetchBetPlaced);
+
 router.route('/fetch/:id').get(validate(betsValidation.getBetPlacedById), betsController.getBetPlacedById);
 router.route('/cancel/:id').get(validate(betsValidation.cancelTicket), betsController.cancelTicket);
 router.route('/history').get(validate(betsValidation.getBetHistory), betsController.getBetHistory);

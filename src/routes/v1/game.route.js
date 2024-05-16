@@ -6,6 +6,8 @@ const gameController = require('../../controllers/game.controller');
 
 const router = express.Router();
 
+router.get('/gameSettings', gameController.getGameSettings);
+
 router
   .route('/gameConfig')
   .post(auth('createGameConfig'), validate(gameValidation.createGameConfig), gameController.createGameConfig);
