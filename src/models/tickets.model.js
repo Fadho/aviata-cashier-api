@@ -64,6 +64,9 @@ const ticketSchema = mongoose.Schema(
       default: false,
       required: true,
     },
+    payoutDate: {
+      type: Date,
+    },
     cancelled: {
       type: Boolean,
       default: false,
@@ -80,7 +83,7 @@ ticketSchema.plugin(toJSON);
 ticketSchema.plugin(paginate);
 
 /**
- * @typedef BetPlaced
+ * @typedef Tickets
  */
 const Tickets = mongoose.model('Tickets', ticketSchema);
 

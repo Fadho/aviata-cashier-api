@@ -4,6 +4,7 @@
 const httpStatus = require('http-status');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
+const pick = require('../utils/pick');
 const { betsService, userService } = require('../services');
 
 const createBetPlaced = catchAsync(async (req, res) => {
@@ -29,142 +30,150 @@ const fetchBetPlaced = catchAsync(async (req, res) => {
   }
 });
 
+// const getBetHistory = catchAsync(async (req, res) => {
+//   try {
+//     const { startDate, endDate, username, betType, clientType } = req.query;
+//     let betHistory = [];
+//     if ((!startDate || !endDate) && !username && !betType && !clientType) {
+//       betHistory = await betsService.getBetHistory({});
+//     }
+//     if (startDate && endDate) {
+//       if (username) {
+//         const user = await userService.getUserByUsername(username);
+//         if (!user) {
+//           throw new ApiError(httpStatus.NOT_FOUND, 'Bet Placed Record not found');
+//         }
+//         betHistory = await betsService.getBetHistory({ cashierId: user.id, startDate, endDate });
+//       }
+//       if (clientType) {
+//         const user = await userService.getUserByRole(clientType);
+//         if (!user.length) {
+//           throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record by ClientType not found');
+//         }
+//         const bets = await Promise.all(
+//           user.map(async (userItem) => {
+//             betHistory = await betsService.getBetHistory({ cashierId: userItem.id, startDate, endDate });
+//             const mappedBetHistory = await Promise.all(
+//               betHistory.map(async (bet) => {
+//                 if (bet.result === 'loss')
+//                   return {
+//                     ticketId: bet.ticketId,
+//                     stake: bet.stake,
+//                     result: bet.result,
+//                     date: bet.createdAt,
+//                     winnings: 0,
+//                     cashier: bet.cashierId,
+//                     selections: bet.selections,
+//                   };
+//                 return {
+//                   ticketId: bet.ticketId,
+//                   stake: bet.stake,
+//                   result: bet.result,
+//                   date: bet.createdAt,
+//                   winnings: bet.winnings,
+//                   cashier: bet.cashierId,
+//                   selections: bet.selections,
+//                 };
+//               })
+//             );
+//             return mappedBetHistory;
+//           })
+//         );
+//         const flattenedArray = [].concat(...bets);
+
+//         return res.status(httpStatus.CREATED).send(flattenedArray);
+//       }
+//       if (betType) {
+//         betHistory = await betsService.getBetHistory({ startDate, endDate, betType });
+//       }
+//       betHistory = await betsService.getBetHistory({ startDate, endDate });
+//     }
+//     if (username) {
+//       const user = await userService.getUserByUsername(username);
+//       if (!user) {
+//         throw new ApiError(httpStatus.NOT_FOUND, 'Bet Placed Record not found');
+//       }
+//       betHistory = await betsService.getBetHistory({ cashierId: user.id });
+//     }
+//     if (clientType) {
+//       const user = await userService.getUserByRole(clientType);
+//       if (!user.length) {
+//         throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record by ClientType not found');
+//       }
+//       const bets = await Promise.all(
+//         user.map(async (userItem) => {
+//           betHistory = await betsService.getBetHistory({ cashierId: userItem.id });
+//           const mappedBetHistory = await Promise.all(
+//             betHistory.map(async (bet) => {
+//               if (bet.result === 'loss')
+//                 return {
+//                   ticketId: bet.id,
+//                   stake: bet.stake,
+//                   result: bet.result,
+//                   date: bet.createdAt,
+//                   winnings: 0,
+//                   cashier: bet.cashierId,
+//                   selections: bet.selections,
+//                 };
+//               return {
+//                 ticketId: bet.id,
+//                 stake: bet.stake,
+//                 result: bet.result,
+//                 date: bet.createdAt,
+//                 winnings: bet.winnings,
+//                 cashier: bet.cashierId,
+//                 selections: bet.selections,
+//               };
+//             })
+//           );
+//           return mappedBetHistory;
+//         })
+//       );
+//       const flattenedArray = [].concat(...bets);
+
+//       return res.status(httpStatus.CREATED).send(flattenedArray);
+//     }
+//     if (betType) {
+//       betHistory = await betsService.getBetHistory({ betType });
+//     }
+//     const mappedBetHistory = await Promise.all(
+//       betHistory.map(async (bet) => {
+//         if (bet.result === 'loss')
+//           return {
+//             ticketId: bet.id,
+//             stake: bet.stake,
+//             result: bet.result,
+//             date: bet.createdAt,
+//             winnings: 0,
+//             potentialWinnings: bet.potentialWinnings,
+//             cashier: bet.cashierId,
+//             selections: bet.selections,
+//           };
+//         return {
+//           ticketId: bet.id,
+//           stake: bet.stake,
+//           result: bet.result,
+//           date: bet.createdAt,
+//           potentialWinnings: bet.potentialWinnings,
+//           winnings: bet.potentialWinnings,
+//           cashier: bet.cashierId,
+//           selections: bet.selections,
+//         };
+//       })
+//     );
+
+//     return res.status(httpStatus.CREATED).send(mappedBetHistory);
+//   } catch (error) {
+//     throw new ApiError(httpStatus.NOT_FOUND, error.message);
+//   }
+// });
+
 const getBetHistory = catchAsync(async (req, res) => {
-  try {
-    const { startDate, endDate, username, betType, clientType } = req.query;
-    let betHistory = [];
-    if ((!startDate || !endDate) && !username && !betType && !clientType) {
-      betHistory = await betsService.getBetHistory({});
-    }
-    if (startDate && endDate) {
-      if (username) {
-        const user = await userService.getUserByUsername(username);
-        if (!user) {
-          throw new ApiError(httpStatus.NOT_FOUND, 'Bet Placed Record not found');
-        }
-        betHistory = await betsService.getBetHistory({ cashierId: user.id, startDate, endDate });
-      }
-      if (clientType) {
-        const user = await userService.getUserByRole(clientType);
-        if (!user.length) {
-          throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record by ClientType not found');
-        }
-        const bets = await Promise.all(
-          user.map(async (userItem) => {
-            betHistory = await betsService.getBetHistory({ cashierId: userItem.id, startDate, endDate });
-            const mappedBetHistory = await Promise.all(
-              betHistory.map(async (bet) => {
-                if (bet.result === 'loss')
-                  return {
-                    ticketId: bet.id,
-                    stake: bet.stake,
-                    result: bet.result,
-                    date: bet.createdAt,
-                    winnings: 0,
-                    cashier: bet.cashierId,
-                    selections: bet.selections,
-                  };
-                return {
-                  ticketId: bet.id,
-                  stake: bet.stake,
-                  result: bet.result,
-                  date: bet.createdAt,
-                  winnings: bet.winnings,
-                  cashier: bet.cashierId,
-                  selections: bet.selections,
-                };
-              })
-            );
-            return mappedBetHistory;
-          })
-        );
-        const flattenedArray = [].concat(...bets);
-
-        return res.status(httpStatus.CREATED).send(flattenedArray);
-      }
-      if (betType) {
-        betHistory = await betsService.getBetHistory({ startDate, endDate, betType });
-      }
-      betHistory = await betsService.getBetHistory({ startDate, endDate });
-    }
-    if (username) {
-      const user = await userService.getUserByUsername(username);
-      if (!user) {
-        throw new ApiError(httpStatus.NOT_FOUND, 'Bet Placed Record not found');
-      }
-      betHistory = await betsService.getBetHistory({ cashierId: user.id });
-    }
-    if (clientType) {
-      const user = await userService.getUserByRole(clientType);
-      if (!user.length) {
-        throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record by ClientType not found');
-      }
-      const bets = await Promise.all(
-        user.map(async (userItem) => {
-          betHistory = await betsService.getBetHistory({ cashierId: userItem.id });
-          const mappedBetHistory = await Promise.all(
-            betHistory.map(async (bet) => {
-              if (bet.result === 'loss')
-                return {
-                  ticketId: bet.id,
-                  stake: bet.stake,
-                  result: bet.result,
-                  date: bet.createdAt,
-                  winnings: 0,
-                  cashier: bet.cashierId,
-                  selections: bet.selections,
-                };
-              return {
-                ticketId: bet.id,
-                stake: bet.stake,
-                result: bet.result,
-                date: bet.createdAt,
-                winnings: bet.winnings,
-                cashier: bet.cashierId,
-                selections: bet.selections,
-              };
-            })
-          );
-          return mappedBetHistory;
-        })
-      );
-      const flattenedArray = [].concat(...bets);
-
-      return res.status(httpStatus.CREATED).send(flattenedArray);
-    }
-    if (betType) {
-      betHistory = await betsService.getBetHistory({ betType });
-    }
-    const mappedBetHistory = await Promise.all(
-      betHistory.map(async (bet) => {
-        if (bet.result === 'loss')
-          return {
-            ticketId: bet.id,
-            stake: bet.stake,
-            result: bet.result,
-            date: bet.createdAt,
-            winnings: 0,
-            potentialWinnings: bet.potentialWinnings,
-            cashier: bet.cashierId,
-            selections: bet.selections,
-          };
-        return {
-          ticketId: bet.id,
-          stake: bet.stake,
-          result: bet.result,
-          date: bet.createdAt,
-          potentialWinnings: bet.potentialWinnings,
-          winnings: bet.potentialWinnings,
-          cashier: bet.cashierId,
-          selections: bet.selections,
-        };
-      })
-    );
-
-    return res.status(httpStatus.CREATED).send(mappedBetHistory);
-  } catch (error) {
-    throw new ApiError(httpStatus.NOT_FOUND, error.message);
-  }
+  const filter = pick(req.query, ['betType', 'cashierId', 'stake', 'payout']);
+  const { startDate, endDate } = req.query;
+  const options = pick(req.query, ['sortBy', 'limit', 'page', 'populate']);
+  const result = await betsService.getBetHistory(filter, options, startDate, endDate);
+  res.send(result);
 });
 
 const getGamingActivity = catchAsync(async (req, res) => {
@@ -412,8 +421,7 @@ const getAccountingReports = catchAsync(async (req, res) => {
 
 const getBetPlacedById = catchAsync(async (req, res) => {
   try {
-    const { id } = req.params;
-    const betPlaced = await betsService.getBetPlacedById(id);
+    const betPlaced = await betsService.getBetPlacedById(req.params.id);
     if (!betPlaced) {
       throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record not found');
     }

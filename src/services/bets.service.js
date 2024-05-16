@@ -94,51 +94,37 @@ const getCancelledBetHistory = async ({ startDate, endDate, betType, cashierId }
 };
 
 /**
- * create a new shop account
+ * Get Bets History
  * @param {Object} filter
+ * @param {Object} options
+ * @param {String} startDate
+ * @param {String} endDate
  * @returns {Promise<Tickets>}
  */
-const getBetHistory = async ({ startDate, endDate, betType, cashierId }) => {
-  const query = {};
-  if (!startDate || !endDate) {
-    if (betType) {
-      query.betType = betType;
-    }
+const getBetHistory = async (filter, options, startDate, endDate) => {
+  const startDateWithoutTime = new Date(startDate);
+  startDateWithoutTime.setHours(0, 0, 0, 0);
+  const endDateWithoutTime = new Date(endDate);
+  endDateWithoutTime.setHours(0, 0, 0, 0);
+  endDateWithoutTime.setDate(endDateWithoutTime.getDate() + 1);
 
-    if (cashierId) {
-      query.cashierId = cashierId;
-    }
-
-    return Tickets.find({
-      ...query,
-    });
-  }
+  let dateFilter = {};
   if (startDate && endDate) {
-    if (betType) {
-      query.betType = betType;
-    }
-
-    if (cashierId) {
-      query.cashierId = cashierId;
-    }
-    if (!betType && !cashierId) {
-      const bets = await Tickets.find({
-        createdAt: {
-          $gte: new Date(startDate),
-          $lte: new Date(endDate),
-        },
-      });
-      return bets;
-    }
-
-    return Tickets.find({
-      ...query,
-      createdAt: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      },
-    });
+    dateFilter = {
+      ...(startDate &&
+        endDate && {
+          createdAt: {
+            $gte: startDateWithoutTime,
+            $lte: endDateWithoutTime,
+          },
+        }),
+      ...filter,
+    };
+    // eslint-disable-next-line no-param-reassign
+    filter = dateFilter;
   }
+  const tickets = await Tickets.paginate(filter, options);
+  return tickets;
 };
 
 /**
@@ -205,7 +191,7 @@ const payoutTicket = async (id) => {
     if (!ticket.roundHasEnded) return { ticket, message: 'Round has not ended yet.' };
     if (ticket.payout) return { ticket, message: `Payout as been collected` };
 
-    ticket = await Tickets.updateOne({ ticketId: id }, { payout: true }, { new: true });
+    ticket = await Tickets.updateOne({ ticketId: id }, { payout: true, payoutDate: Date.now() }, { new: true });
 
     return {
       ticket,
@@ -230,7 +216,7 @@ const cancelTicket = async (id) => {
  * @returns {Promise<Tickets>}
  */
 const getBetPlacedById = async (id) => {
-  return Tickets.findById(id);
+  return Tickets.findOne({ ticketId: id });
 };
 
 module.exports = {

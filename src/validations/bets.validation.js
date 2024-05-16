@@ -21,11 +21,17 @@ const fetchBetPlaced = {
 };
 const getBetHistory = {
   query: Joi.object().keys({
-    username: Joi.string(),
+    stake: Joi.number(),
+    payout: Joi.boolean(),
     clientType: Joi.string(),
+    cashierId: Joi.string().custom(objectId),
     betType: Joi.string(),
     startDate: Joi.string(),
     endDate: Joi.string(),
+    sortBy: Joi.string(),
+    populate: Joi.string(),
+    limit: Joi.number().integer(),
+    page: Joi.number().integer(),
   }),
 };
 const getAccountingReports = {
