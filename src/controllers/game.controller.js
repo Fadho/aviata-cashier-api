@@ -24,7 +24,7 @@ const getGame = catchAsync(async (req, res) => {
   if (!data) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
   }
-  res.send(data);
+  res.status(httpStatus.FOUND).send(data);
 });
 
 const getGameData = catchAsync(async (req, res) => {
@@ -32,7 +32,17 @@ const getGameData = catchAsync(async (req, res) => {
   if (!data) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
   }
-  res.send(data);
+  res.status(httpStatus.FOUND).send(data);
+});
+
+const getGameSettings = catchAsync(async (req, res) => {
+  console.log('gameSettings');
+  const data = await gameService.getGameSettings();
+  console.log(data);
+  if (!data) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
+  }
+  res.status(httpStatus.FOUND).send(data);
 });
 
 const updateGameConfig = catchAsync(async (req, res) => {
@@ -53,4 +63,5 @@ module.exports = {
   authenticateGame,
   createGameData,
   getGameData,
+  getGameSettings,
 };

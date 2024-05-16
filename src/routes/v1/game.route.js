@@ -15,6 +15,8 @@ router
   .get(gameController.getGameData)
   .post(auth('createGameConfig'), validate(gameValidation.createGameData), gameController.createGameData);
 
+router.get('/getGameSettings', gameController.getGameSettings);
+
 router
   .route('/gameData/:agentId')
   .patch(auth('manageGameConfig'), validate(gameValidation.updateGameData), gameController.updateGameData);

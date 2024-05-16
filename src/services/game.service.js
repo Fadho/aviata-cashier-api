@@ -64,6 +64,12 @@ const getGameData = async () => {
   return game;
 };
 
+const getGameSettings = async () => {
+  const game = await GameConfig.find();
+  // console.log('game: ', game)
+  return game;
+};
+
 module.exports = {
   authenticateGame,
   getGameConfig,
@@ -72,4 +78,5 @@ module.exports = {
   getGameData,
   updateGameData,
   createGameData,
+  getGameSettings,
 };
