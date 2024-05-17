@@ -323,15 +323,59 @@ const getGamingActivity = catchAsync(async (req, res) => {
   }
 });
 
+const cashierReport = catchAsync(async (req, res) => {
+  try {
+    const { startDate, endDate, betType } = req.query;
+    const cashierId = req.user.id;
+    let betHistory = [];
+    const user = await userService.getUserById(cashierId);
+
+    if (!user) {
+      throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record by ClientType not found');
+    }
+    betHistory = await betsService.getBetHistory({ cashierId, ...(betType && { betType }) }, startDate, endDate);
+
+    const totalStake = betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
+    const totalWinnings = betHistory.reduce((count, bet) => count + bet.winnings, 0);
+    const totalClosedPayout = betHistory.reduce((count, bet) => {
+      return bet.payout ? count + bet.winnings : count + 0;
+    }, 0);
+    const totalOpenPayout = betHistory.reduce((count, bet) => {
+      return !bet.payout ? count + bet.winnings : count + 0;
+    }, 0);
+
+    console.log(betHistory);
+
+    const data = {
+      totalWinnings,
+      totalStake,
+      numberOfBets: betHistory.length,
+      name: user.name,
+      profit: Number(totalStake) - Number(totalWinnings),
+      totalClosedPayout,
+      totalOpenPayout,
+      availableBalance: user.wallets[0].balance,
+    };
+    return res.status(httpStatus.OK).send(data);
+  } catch (error) {
+    throw new ApiError(httpStatus.NOT_FOUND, error.message);
+  }
+});
+
 const getAccountingReports = catchAsync(async (req, res) => {
   try {
     const { startDate, endDate, betType, clientType, cashierId } = req.query;
+    const options = pick(req.query, ['sortBy', 'limit', 'page']);
     let betHistory = [];
     // if (clientType) {
-    const user = await userService.getUsers({
-      ...(clientType && { role: clientType }),
-      ...(cashierId && { _id: cashierId }),
-    });
+    const users = await userService.queryUsers(
+      {
+        ...(clientType && { role: clientType }),
+        ...(cashierId && { _id: cashierId }),
+      },
+      options
+    );
+    const user = users.results;
     if (!user.length) {
       throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record by ClientType not found');
     }
@@ -459,4 +503,5 @@ module.exports = {
   cancelTicket,
   cashoutTicket,
   payoutTicket,
+  cashierReport,
 };

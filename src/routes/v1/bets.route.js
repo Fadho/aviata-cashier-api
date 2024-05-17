@@ -1,5 +1,6 @@
 const express = require('express');
 const validate = require('../../middlewares/validate');
+const auth = require('../../middlewares/auth');
 const { betsValidation } = require('../../validations');
 const { betsController } = require('../../controllers');
 
@@ -14,7 +15,9 @@ router.route('/fetch/:id').get(validate(betsValidation.getBetPlacedById), betsCo
 router.route('/cancel/:id').get(validate(betsValidation.cancelTicket), betsController.cancelTicket);
 router.route('/history').get(validate(betsValidation.getBetHistory), betsController.getBetHistory);
 router.route('/ticket-reports').get(validate(betsValidation.getAccountingReports), betsController.getAccountingReports);
+router.route('/cashier-reports').get(auth(), validate(betsValidation.getAccountingReports), betsController.cashierReport);
 router.route('/gaming-activity').get(validate(betsValidation.getBetHistory), betsController.getGamingActivity);
+
 router.route('/cashout').post(validate(betsValidation.cashoutTicket), betsController.cashoutTicket);
 router.route('/payout/:id').post(validate(betsValidation.getBetPlacedById), betsController.payoutTicket);
 

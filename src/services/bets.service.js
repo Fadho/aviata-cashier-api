@@ -148,6 +148,7 @@ const getBetHistory = async (filter, startDate, endDate) => {
     };
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
+    console.log(dateFilter)
   }
   const tickets = await Tickets.find(filter);
   return tickets;

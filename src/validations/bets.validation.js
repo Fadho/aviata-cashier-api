@@ -41,6 +41,9 @@ const getAccountingReports = {
     betType: Joi.string(),
     startDate: Joi.string(),
     endDate: Joi.string(),
+    sortBy: Joi.string(),
+    limit: Joi.number().integer(),
+    page: Joi.number().integer(),
   }),
 };
 
