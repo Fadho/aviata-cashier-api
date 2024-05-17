@@ -346,8 +346,11 @@ const getAccountingReports = catchAsync(async (req, res) => {
 
         const totalStake = betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
         const totalWinnings = betHistory.reduce((count, bet) => count + bet.winnings, 0);
-        const totalPayout = betHistory.reduce((count, bet) => {
+        const totalClosedPayout = betHistory.reduce((count, bet) => {
           return bet.payout ? count + bet.winnings : count + 0;
+        }, 0);
+        const totalOpenPayout = betHistory.reduce((count, bet) => {
+          return !bet.payout ? count + bet.winnings : count + 0;
         }, 0);
 
         console.log(betHistory);
@@ -359,7 +362,8 @@ const getAccountingReports = catchAsync(async (req, res) => {
           name: userItem.name,
           clientType,
           profit: Number(totalStake) - Number(totalWinnings),
-          totalPayout,
+          totalClosedPayout,
+          totalOpenPayout,
           availableBalance: userItem.wallet,
         };
       })
