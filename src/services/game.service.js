@@ -41,7 +41,7 @@ const getGameConfig = async (body) => {
   const gameConfig = await GameConfig.find({ agentId: body }).select('-id');
   const game = await Game.find({ agentId: body }).select('-id');
 
-  const data = { game: game[0], gameConfig: gameConfig[0] };
+  const data = { game, gameConfig };
 
   if (!game.length || !gameConfig.length) {
     return { data, message: 'Not Found' };
@@ -65,8 +65,7 @@ const getGameData = async () => {
 };
 
 const getGameSettings = async () => {
-  const game = await GameConfig.find();
-  // console.log('game: ', game)
+  const game = await GameConfig.findOne();
   return game;
 };
 

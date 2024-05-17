@@ -36,7 +36,7 @@ const gameConfigSchema = mongoose.Schema({
 });
 
 // add plugin that converts mongoose to json
-gameConfigSchema.plugin(toJSON);
+// gameConfigSchema.plugin(toJSON);
 /**
  * @typedef GameConfig
  */
