@@ -148,7 +148,7 @@ const getBetHistory = async (filter, startDate, endDate) => {
     };
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
-    console.log(dateFilter)
+    // console.log(dateFilter)
   }
   const tickets = await Tickets.find(filter);
   return tickets;
@@ -190,6 +190,7 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         bet.winnings = cumulativeWinnings;
         bet.result = atLeastOneSelectionWins ? 'win' : 'loss';
         bet.roundHasEnded = true;
+        bet.gameOutcome = odd;
 
         // eslint-disable-next-line no-await-in-loop
         await bet.save({ session });
@@ -216,9 +217,27 @@ const payoutTicket = async (id) => {
   // eslint-disable-next-line prefer-destructuring
   ticket = ticket[0];
 
+  const optionsDate = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    weekday: 'short',
+  };
+  const optionsTime = {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  };
+
+  const date = new Date(ticket.payoutDate);
+
+  const readableDate = date.toLocaleDateString('en-US', optionsDate);
+  const readableTime = date.toLocaleTimeString('en-US', optionsTime);
+
+  const readableCustomDateTime = `${readableDate}, ${readableTime}`;
   if (ticket) {
     if (!ticket.roundHasEnded) return { ticket, message: 'Round has not ended yet.' };
-    if (ticket.payout) return { ticket, message: `Payout as been collected` };
+    if (ticket.payout) return { ticket, message: `Payout as been collected at ${readableCustomDateTime}` };
 
     ticket = await Tickets.updateOne({ ticketId: id }, { payout: true, payoutDate: Date.now() }, { new: true });
 

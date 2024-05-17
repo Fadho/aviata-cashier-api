@@ -59,6 +59,9 @@ const ticketSchema = mongoose.Schema(
       default: false,
       required: true,
     },
+    gameOutcome: {
+      type: String,
+    },
     payout: {
       type: Boolean,
       default: false,
