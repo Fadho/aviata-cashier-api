@@ -43,6 +43,11 @@ const queryUsers = async (filter, options) => {
   return users;
 };
 
+const getUsers = async (filter, options) => {
+  const users = await User.find(filter, options);
+  return users;
+};
+
 /**
  * Query for get users where
  * @param {string} role - Mongo filter
@@ -144,4 +149,5 @@ module.exports = {
   getUserByUsername,
   getUserByRole,
   getAndUpdateWallet,
+  getUsers,
 };

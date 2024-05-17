@@ -101,7 +101,7 @@ const getCancelledBetHistory = async ({ startDate, endDate, betType, cashierId }
  * @param {String} endDate
  * @returns {Promise<Tickets>}
  */
-const getBetHistory = async (filter, options, startDate, endDate) => {
+const getBetHistoryReport = async (filter, options, startDate, endDate) => {
   const startDateWithoutTime = new Date(startDate);
   startDateWithoutTime.setHours(0, 0, 0, 0);
   const endDateWithoutTime = new Date(endDate);
@@ -127,6 +127,32 @@ const getBetHistory = async (filter, options, startDate, endDate) => {
   return tickets;
 };
 
+const getBetHistory = async (filter, startDate, endDate) => {
+  const startDateWithoutTime = new Date(startDate);
+  startDateWithoutTime.setHours(0, 0, 0, 0);
+  const endDateWithoutTime = new Date(endDate);
+  endDateWithoutTime.setHours(0, 0, 0, 0);
+  endDateWithoutTime.setDate(endDateWithoutTime.getDate() + 1);
+
+  let dateFilter = {};
+  if (startDate && endDate) {
+    dateFilter = {
+      ...(startDate &&
+        endDate && {
+          createdAt: {
+            $gte: startDateWithoutTime,
+            $lte: endDateWithoutTime,
+          },
+        }),
+      ...filter,
+    };
+    // eslint-disable-next-line no-param-reassign
+    filter = dateFilter;
+  }
+  const tickets = await Tickets.find(filter);
+  return tickets;
+};
+
 /**
  * create a new shop account
  * @param {String} cashierId
@@ -144,7 +170,6 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
   while (currentAttempt < maxRetries) {
     try {
       const bets = await Tickets.find({ roundId }).session(session);
-      console.log(bets);
       for (const bet of bets) {
         let cumulativeWinnings = 0;
         let atLeastOneSelectionWins = false;
@@ -227,6 +252,7 @@ module.exports = {
   fetchBetPlaced,
   getBetPlacedById,
   getBetHistory,
+  getBetHistoryReport,
   cancelTicket,
   payoutTicket,
   getCancelledBetHistory,

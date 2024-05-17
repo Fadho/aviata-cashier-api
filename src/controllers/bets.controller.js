@@ -172,7 +172,7 @@ const getBetHistory = catchAsync(async (req, res) => {
   const filter = pick(req.query, ['betType', 'cashierId', 'stake', 'payout']);
   const { startDate, endDate } = req.query;
   const options = pick(req.query, ['sortBy', 'limit', 'page', 'populate']);
-  const result = await betsService.getBetHistory(filter, options, startDate, endDate);
+  const result = await betsService.getBetHistoryReport(filter, options, startDate, endDate);
   res.send(result);
 });
 
@@ -325,93 +325,71 @@ const getGamingActivity = catchAsync(async (req, res) => {
 
 const getAccountingReports = catchAsync(async (req, res) => {
   try {
-    const { startDate, endDate, betType, clientType } = req.query;
+    const { startDate, endDate, betType, clientType, cashierId } = req.query;
     let betHistory = [];
-    if ((!startDate || !endDate) && !betType && !clientType) {
-      betHistory = await betsService.getBetHistory({});
+    // if (clientType) {
+    const user = await userService.getUsers({
+      ...(clientType && { role: clientType }),
+      ...(cashierId && { _id: cashierId }),
+    });
+    if (!user.length) {
+      throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record by ClientType not found');
     }
-    if (startDate && endDate) {
-      if (clientType) {
-        const user = await userService.getUserByRole(clientType);
-        if (!user.length) {
-          throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record by ClientType not found');
-        }
-        const bets = await Promise.all(
-          user.map(async (userItem) => {
-            betHistory = await betsService.getBetHistory({ cashierId: userItem.id, startDate, endDate });
-
-            const totalStake = betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
-            const totalWinnings = betHistory.reduce((count, bet) => count + bet.potentialWinnings, 0);
-
-            return {
-              totalWinnings,
-              totalStake,
-              name: userItem.name,
-              clientType,
-              profit: Number(totalStake) - Number(totalWinnings),
-              availableBalance: userItem.wallet,
-            };
-          })
+    const bets = await Promise.all(
+      user.map(async (userItem) => {
+        console.log(userItem);
+        betHistory = await betsService.getBetHistory(
+          { cashierId: userItem.id, ...(betType && { betType }) },
+          startDate,
+          endDate
         );
-        return res.status(httpStatus.CREATED).send(bets);
-      }
-      if (betType) {
-        betHistory = await betsService.getBetHistory({ betType, startDate, endDate });
-      }
-      betHistory = await betsService.getBetHistory({ startDate, endDate });
-    }
-    if (clientType) {
-      const user = await userService.getUserByRole(clientType);
-      if (!user.length) {
-        throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record by ClientType not found');
-      }
-      const bets = await Promise.all(
-        user.map(async (userItem) => {
-          betHistory = await betsService.getBetHistory({ cashierId: userItem.id });
 
-          const totalStake = betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
-          const totalWinnings = betHistory.reduce((count, bet) => count + bet.potentialWinnings, 0);
+        const totalStake = betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
+        const totalWinnings = betHistory.reduce((count, bet) => count + bet.winnings, 0);
+        const totalPayout = betHistory.reduce((count, bet) => {
+          return bet.payout ? count + bet.winnings : count + 0;
+        }, 0);
 
-          return {
-            totalWinnings,
-            totalStake,
-            name: userItem.name,
-            profit: Number(totalStake) - Number(totalWinnings),
+        console.log(betHistory);
 
-            clientType,
-            availableBalance: userItem.wallet,
-          };
-        })
-      );
-      return res.status(httpStatus.CREATED).send(bets);
-    }
-    if (betType) {
-      betHistory = await betsService.getBetHistory({ betType });
-    }
-
-    const cashierData = {};
-    // eslint-disable-next-line no-restricted-syntax
-    for (const bet of betHistory) {
-      const cashier = await userService.getUserById(bet.cashierId);
-
-      if (!cashierData[cashier.name]) {
-        cashierData[cashier.name] = {
-          totalWinnings: 0,
-          totalStake: 0,
-          name: cashier.name,
-          clientType: cashier.role,
-          availableBalance: cashier.wallet,
+        return {
+          totalWinnings,
+          totalStake,
+          numberOfBets: betHistory.length,
+          name: userItem.name,
+          clientType,
+          profit: Number(totalStake) - Number(totalWinnings),
+          totalPayout,
+          availableBalance: userItem.wallet,
         };
-      }
+      })
+    );
+    return res.status(httpStatus.CREATED).send(bets);
+    // }
 
-      cashierData[cashier.name].totalWinnings += bet.potentialWinnings;
-      cashierData[cashier.name].totalStake += bet.stake;
-    }
-    let mappedBetHistory = Object.values(cashierData);
-    mappedBetHistory = mappedBetHistory.map((item) => ({
-      ...item,
-      profit: Number(item.totalStake) - Number(item.totalWinnings),
-    }));
+    // const cashierData = {};
+    // // eslint-disable-next-line no-restricted-syntax
+    // for (const bet of betHistory) {
+    //   const cashier = await userService.getUserById(bet.cashierId);
+
+    //   if (!cashierData[cashier.name]) {
+    //     cashierData[cashier.name] = {
+    //       totalWinnings: 0,
+    //       totalStake: 0,
+    //       name: cashier.name,
+    //       clientType: cashier.role,
+    //       availableBalance: cashier.wallet,
+    //     };
+    //   }
+
+    //   cashierData[cashier.name].totalWinnings += bet.winnings;
+    //   cashierData[cashier.name].totalStake += bet.stake;
+    // }
+    // let mappedBetHistory = Object.values(cashierData);
+    // mappedBetHistory = mappedBetHistory.map((item) => ({
+    //   ...item,
+    //   profit: Number(item.totalStake) - Number(item.totalWinnings),
+    // }));
 
     return res.status(httpStatus.CREATED).send(mappedBetHistory);
   } catch (error) {

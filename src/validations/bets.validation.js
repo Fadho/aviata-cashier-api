@@ -37,6 +37,7 @@ const getBetHistory = {
 const getAccountingReports = {
   query: Joi.object().keys({
     clientType: Joi.string(),
+    cashierId: Joi.string().custom(objectId),
     betType: Joi.string(),
     startDate: Joi.string(),
     endDate: Joi.string(),
