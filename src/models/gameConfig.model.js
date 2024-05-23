@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const { toJSON } = require('./plugins');
 
 const gameConfigSchema = mongoose.Schema({
   ticketStakeMin: {
@@ -27,6 +26,12 @@ const gameConfigSchema = mongoose.Schema({
     required: true,
     default: [50, 100, 200, 500],
   },
+  payoutMode: {
+    type: String,
+    enum: ['Manual', 'Automatic'],
+    default: 'Manual',
+    required: true,
+  },
   agentId: {
     type: mongoose.SchemaTypes.ObjectId,
     ref: 'User',
@@ -34,9 +39,6 @@ const gameConfigSchema = mongoose.Schema({
     unique: true,
   },
 });
-
-// add plugin that converts mongoose to json
-// gameConfigSchema.plugin(toJSON);
 /**
  * @typedef GameConfig
  */

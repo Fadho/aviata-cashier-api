@@ -36,9 +36,7 @@ const getGameData = catchAsync(async (req, res) => {
 });
 
 const getGameSettings = catchAsync(async (req, res) => {
-  console.log('gameSettings');
   const data = await gameService.getGameSettings();
-  console.log(data);
   if (!data) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
   }

@@ -8,17 +8,23 @@ const router = express.Router();
 
 router
   .route('/')
-  .post(validate(betsValidation.createBetPlaced), betsController.createBetPlaced)
-  .get(validate(betsValidation.fetchBetPlaced), betsController.fetchBetPlaced);
+  .post(validate(auth(), betsValidation.createBetPlaced), betsController.createBetPlaced)
+  .get(validate(auth(), betsValidation.fetchBetPlaced), betsController.fetchBetPlaced);
 
-router.route('/fetch/:id').get(validate(betsValidation.getBetPlacedById), betsController.getBetPlacedById);
-router.route('/cancel/:id').get(validate(betsValidation.cancelTicket), betsController.cancelTicket);
-router.route('/history').get(validate(betsValidation.getBetHistory), betsController.getBetHistory);
-router.route('/ticket-reports').get(validate(betsValidation.getAccountingReports), betsController.getAccountingReports);
-router.route('/cashier-reports').get(auth(), validate(betsValidation.getAccountingReports), betsController.cashierReport);
-router.route('/gaming-activity').get(validate(betsValidation.getBetHistory), betsController.getGamingActivity);
+router.route('/fetch/:id').get(auth(), validate(betsValidation.getBetPlacedById), betsController.getBetPlacedById);
+router.route('/cancel/:id').get(auth(), validate(betsValidation.cancelTicket), betsController.cancelTicket);
+router.route('/history').get(auth(), validate(betsValidation.getBetHistory), betsController.getBetHistory);
+router
+  .route('/ticket-reports')
+  .get(auth('ticketReports'), validate(betsValidation.getAccountingReports), betsController.getAccountingReports);
+router
+  .route('/cashier-reports')
+  .get(auth('cashierReport'), validate(betsValidation.getAccountingReports), betsController.cashierReport);
+router
+  .route('/gaming-activity')
+  .get(auth('gamingActivity'), validate(betsValidation.getBetHistory), betsController.getGamingActivity);
 
-router.route('/cashout').post(validate(betsValidation.cashoutTicket), betsController.cashoutTicket);
-router.route('/payout/:id').post(validate(betsValidation.getBetPlacedById), betsController.payoutTicket);
+router.route('/cashout').post(auth(), validate(betsValidation.cashoutTicket), betsController.cashoutTicket);
+router.route('/payout/:id').post(auth(), validate(betsValidation.getBetPlacedById), betsController.payoutTicket);
 
 module.exports = router;

@@ -1,8 +1,6 @@
 module.exports.authService = require('./auth.service');
 module.exports.tokenService = require('./token.service');
 module.exports.userService = require('./user.service');
-module.exports.shopService = require('./shop.service');
-module.exports.cashierService = require('./cashier.service');
 module.exports.selectionService = require('./selections.service');
 module.exports.betsService = require('./bets.service');
 module.exports.gameService = require('./game.service');

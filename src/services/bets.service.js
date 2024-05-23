@@ -2,7 +2,9 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-restricted-syntax */
 const mongoose = require('mongoose');
-const { Tickets } = require('../models');
+const { Tickets, GameConfig, User } = require('../models');
+const Wallets = require('../models/wallet.model');
+const { walletService } = require('.');
 
 /**
  * create a new shop account
@@ -148,7 +150,6 @@ const getBetHistory = async (filter, startDate, endDate) => {
     };
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
-    // console.log(dateFilter)
   }
   const tickets = await Tickets.find(filter);
   return tickets;
@@ -164,6 +165,7 @@ const getBetHistory = async (filter, startDate, endDate) => {
 
 async function updateBetsAndCalculateWinnings(roundId, odd) {
   const session = await mongoose.startSession();
+  const gameConfig = await GameConfig.findOne();
   session.startTransaction();
   const maxRetries = 3; // Maximum number of retries
   let currentAttempt = 0;
@@ -194,6 +196,11 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
 
         // eslint-disable-next-line no-await-in-loop
         await bet.save({ session });
+        await Wallets.updateOne();
+        if (gameConfig.payoutMode === 'Manual') {
+          const { balance } = user.wallets[0];
+          await walletService.updateWallet(user.wallets[0].id, balance + ticket.winnings);
+        }
       }
       await session.commitTransaction();
       break; // Break the loop on successful transaction
@@ -214,6 +221,8 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
  */
 const payoutTicket = async (id) => {
   let ticket = await Tickets.find({ ticketId: id });
+  const gameConfig = await GameConfig.findOne();
+  const user = await User.findById(ticket.cashierId);
   // eslint-disable-next-line prefer-destructuring
   ticket = ticket[0];
 
@@ -235,11 +244,17 @@ const payoutTicket = async (id) => {
   const readableTime = date.toLocaleTimeString('en-US', optionsTime);
 
   const readableCustomDateTime = `${readableDate}, ${readableTime}`;
+
   if (ticket) {
     if (!ticket.roundHasEnded) return { ticket, message: 'Round has not ended yet.' };
     if (ticket.payout) return { ticket, message: `Payout as been collected at ${readableCustomDateTime}` };
 
     ticket = await Tickets.updateOne({ ticketId: id }, { payout: true, payoutDate: Date.now() }, { new: true });
+
+    if (gameConfig.payoutMode === 'Automatic') {
+      const { balance } = user.wallets[0];
+      await walletService.updateWallet(user.wallets[0].id, balance + ticket.winnings);
+    }
 
     return {
       ticket,
