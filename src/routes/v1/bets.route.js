@@ -24,7 +24,7 @@ router
   .route('/gaming-activity')
   .get(auth('gamingActivity'), validate(betsValidation.getBetHistory), betsController.getGamingActivity);
 
-router.route('/cashout').post(auth(), validate(betsValidation.cashoutTicket), betsController.cashoutTicket);
+router.route('/cashout').post(validate(betsValidation.cashoutTicket), betsController.cashoutTicket);
 router.route('/payout/:id').post(auth(), validate(betsValidation.getBetPlacedById), betsController.payoutTicket);
 
 module.exports = router;
