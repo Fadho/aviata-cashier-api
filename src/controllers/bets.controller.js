@@ -314,6 +314,7 @@ const getFinancialReports = catchAsync(async (req, res) => {
       return hierarchy;
     };
 
+    // eslint-disable-next-line no-shadow
     const getCashiers = async (agentId) => {
       const cashiers = await userService.queryUsers({ agentId, role: 'cashier' }, options);
       const cashierReports = {};
