@@ -14,9 +14,15 @@ router
 router.route('/fetch/:id').get(auth(), validate(betsValidation.getBetPlacedById), betsController.getBetPlacedById);
 router.route('/cancel/:id').get(auth(), validate(betsValidation.cancelTicket), betsController.cancelTicket);
 router.route('/history').get(auth(), validate(betsValidation.getBetHistory), betsController.getBetHistory);
+
+router
+  .route('/financial-reports')
+  .get(auth('ticketReports'), validate(betsValidation.getAccountingReports), betsController.getFinancialReports);
+
 router
   .route('/ticket-reports')
   .get(auth('ticketReports'), validate(betsValidation.getAccountingReports), betsController.getAccountingReports);
+
 router
   .route('/cashier-reports')
   .get(auth('cashierReport'), validate(betsValidation.getAccountingReports), betsController.cashierReport);

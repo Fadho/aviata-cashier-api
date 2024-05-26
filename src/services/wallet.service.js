@@ -8,7 +8,7 @@ const { Wallets } = require('../models');
  * @returns {Promise<Wallets>}
  */
 const getWalletById = async (id) => {
-  return Wallets.findById(id);
+  return Wallets.findById(id).populate('currencyId');
 };
 /**
  * create a new shop account
