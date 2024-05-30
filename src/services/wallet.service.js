@@ -1,6 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 
 const { Wallets } = require('../models');
+const { userService } = require('.');
 
 /**
  * create a new shop account
@@ -19,10 +20,14 @@ const getWalletById = async (id) => {
  * @returns {Promise<Wallets>}
  */
 const createWallet = async (currencyId, userId, balance, primary) => {
+  let wallet;
   if (primary) {
-    return Wallets.create({ currencyId, userId, balance, primaryWallet: true });
+    wallet = await Wallets.create({ currencyId, userId, balance, primaryWallet: true });
+  } else {
+    wallet = await Wallets.create({ currencyId, balance, userId });
   }
-  return Wallets.create({ currencyId, balance, userId });
+
+  return userService.getAndUpdateWallet(userId, wallet._id);
 };
 
 /**
