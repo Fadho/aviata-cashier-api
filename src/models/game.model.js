@@ -21,7 +21,6 @@ const gameSchema = mongoose.Schema({
     type: mongoose.SchemaTypes.ObjectId,
     ref: 'User',
     required: true,
-    unique: true,
   },
 });
 
