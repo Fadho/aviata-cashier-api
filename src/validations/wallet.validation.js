@@ -23,7 +23,7 @@ const fundWallet = {
   body: Joi.object().keys({
     currencyId: Joi.string().custom(objectId),
     userId: Joi.string().required().custom(objectId),
-    amount: Joi.number(),
+    amount: Joi.string.required(),
   }),
 };
 

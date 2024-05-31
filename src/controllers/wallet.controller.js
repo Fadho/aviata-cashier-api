@@ -6,6 +6,7 @@ const { walletService, currencyService, userService } = require('../services');
 const fundWallet = catchAsync(async (req, res) => {
   // destructuring parameters
   const { amount, currencyId, userId } = req.body;
+  if (!Number(amount)) throw new ApiError(httpStatus.NOT_FOUND, 'Provide valid amount e.g 500 or -500');
   if (!currencyId) {
     const isUser = await userService.getUserById(userId);
     if (!isUser) throw new ApiError(httpStatus.NOT_FOUND, 'User does not exist');
@@ -29,7 +30,7 @@ const fundWallet = catchAsync(async (req, res) => {
   if (!isUser) throw new ApiError(httpStatus.NOT_FOUND, 'User does not exist');
 
   const iswallet = await walletService.findWallet(currencyId, isUser.id);
-  // let
+
   if (!iswallet.length) {
     const fundUserWallet = await walletService.createWallet(currencyId, isUser.id, Number(amount));
 
@@ -54,6 +55,7 @@ const convertWallet = catchAsync(async (req, res) => {
   if (!isFromCurrency) throw new ApiError(httpStatus.NOT_FOUND, 'from_currency_id does not exist');
 
   if (!isToCurrency) throw new ApiError(httpStatus.NOT_FOUND, 'to_currency_id does not exist');
+
   const newAmount = (Number(amount) / Number(isFromCurrency.exchangeRate)) * Number(isToCurrency.exchangeRate);
   const iswallet = await walletService.findWallet(toCurrencyId, isUser.id);
 
@@ -61,6 +63,7 @@ const convertWallet = catchAsync(async (req, res) => {
     const fundUserWallet = await walletService.createWallet(toCurrencyId, userId, amount);
     return res.status(httpStatus.CREATED).send(fundUserWallet);
   }
+
   const fundUserWallet = await walletService.updateWallet(iswallet[0].id, Number(iswallet[0].balance) + Number(newAmount));
   return res.status(httpStatus.CREATED).send(fundUserWallet);
 });
