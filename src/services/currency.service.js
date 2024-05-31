@@ -1,6 +1,8 @@
 const httpStatus = require('http-status');
-const { Currency } = require('../models');
+const { Currency, User } = require('../models');
 const ApiError = require('../utils/ApiError');
+const { getAndUpdateWallet } = require('./user.service');
+const { createWallet } = require('./wallet.service');
 
 /**
  * Create a currency
@@ -8,7 +10,11 @@ const ApiError = require('../utils/ApiError');
  * @returns {Promise<Currency>}
  */
 const createCurrency = async (currencyBody) => {
-  return Currency.create(currencyBody);
+  const currency = await Currency.create(currencyBody);
+  const user = await User.findOne({ role: 'super' });
+  const wallet = await createWallet(currency.id, user.id);
+  await getAndUpdateWallet(user.id, wallet.id);
+  return currency;
 };
 
 /**
