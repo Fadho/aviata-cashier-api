@@ -5,8 +5,12 @@ const { walletService, currencyService, userService } = require('../services');
 
 const fundWallet = catchAsync(async (req, res) => {
   // destructuring parameters
-  const { amount, currencyId, userId } = req.body;
+  // eslint-disable-next-line prefer-const
+  let { amount, currencyId, userId } = req.body;
+  amount = parseFloat(amount);
+
   if (!Number(amount)) throw new ApiError(httpStatus.NOT_FOUND, 'Provide valid amount e.g 500 or -500');
+
   if (!currencyId) {
     const isUser = await userService.getUserById(userId);
     if (!isUser) throw new ApiError(httpStatus.NOT_FOUND, 'User does not exist');
@@ -15,8 +19,10 @@ const fundWallet = catchAsync(async (req, res) => {
 
     if (!iswallet.length) throw new ApiError(httpStatus.NOT_FOUND, 'Primary wallet does not exist');
 
+    let newBalance = parseFloat(iswallet[0].balance);
+    newBalance += amount;
     // if all tests pass, create wallet
-    const wallet = await walletService.updateWallet(iswallet[0].id, Number(iswallet[0].balance) + Number(amount));
+    const wallet = await walletService.updateWallet(iswallet[0].id, newBalance);
     return res.status(httpStatus.CREATED).send(wallet);
   }
   // Checking to make sure agent_id and currency_id is linked to a row in agent and a currency tables respectively
@@ -36,8 +42,12 @@ const fundWallet = catchAsync(async (req, res) => {
 
     return res.status(httpStatus.CREATED).send(fundUserWallet);
   }
+
+  let newBalance = parseFloat(iswallet[0].balance);
+  newBalance += amount;
+
   // if all tests pass, create wallet
-  const wallet = await walletService.updateWallet(iswallet[0].id, Number(amount));
+  const wallet = await walletService.updateWallet(iswallet[0].id, newBalance);
 
   return res.status(httpStatus.CREATED).send(wallet);
 });
@@ -56,15 +66,18 @@ const convertWallet = catchAsync(async (req, res) => {
 
   if (!isToCurrency) throw new ApiError(httpStatus.NOT_FOUND, 'to_currency_id does not exist');
 
-  const newAmount = (Number(amount) / Number(isFromCurrency.exchangeRate)) * Number(isToCurrency.exchangeRate);
+  const newAmount = (parseFloat(amount) / parseFloat(isFromCurrency.exchangeRate)) * parseFloat(isToCurrency.exchangeRate);
+  console.log(newAmount, amount);
   const iswallet = await walletService.findWallet(toCurrencyId, isUser.id);
+  let { balance } = iswallet[0];
 
   if (!iswallet.length) {
     const fundUserWallet = await walletService.createWallet(toCurrencyId, userId, amount);
     return res.status(httpStatus.CREATED).send(fundUserWallet);
   }
+  balance += newAmount;
 
-  const fundUserWallet = await walletService.updateWallet(iswallet[0].id, Number(iswallet[0].balance) + Number(newAmount));
+  const fundUserWallet = await walletService.updateWallet(iswallet[0].id, Number(balance));
   return res.status(httpStatus.CREATED).send(fundUserWallet);
 });
 
