@@ -177,7 +177,7 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         let atLeastOneSelectionWins = false;
 
         // eslint-disable-next-line no-continue
-        if (bet.roundHasEnded) continue;
+        if (bet.roundHasEnded) break;
 
         for (const selection of bet.selections) {
           if (selection.odd < odd) {
