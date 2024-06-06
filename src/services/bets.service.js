@@ -194,7 +194,7 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         bet.gameOutcome = odd;
 
         // eslint-disable-next-line no-await-in-loop
-        await bet.save({ session });
+        await bet.save().session(session);
         const user = await User.findById(bet.cashierId).session(session);
         if (gameConfig.payoutMode === 'Manual') {
           const { balance } = user.wallets[0];
