@@ -198,7 +198,7 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         await bet.save({ session });
 
         // Update user's wallet if payout mode is Manual
-        if (gameConfig.payoutMode === 'Manual') {
+        if (gameConfig.payoutMode === 'Manual' && bet.result === 'win') {
           const user = await User.findById(bet.cashierId).session(session);
           const { balance } = user.wallets[0];
           await walletService.updateWallet(user.wallets[0].id, balance + bet.winnings, { session });
