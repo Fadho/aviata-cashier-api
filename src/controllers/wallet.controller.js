@@ -46,6 +46,21 @@ const fundWallet = catchAsync(async (req, res) => {
   let newBalance = parseFloat(iswallet[0].balance);
   newBalance += amount;
 
+  if (newBalance < 0) throw new ApiError(httpStatus.NOT_FOUND, 'Insufficient funds!');
+
+  if (amount < 0) {
+    const superAgent = userService.getUserById(isUser.superAgentId);
+    let wallet = walletService.findWallet(iswallet[0].currencyId, superAgent._id, false);
+
+    if (!wallet) wallet = walletService.findWallet(iswallet[0].currencyId, superAgent._id, true);
+
+    if (!wallet) throw new ApiError(httpStatus.NOT_FOUND, 'super agent wallet not found!');
+
+    const agentBalance = wallet.balance + amount * -1;
+
+    walletService.updateWallet(superAgent.superAgentId, agentBalance);
+  }
+
   // if all tests pass, create wallet
   const wallet = await walletService.updateWallet(iswallet[0].id, newBalance);
 
@@ -67,7 +82,7 @@ const convertWallet = catchAsync(async (req, res) => {
   if (!isToCurrency) throw new ApiError(httpStatus.NOT_FOUND, 'to_currency_id does not exist');
 
   const newAmount = (parseFloat(amount) / parseFloat(isFromCurrency.exchangeRate)) * parseFloat(isToCurrency.exchangeRate);
-  console.log(newAmount, amount);
+
   const iswallet = await walletService.findWallet(toCurrencyId, isUser.id);
   let { balance } = iswallet[0];
 

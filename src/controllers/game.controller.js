@@ -28,7 +28,7 @@ const getGame = catchAsync(async (req, res) => {
 });
 
 const getGameData = catchAsync(async (req, res) => {
-  const data = await gameService.getGameData();
+  const data = await gameService.getGameData(req.params.agentId);
   if (!data) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
   }

@@ -13,7 +13,7 @@ router
   .post(auth('createGameConfig'), validate(gameValidation.createGameConfig), gameController.createGameConfig);
 
 router
-  .route('/gameData')
+  .route('/gameData/:agentId')
   .get(gameController.getGameData)
   .post(auth('createGameConfig'), validate(gameValidation.createGameData), gameController.createGameData);
 
