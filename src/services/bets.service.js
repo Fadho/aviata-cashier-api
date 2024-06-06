@@ -3,7 +3,7 @@
 /* eslint-disable no-restricted-syntax */
 const mongoose = require('mongoose');
 const { Tickets, GameConfig, User } = require('../models');
-const { walletService } = require('./wallet.service');
+const walletService = require('./wallet.service');
 
 /**
  * create a new shop account
