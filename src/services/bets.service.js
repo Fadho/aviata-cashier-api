@@ -163,13 +163,14 @@ const getBetHistory = async (filter, startDate, endDate) => {
  */
 
 async function updateBetsAndCalculateWinnings(roundId, odd) {
-  const session = await mongoose.startSession();
   const gameConfig = await GameConfig.findOne();
-  session.startTransaction();
   const maxRetries = 3; // Maximum number of retries
   let currentAttempt = 0;
 
   while (currentAttempt < maxRetries) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
       const bets = await Tickets.find({ roundId }).session(session);
       for (const bet of bets) {
@@ -194,7 +195,7 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         bet.gameOutcome = odd;
 
         // eslint-disable-next-line no-await-in-loop
-        await bet.save().session(session);
+        await bet.save(session);
         const user = await User.findById(bet.cashierId).session(session);
         if (gameConfig.payoutMode === 'Manual') {
           const { balance } = user.wallets[0];
@@ -208,9 +209,9 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
       if (currentAttempt === maxRetries - 1) throw error; // Throw error on last attempt
     } finally {
       currentAttempt++;
+      session.endSession();
     }
   }
-  session.endSession();
 }
 
 /**
