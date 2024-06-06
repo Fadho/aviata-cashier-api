@@ -59,8 +59,8 @@ const updateGameData = async (id, body) => {
   return { data: game, message: 'Game Data updated successfully.' };
 };
 
-const getGameData = async (body) => {
-  const game = await Game.findOne({ agentId: body }).select('-id');
+const getGameData = async () => {
+  const game = await Game.findOne();
   return game;
 };
 
