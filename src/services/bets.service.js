@@ -155,8 +155,7 @@ const getBetHistory = async (filter, startDate, endDate) => {
 };
 
 /**
- * create a new shop account
- * @param {String} cashierId
+ * calculate round out for each bet
  * @param {String} roundId
  * @param {Number}  odd
  * @returns {Promise<Tickets>}
@@ -169,15 +168,16 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
 
   while (currentAttempt < maxRetries) {
     const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
+      session.startTransaction();
+
       const bets = await Tickets.find({ roundId }).session(session);
       for (const bet of bets) {
         let cumulativeWinnings = 0;
         let atLeastOneSelectionWins = false;
 
-        if (bet.roundHasEnded) break;
+        // eslint-disable-next-line no-continue
+        if (bet.roundHasEnded) continue;
 
         for (const selection of bet.selections) {
           if (selection.odd < odd) {
@@ -194,22 +194,30 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         bet.roundHasEnded = true;
         bet.gameOutcome = odd;
 
-        // eslint-disable-next-line no-await-in-loop
-        await bet.save(session);
-        const user = await User.findById(bet.cashierId).session(session);
+        // Save bet with session
+        await bet.save({ session });
+
+        // Update user's wallet if payout mode is Manual
         if (gameConfig.payoutMode === 'Manual') {
+          const user = await User.findById(bet.cashierId).session(session);
           const { balance } = user.wallets[0];
-          await walletService.updateWallet(user.wallets[0].id, balance + bet.winnings).session(session);
+          await walletService.updateWallet(user.wallets[0].id, balance + bet.winnings, { session });
         }
       }
+
       await session.commitTransaction();
       break; // Break the loop on successful transaction
     } catch (error) {
       await session.abortTransaction();
-      if (currentAttempt === maxRetries - 1) throw error; // Throw error on last attempt
+      if (currentAttempt === maxRetries - 1) {
+        console.error('Max retries reached. Transaction failed:', error);
+        throw error; // Throw error on last attempt
+      } else {
+        console.warn(`Attempt ${currentAttempt + 1} failed. Retrying...`, error);
+      }
     } finally {
-      currentAttempt++;
       session.endSession();
+      currentAttempt++;
     }
   }
 }
