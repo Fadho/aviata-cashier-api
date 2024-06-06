@@ -4,6 +4,7 @@
 const mongoose = require('mongoose');
 const { Tickets, GameConfig, User } = require('../models');
 const walletService = require('./wallet.service');
+const userService = require('./user.service');
 
 /**
  * create a new shop account
@@ -177,7 +178,7 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         let atLeastOneSelectionWins = false;
 
         // eslint-disable-next-line no-continue
-        if (bet.roundHasEnded) break;
+        if (bet.roundHasEnded) continue;
 
         for (const selection of bet.selections) {
           if (selection.odd < odd) {
@@ -194,13 +195,15 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         bet.roundHasEnded = true;
         bet.gameOutcome = odd;
 
+        console.log(bet.winnings, bet.result);
         // Save bet with session
         await bet.save({ session });
 
         // Update user's wallet if payout mode is Manual
         if (gameConfig.payoutMode === 'Manual' && bet.result === 'win') {
-          const user = await User.findById(bet.cashierId).session(session);
+          const user = await userService.getUserById(bet.cashierId);
           const { balance } = user.wallets[0];
+          console.log(balance, user.wallets[0]);
           await walletService.updateWallet(user.wallets[0].id, balance + bet.winnings, { session });
         }
       }
