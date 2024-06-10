@@ -106,12 +106,13 @@ const convertWallet = catchAsync(async (req, res) => {
   const newAmount = (parseFloat(amount) / parseFloat(isFromCurrency.exchangeRate)) * parseFloat(isToCurrency.exchangeRate);
 
   const iswallet = await walletService.findWallet(toCurrencyId, isUser.id);
-  let { balance } = iswallet[0];
 
   if (!iswallet.length) {
     const fundUserWallet = await walletService.createWallet(toCurrencyId, userId, amount);
     return res.status(httpStatus.CREATED).send(fundUserWallet);
   }
+
+  let { balance } = iswallet[0];
   balance += newAmount;
 
   const fundUserWallet = await walletService.updateWallet(iswallet[0].id, Number(balance));
