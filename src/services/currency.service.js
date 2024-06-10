@@ -12,7 +12,7 @@ const { createWallet } = require('./wallet.service');
 const createCurrency = async (currencyBody) => {
   const currency = await Currency.create(currencyBody);
   const user = await User.findOne({ role: 'super' });
-  const wallet = await createWallet(currency.id, user.id);
+  const wallet = await createWallet(currency.id, user.id, 'unlimited', !(user.wallets.length > 0));
   await getAndUpdateWallet(user.id, wallet.id);
   return currency;
 };

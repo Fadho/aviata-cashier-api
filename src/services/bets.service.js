@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const { Tickets, GameConfig, User } = require('../models');
 const walletService = require('./wallet.service');
 const userService = require('./user.service');
+const logger = require('../config/logger');
 
 /**
  * create a new shop account
@@ -195,7 +196,6 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         bet.roundHasEnded = true;
         bet.gameOutcome = odd;
 
-        console.log(bet.winnings, bet.result);
         // Save bet with session
         await bet.save({ session });
 
@@ -203,7 +203,6 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         if (gameConfig.payoutMode === 'Manual' && bet.result === 'win') {
           const user = await userService.getUserById(bet.cashierId);
           const { balance } = user.wallets[0];
-          console.log(balance, user.wallets[0]);
           await walletService.updateWallet(user.wallets[0].id, balance + bet.winnings, { session });
         }
       }
@@ -213,10 +212,10 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
     } catch (error) {
       await session.abortTransaction();
       if (currentAttempt === maxRetries - 1) {
-        console.error('Max retries reached. Transaction failed:', error);
+        logger.error('Max retries reached. Transaction failed:', error);
         throw error; // Throw error on last attempt
       } else {
-        console.warn(`Attempt ${currentAttempt + 1} failed. Retrying...`, error);
+        logger.warn(`Attempt ${currentAttempt + 1} failed. Retrying...`, error);
       }
     } finally {
       session.endSession();

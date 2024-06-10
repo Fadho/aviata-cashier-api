@@ -14,7 +14,7 @@ const walletSchema = mongoose.Schema(
       // required: true,
     },
     balance: {
-      type: Number,
+      type: mongoose.SchemaTypes.Mixed,
       required: true,
       default: 0,
     },

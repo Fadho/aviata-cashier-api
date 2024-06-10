@@ -22,6 +22,12 @@ const gameSchema = mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  rtp: {
+    type: mongoose.SchemaTypes.Number,
+    enum: [95, 90, 80, 65],
+    default: 95,
+    required: true,
+  },
 });
 
 // add plugin that converts mongoose to json
