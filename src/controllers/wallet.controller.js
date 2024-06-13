@@ -103,7 +103,17 @@ const convertWallet = catchAsync(async (req, res) => {
 
   if (!isToCurrency) throw new ApiError(httpStatus.NOT_FOUND, 'to_currency_id does not exist');
 
-  const newAmount = (parseFloat(amount) / parseFloat(isFromCurrency.exchangeRate)) * parseFloat(isToCurrency.exchangeRate);
+  const isFromwallet = await walletService.findWallet(fromCurrencyId, userId);
+
+  if (!isFromwallet) throw new ApiError(httpStatus.NOT_FOUND, 'from_currency_wallet does not exist');
+
+  let fromWalletBalance = isFromwallet[0].balance;
+
+  fromWalletBalance -= parseFloat(amount);
+
+  await walletService.updateWallet(isFromwallet[0].id, Number(fromWalletBalance));
+
+  const newAmount = parseFloat(amount) * (parseFloat(isToCurrency.exchangeRate) / parseFloat(isFromCurrency.exchangeRate));
 
   const iswallet = await walletService.findWallet(toCurrencyId, isUser.id);
 
