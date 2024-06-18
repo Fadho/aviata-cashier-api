@@ -125,7 +125,7 @@ const convertWallet = catchAsync(async (req, res) => {
   const iswallet = await walletService.findWallet(toCurrencyId, isUser.id);
 
   if (!iswallet.length) {
-    const fundUserWallet = await walletService.createWallet(toCurrencyId, userId, amount);
+    const fundUserWallet = await walletService.createWallet(toCurrencyId, userId, newAmount);
     return res.status(httpStatus.CREATED).send(fundUserWallet);
   }
 
