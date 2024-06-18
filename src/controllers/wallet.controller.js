@@ -111,9 +111,14 @@ const convertWallet = catchAsync(async (req, res) => {
 
   fromWalletBalance -= parseFloat(amount);
 
+  if (fromWalletBalance < 0) throw new ApiError(httpStatus.NOT_FOUND, 'insufficient funds');
+
   await walletService.updateWallet(isFromwallet[0].id, Number(fromWalletBalance));
 
-  const newAmount = parseFloat(amount) * (parseFloat(isToCurrency.exchangeRate) / parseFloat(isFromCurrency.exchangeRate));
+  const newAmount = (
+    parseFloat(amount) *
+    (parseFloat(isToCurrency.exchangeRate) / parseFloat(isFromCurrency.exchangeRate))
+  ).toFixed(isToCurrency.decimals);
 
   const iswallet = await walletService.findWallet(toCurrencyId, isUser.id);
 
