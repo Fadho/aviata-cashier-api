@@ -24,10 +24,12 @@ const fundWallet = catchAsync(async (req, res) => {
 
     if (!wallet.length) throw new ApiError(httpStatus.NOT_FOUND, 'Agent wallet does not exist');
 
+    const currency = await currencyService.getCurrencyById(wallet.currencyId);
+
     let newBalance = parseFloat(wallet[0].balance);
     newBalance -= amount;
     // if all tests pass, update wallet
-    await walletService.updateWallet(wallet[0].id, newBalance);
+    await walletService.updateWallet(wallet[0].id, newBalance.toFixed(currency.decimals));
   }
 
   //  if no currencyId is provided, get user's primary wallet.
@@ -113,7 +115,7 @@ const convertWallet = catchAsync(async (req, res) => {
 
   if (fromWalletBalance < 0) throw new ApiError(httpStatus.NOT_FOUND, 'insufficient funds');
 
-  await walletService.updateWallet(isFromwallet[0].id, Number(fromWalletBalance));
+  await walletService.updateWallet(isFromwallet[0].id, Number(fromWalletBalance).toFixed(isFromCurrency.decimals));
 
   const newAmount = (
     parseFloat(amount) *
