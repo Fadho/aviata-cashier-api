@@ -231,8 +231,8 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
  */
 const payoutTicket = async (id) => {
   let ticket = await Tickets.find({ ticketId: id });
-  const gameConfig = await GameConfig.findOne();
   const user = await User.findById(ticket.cashierId);
+  const gameConfig = await GameConfig.find({ agentId: user.agentId });
   // eslint-disable-next-line prefer-destructuring
   ticket = ticket[0];
 
