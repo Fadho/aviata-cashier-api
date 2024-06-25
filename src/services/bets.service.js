@@ -201,9 +201,10 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
 
         // Update user's wallet if payout mode is Manual
         if (gameConfig.payoutMode === 'Manual' && bet.result === 'win') {
+          logger.info('Manual Payout');
           const user = await userService.getUserById(bet.cashierId);
-          const { balance } = user.wallets[0];
-          await walletService.updateWallet(user.wallets[0].id, balance + bet.winnings, { session });
+          const { balance } = Number(user.wallets[0]);
+          await walletService.updateWallet(user.wallets[0].id, balance + Number(bet.winnings), { session });
         }
       }
 
@@ -235,7 +236,6 @@ const payoutTicket = async (id) => {
   ticket = ticket[0];
 
   const user = await User.findById(ticket.cashierId);
-  console.log(user, ticket, id);
   const gameConfig = await GameConfig.find({ agentId: user.agentId });
 
   const optionsDate = {
@@ -264,6 +264,7 @@ const payoutTicket = async (id) => {
     ticket = await Tickets.updateOne({ ticketId: id }, { payout: true, payoutDate: Date.now() }, { new: true });
 
     if (gameConfig.payoutMode === 'Automatic') {
+      logger.info('Automatic Payout');
       const { balance } = user.wallets[0];
       await walletService.updateWallet(user.wallets[0].id, balance + ticket.winnings);
     }
