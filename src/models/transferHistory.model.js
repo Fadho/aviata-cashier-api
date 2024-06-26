@@ -16,10 +16,6 @@ const transferHistorySchema = mongoose.Schema({
     ref: 'User',
     required: true,
   },
-  amount: {
-    type: mongoose.SchemaTypes.Number,
-    required: true,
-  },
   currency: {
     type: mongoose.SchemaTypes.ObjectId,
     ref: 'Currency',
