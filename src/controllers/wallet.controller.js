@@ -32,6 +32,31 @@ const fundWallet = catchAsync(async (req, res) => {
     await walletService.updateWallet(wallet[0].id, newBalance.toFixed(currency.decimals));
   }
 
+  //  if no currencyId is provided, get user's primary wallet.
+  if (!currencyId) {
+    const isUser = await userService.getUserById(userId);
+    if (!isUser) throw new ApiError(httpStatus.NOT_FOUND, 'User does not exist');
+
+    const iswallet = await walletService.findWallet('', isUser.id, true);
+
+    if (!iswallet.length) throw new ApiError(httpStatus.NOT_FOUND, 'Primary wallet does not exist');
+
+    let newBalance = parseFloat(iswallet[0].balance);
+    newBalance += amount;
+    // if all tests pass, create wallet
+    const wallet = await walletService.updateWallet(iswallet[0].id, newBalance);
+
+    transferHistoryService.createTransferHistory({
+      agent: req.user.id,
+      target: userId,
+      transactionType: `to ${isUser.role}`,
+      currency: currencyId,
+      deposit: amount < 0 ? 0 : amount,
+      withdrawal: amount < 0 ? amount : 0,
+    });
+    return res.status(httpStatus.CREATED).send(wallet);
+  }
+
   const [isCurrency, isUser] = await Promise.all([
     currencyService.getCurrencyById(currencyId),
     userService.getUserById(userId),
