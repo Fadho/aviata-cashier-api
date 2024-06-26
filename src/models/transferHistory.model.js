@@ -2,41 +2,37 @@ const mongoose = require('mongoose');
 const { toJSON, paginate } = require('./plugins');
 
 const transferHistorySchema = mongoose.Schema({
-  decimals: {
+  agent: {
+    type: mongoose.SchemaTypes.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  transactionType: {
+    type: mongoose.SchemaTypes.String,
+    required: true,
+  },
+  target: {
+    type: mongoose.SchemaTypes.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  amount: {
     type: mongoose.SchemaTypes.Number,
     required: true,
   },
-  exchangeRate: {
+  currency: {
+    type: mongoose.SchemaTypes.ObjectId,
+    ref: 'Currency',
+    required: true,
+  },
+  deposit: {
     type: mongoose.SchemaTypes.Number,
-    required: true,
+    // required: true,
   },
-  updateType: {
-    type: mongoose.SchemaTypes.String,
-    required: true,
+  withdrawal: {
+    type: mongoose.SchemaTypes.Number,
+    // required: true,
   },
-  status: {
-    type: mongoose.SchemaTypes.String,
-    required: true,
-  },
-  countryId: {
-    type: mongoose.SchemaTypes.String,
-    required: true,
-  },
-  country: [
-    {
-      name: {
-        type: String,
-        required: true,
-      },
-      transferHistoryCode: {
-        type: String,
-        required: true,
-      },
-      transferHistorySymbol: {
-        type: String,
-      },
-    },
-  ],
 });
 
 // add plugin that converts mongoose to json

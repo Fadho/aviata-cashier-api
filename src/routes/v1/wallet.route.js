@@ -3,11 +3,13 @@ const auth = require('../../middlewares/auth');
 const validate = require('../../middlewares/validate');
 const { walletValidation } = require('../../validations');
 const walletController = require('../../controllers/wallet.controller');
+const { transferHistoryController } = require('../../controllers');
 
 const router = express.Router();
 
 router.route('/').post(auth('fundWallet'), validate(walletValidation.convertWallet), walletController.convertWallet);
 router.route('/fund').post(auth('convertWallet'), validate(walletValidation.fundWallet), walletController.fundWallet);
 router.route('/create').post(auth(), walletController.createWallet);
+router.route('/transferHistory').get(auth('transferHistory'), transferHistoryController.gettransferHistory);
 
 module.exports = router;

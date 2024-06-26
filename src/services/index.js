@@ -6,3 +6,4 @@ module.exports.betsService = require('./bets.service');
 module.exports.gameService = require('./game.service');
 module.exports.currencyService = require('./currency.service');
 module.exports.walletService = require('./wallet.service');
+module.exports.transferHistoryService = require('./transferHistory.service');
