@@ -10,6 +10,6 @@ const router = express.Router();
 router.route('/').post(auth('fundWallet'), validate(walletValidation.convertWallet), walletController.convertWallet);
 router.route('/fund').post(auth('convertWallet'), validate(walletValidation.fundWallet), walletController.fundWallet);
 router.route('/create').post(auth(), walletController.createWallet);
-router.route('/transferHistory').get(auth('transferHistory'), transferHistoryController.gettransferHistory);
+router.route('/transferHistory').get(transferHistoryController.gettransferHistory);
 
 module.exports = router;
