@@ -49,7 +49,7 @@ const fundWallet = catchAsync(async (req, res) => {
     transferHistoryService.createTransferHistory({
       agent: req.user.id,
       target: userId,
-      transactionType: `to ${isUser.role}`,
+      transactionType: `${amount < 0 ? 'from' : 'to'} ${isUser.role}`,
       currency: currencyId,
       deposit: amount < 0 ? 0 : amount,
       withdrawal: amount < 0 ? amount * 1 : 0,
@@ -75,7 +75,7 @@ const fundWallet = catchAsync(async (req, res) => {
     transferHistoryService.createTransferHistory({
       agent: req.user.id,
       target: userId,
-      transactionType: `to ${isUser.role}`,
+      transactionType: `${amount < 0 ? 'from' : 'to'} ${isUser.role}`,
       currency: currencyId,
       deposit: amount < 0 ? 0 : amount,
       withdrawal: amount < 0 ? amount * 1 : 0,
@@ -109,7 +109,7 @@ const fundWallet = catchAsync(async (req, res) => {
   transferHistoryService.createTransferHistory({
     agent: req.user.id,
     target: userId,
-    transactionType: `to ${isUser.role}`,
+    transactionType: `${amount < 0 ? 'from' : 'to'} ${isUser.role}`,
     currency: currencyId,
     deposit: amount < 0 ? 0 : amount,
     withdrawal: amount < 0 ? amount * 1 : 0,
