@@ -52,8 +52,9 @@ const fundWallet = catchAsync(async (req, res) => {
       transactionType: `to ${isUser.role}`,
       currency: currencyId,
       deposit: amount < 0 ? 0 : amount,
-      withdrawal: amount < 0 ? amount : 0,
+      withdrawal: amount < 0 ? amount * 1 : 0,
     });
+
     return res.status(httpStatus.CREATED).send(wallet);
   }
 
@@ -70,21 +71,17 @@ const fundWallet = catchAsync(async (req, res) => {
 
   // If user wallet doesnot exist create new wallet.
   if (!iswallet.length) {
-    if (amount > 0) {
-      const fundUserWallet = await walletService.createWallet(currencyId, isUser.id, Number(amount));
+    const fundUserWallet = await walletService.createWallet(currencyId, isUser.id, Number(amount));
+    transferHistoryService.createTransferHistory({
+      agent: req.user.id,
+      target: userId,
+      transactionType: `to ${isUser.role}`,
+      currency: currencyId,
+      deposit: amount < 0 ? 0 : amount,
+      withdrawal: amount < 0 ? amount * 1 : 0,
+    });
 
-      transferHistoryService.createTransferHistory({
-        agent: req.user.id,
-        target: userId,
-        transactionType: `to ${isUser.role}`,
-        currency: currencyId,
-        deposit: amount,
-        withdrawal: 0,
-      });
-
-      return res.status(httpStatus.CREATED).send(fundUserWallet);
-    }
-    throw new ApiError(httpStatus.NOT_FOUND, 'Wallet does not exist');
+    return res.status(httpStatus.CREATED).send(fundUserWallet);
   }
 
   let newBalance = parseFloat(iswallet[0].balance);
@@ -115,7 +112,7 @@ const fundWallet = catchAsync(async (req, res) => {
     transactionType: `to ${isUser.role}`,
     currency: currencyId,
     deposit: amount < 0 ? 0 : amount,
-    withdrawal: amount < 0 ? amount : 0,
+    withdrawal: amount < 0 ? amount * 1 : 0,
   });
 
   return res.status(httpStatus.CREATED).send(wallet);
