@@ -24,7 +24,9 @@ const fundWallet = catchAsync(async (req, res) => {
 
     if (!wallet.length) throw new ApiError(httpStatus.NOT_FOUND, 'Agent wallet does not exist');
 
-    const currency = await currencyService.getCurrencyById(wallet.currencyId);
+    const currency = await currencyService.getCurrencyById(currencyId);
+
+    console.log(currency, 'logs');
 
     let newBalance = parseFloat(wallet[0].balance);
     newBalance -= amount;
