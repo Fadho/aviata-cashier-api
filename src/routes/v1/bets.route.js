@@ -23,9 +23,7 @@ router
   .route('/ticket-reports')
   .get(auth('ticketReports'), validate(betsValidation.getAccountingReports), betsController.getAccountingReports);
 
-router
-  .route('/cashier-reports')
-  .get(auth('cashierReport'), validate(betsValidation.getAccountingReports), betsController.cashierReport);
+router.route('/cashier-reports').get(auth(), validate(betsValidation.getAccountingReports), betsController.cashierReport);
 router
   .route('/gaming-activity')
   .get(auth('gamingActivity'), validate(betsValidation.getBetHistory), betsController.getGamingActivity);
