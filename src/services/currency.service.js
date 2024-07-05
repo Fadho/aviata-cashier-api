@@ -31,6 +31,11 @@ const queryCurrencies = async (filter, options) => {
   return currencies;
 };
 
+const getCurrencies = async () => {
+  const currencies = await Currency.find();
+  return currencies;
+};
+
 const getCurrencyById = async (id) => {
   return Currency.findById(id);
 };
@@ -71,6 +76,7 @@ const deleteCurrencyById = async (currencyId) => {
 module.exports = {
   createCurrency,
   queryCurrencies,
+  getCurrencies,
   updateCurrencyById,
   deleteCurrencyById,
   getCurrencyById,

@@ -5,8 +5,9 @@ const httpStatus = require('http-status');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 const pick = require('../utils/pick');
-const { betsService, userService, walletService } = require('../services');
+const { betsService, userService, walletService, currencyService } = require('../services');
 const { Wallets } = require('../models');
+const logger = require('../config/logger');
 
 const createBetPlaced = catchAsync(async (req, res) => {
   const { result, stake, selections, cashierId, potentialWinnings, roundId } = req.body;
@@ -418,18 +419,79 @@ const getFinancialReports = catchAsync(async (req, res) => {
       return totals;
     };
 
+    const convertToPrimaryCurrency = (totals, exchangeRates, primaryCurrency) => {
+      const convertedTotals = {
+        [primaryCurrency]: {
+          totalWinnings: 0,
+          totalStake: 0,
+          numberOfBets: 0,
+          profit: 0,
+          totalClosedPayout: 0,
+          totalOpenPayout: 0,
+        },
+      };
+
+      for (const [currency, currencyReport] of Object.entries(totals)) {
+        const exchangeRate = exchangeRates[currency];
+        const conversionRate = exchangeRate / exchangeRates[primaryCurrency];
+
+        convertedTotals[primaryCurrency].totalWinnings += currencyReport.totalWinnings * conversionRate;
+        convertedTotals[primaryCurrency].totalStake += currencyReport.totalStake * conversionRate;
+        convertedTotals[primaryCurrency].numberOfBets += currencyReport.numberOfBets;
+        convertedTotals[primaryCurrency].totalClosedPayout += currencyReport.totalClosedPayout * conversionRate;
+        convertedTotals[primaryCurrency].totalOpenPayout += currencyReport.totalOpenPayout * conversionRate;
+        convertedTotals[primaryCurrency].profit =
+          convertedTotals[primaryCurrency].totalStake - convertedTotals[primaryCurrency].totalWinnings;
+      }
+
+      // Format numbers to two decimal places
+      for (const key in convertedTotals[primaryCurrency]) {
+        if (typeof convertedTotals[primaryCurrency][key] === 'number') {
+          convertedTotals[primaryCurrency][key] = convertedTotals[primaryCurrency][key].toFixed(2);
+        }
+      }
+
+      return convertedTotals;
+    };
+
     const hierarchy = {};
     for (const agent of initialAgents.results) {
+      const exchangeRates = {};
+      const currencies = await currencyService.getCurrencies();
+      // Fetch all relevant exchange rates for the agent's wallets
+      for (const currency of currencies) {
+        if (currency) {
+          console.log(currency.exchangeRate);
+          const { exchangeRate } = currency;
+          const { currencyCode } = currency.country[0];
+          console.log(currencyCode, exchangeRate);
+          exchangeRates[currencyCode] = exchangeRate;
+        }
+      }
+
+      const house = await userService.getUserByRole('super');
+      console.log(house[0]._id);
+      const primaryWallet = await walletService.findWallet(null, house[0].id, true);
+      console.log(primaryWallet);
+      let primaryCurrency = await currencyService.getCurrencyById(primaryWallet[0].currencyId);
+      primaryCurrency = primaryCurrency.country[0].currencyCode; // Assuming the first primary wallet's currency as primary
+
       hierarchy[agent.name] = {
         cashiers: await getCashiers(agent._id),
         agents: await getUserHierarchy(agent._id),
         totals: {},
       };
       hierarchy[agent.name].totals = aggregateTotals(hierarchy[agent.name]);
+      hierarchy[agent.name].totalsInPrimaryCurrency = convertToPrimaryCurrency(
+        hierarchy[agent.name].totals,
+        exchangeRates,
+        primaryCurrency
+      );
     }
 
     return res.status(httpStatus.CREATED).send(hierarchy);
   } catch (error) {
+    logger.error(error);
     throw new ApiError(httpStatus.NOT_FOUND, error.message);
   }
 });

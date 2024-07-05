@@ -17,7 +17,7 @@ router.route('/history').get(auth(), validate(betsValidation.getBetHistory), bet
 
 router
   .route('/financial-reports')
-  .get(auth('ticketReports'), validate(betsValidation.getAccountingReports), betsController.getFinancialReports);
+  .get(auth(), validate(betsValidation.getAccountingReports), betsController.getFinancialReports);
 
 router
   .route('/ticket-reports')
