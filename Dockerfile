@@ -1,4 +1,4 @@
-FROM node:alpine
+FROM node:slim
 
 RUN mkdir -p /mac/Documents/sportsbook/aviata-cashier-service && chown -R node:node /mac/Documents/sportsbook/aviata-cashier-service
 
