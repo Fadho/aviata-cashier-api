@@ -11,17 +11,33 @@ const logger = require('../config/logger');
 
 const createBetPlaced = catchAsync(async (req, res) => {
   const { result, stake, selections, cashierId, potentialWinnings, roundId } = req.body;
+
+  // Fetch the user (cashier) by ID
   const user = await userService.getUserById(cashierId);
-  const { balance } = user.wallets[0];
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Cashier with provided ID not found');
   }
-  if (balance - stake < 0) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'bet cannot be placed, Insuffecient Funds');
+
+  // Validate balance and stake
+  const userWallet = user.wallets[0];
+  const { balance } = userWallet;
+
+  // eslint-disable-next-line no-restricted-globals
+  if (typeof balance !== 'number' || typeof stake !== 'number' || isNaN(balance) || isNaN(stake)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid balance or stake amount');
   }
 
-  await walletService.updateWallet(user.wallets[0].id, balance - stake);
+  if (balance - stake < 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Bet cannot be placed, insufficient funds');
+  }
+
+  // Update wallet balance
+  await walletService.updateWallet(userWallet.id, balance - stake);
+
+  // Create the bet
   const betPlaced = await betsService.createBetPlaced(result, stake, selections, cashierId, potentialWinnings, roundId);
+
+  // Respond with the created bet
   res.status(httpStatus.CREATED).send(betPlaced);
 });
 

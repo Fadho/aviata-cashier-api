@@ -42,7 +42,7 @@ const findWallet = async (currencyId, userId, primary) => {
   return Wallets.find({ currencyId, userId });
 };
 /**
- * create a new shop account
+ * update a wallet
  * @param {ObjectId} id
  * @param {number} balance
  * @returns {Promise<Wallets>}

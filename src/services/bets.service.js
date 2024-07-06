@@ -203,8 +203,16 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         if (gameConfig.payoutMode === 'Manual' && bet.result === 'win') {
           logger.info('Manual Payout');
           const user = await userService.getUserById(bet.cashierId);
-          const { balance } = Number(user.wallets[0]);
-          await walletService.updateWallet(user.wallets[0].id, balance + Number(bet.winnings), { session });
+          let { balance } = Number(user.wallets[0]);
+          balance += Number(bet.winnings);
+
+          logger.info(balance);
+          // eslint-disable-next-line no-restricted-globals
+          if (typeof balance !== 'number' || isNaN(balance)) {
+            return logger.info('Invalid balance');
+          }
+
+          await walletService.updateWallet(user.wallets[0].id, balance, { session });
         }
       }
 
