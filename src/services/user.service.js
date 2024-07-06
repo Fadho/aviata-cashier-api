@@ -71,7 +71,7 @@ const getUserById = async (id) => {
  * @returns {Promise<User>}
  */
 const getUserByUsername = async (username) => {
-  return User.findOne({ name: username }).populate({
+  return User.findOne({ username }).populate({
     path: 'wallets',
     populate: { path: 'currencyId' },
   });
