@@ -157,7 +157,7 @@ const getBetHistory = async (filter, startDate, endDate) => {
 };
 
 /**
- * calculate round out for each bet
+ * calculate outcome for each bet
  * @param {String} roundId
  * @param {Number}  odd
  * @returns {Promise<Tickets>}
