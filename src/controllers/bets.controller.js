@@ -10,7 +10,8 @@ const { Wallets } = require('../models');
 const logger = require('../config/logger');
 
 const createBetPlaced = catchAsync(async (req, res) => {
-  const { result, stake, selections, cashierId, potentialWinnings, roundId } = req.body;
+  const { result, selections, cashierId, potentialWinnings, roundId } = req.body;
+  let { stake } = req.body;
 
   // Fetch the user (cashier) by ID
   const user = await userService.getUserById(cashierId);
@@ -20,7 +21,10 @@ const createBetPlaced = catchAsync(async (req, res) => {
 
   // Validate balance and stake
   const userWallet = user.wallets[0];
-  const { balance } = userWallet;
+  let { balance } = userWallet;
+
+  stake = Number(stake);
+  balance = Number(balance);
 
   // eslint-disable-next-line no-restricted-globals
   if (typeof balance !== 'number' || typeof stake !== 'number' || isNaN(balance) || isNaN(stake)) {
