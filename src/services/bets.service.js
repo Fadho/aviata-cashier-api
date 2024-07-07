@@ -164,7 +164,6 @@ const getBetHistory = async (filter, startDate, endDate) => {
  */
 
 async function updateBetsAndCalculateWinnings(roundId, odd) {
-  const gameConfig = await GameConfig.findOne();
   const maxRetries = 3; // Maximum number of retries
   let currentAttempt = 0;
 
@@ -199,10 +198,12 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         // Save bet with session
         await bet.save({ session });
 
+        const user = await User.getUserById(bet.cashierId);
+        const gameConfig = await GameConfig.find({ agentId: user.agentId });
+
         // Update user's wallet if payout mode is Manual
         if (gameConfig.payoutMode === 'Manual' && bet.result === 'win') {
           logger.info('Manual Payout');
-          const user = await userService.getUserById(bet.cashierId);
           let { balance } = user.wallets[0];
           balance = Number(balance);
 
