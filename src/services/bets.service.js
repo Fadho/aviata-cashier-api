@@ -6,6 +6,7 @@ const { differenceInHours } = require('date-fns');
 const { Tickets, GameConfig, User } = require('../models');
 const walletService = require('./wallet.service');
 const logger = require('../config/logger');
+const { userService } = require('.');
 
 /**
  * create a new ticket
@@ -198,7 +199,7 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         // Save bet with session
         await bet.save({ session });
 
-        const user = await User.getUserById(bet.cashierId);
+        const user = await userService.getUserById(bet.cashierId);
         const gameConfig = await GameConfig.find({ agentId: user.agentId });
 
         // Update user's wallet if payout mode is Manual
