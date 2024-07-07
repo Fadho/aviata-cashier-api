@@ -249,7 +249,7 @@ const payoutTicket = async (id) => {
     return { ticket: null, message: 'Invalid ticket' };
   }
 
-  const user = userService.getUserById(ticket.cashierId);
+  const user = await userService.getUserById(ticket.cashierId);
   const gameConfig = await GameConfig.findOne({ agentId: user.agentId });
   const currentDateTime = new Date();
 
