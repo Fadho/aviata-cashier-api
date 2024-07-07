@@ -244,7 +244,7 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
  */
 
 const payoutTicket = async (id) => {
-  const ticket = await Tickets.findOne({ ticketId: id }).populate('cashierId');
+  const ticket = await Tickets.findOne({ ticketId: id });
   if (!ticket) {
     return { ticket: null, message: 'Invalid ticket' };
   }
