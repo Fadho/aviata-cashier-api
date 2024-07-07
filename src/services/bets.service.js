@@ -8,7 +8,7 @@ const walletService = require('./wallet.service');
 const logger = require('../config/logger');
 
 /**
- * create a new shop account
+ * create a new ticket
  * @param {string} result
  * @param {number} stake
  * @param {number} winnings
@@ -282,6 +282,7 @@ const payoutTicket = async (id) => {
     logger.info('Automatic Payout');
     let balance = Number(user.wallets[0].balance);
 
+    // eslint-disable-next-line no-restricted-globals
     if (isNaN(balance)) {
       logger.info('Invalid balance');
       return { ticket, message: 'Invalid balance' };
