@@ -206,10 +206,11 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
           let { balance } = Number(user.wallets[0]);
           balance += Number(bet.winnings);
 
-          logger.info(balance);
+          console.log(balance);
           // eslint-disable-next-line no-restricted-globals
           if (typeof balance !== 'number' || isNaN(balance)) {
-            return logger.info('Invalid balance');
+            logger.info('Invalid balance');
+            return;
           }
 
           await walletService.updateWallet(user.wallets[0].id, balance, { session });
