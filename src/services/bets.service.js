@@ -2,9 +2,9 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-restricted-syntax */
 const mongoose = require('mongoose');
+const { differenceInHours } = require('date-fns');
 const { Tickets, GameConfig, User } = require('../models');
 const walletService = require('./wallet.service');
-const userService = require('./user.service');
 const logger = require('../config/logger');
 
 /**
@@ -237,66 +237,68 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
 }
 
 /**
- * Get user by id
+ * Payout Ticket
  * @param {ObjectId} id
  * @returns {Promise<Tickets>}
  */
+
 const payoutTicket = async (id) => {
-  let ticket = await Tickets.find({ ticketId: id });
-  // eslint-disable-next-line prefer-destructuring
-  ticket = ticket[0];
-
-  const user = await User.findById(ticket.cashierId);
-  const gameConfig = await GameConfig.find({ agentId: user.agentId });
-
-  const optionsDate = {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    weekday: 'short',
-  };
-  const optionsTime = {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  };
-
-  const date = new Date(ticket.payoutDate);
-
-  const readableDate = date.toLocaleDateString('en-US', optionsDate);
-  const readableTime = date.toLocaleTimeString('en-US', optionsTime);
-
-  const readableCustomDateTime = `${readableDate}, ${readableTime}`;
-
-  if (ticket) {
-    if (!ticket.roundHasEnded) return { ticket, message: 'Round has not ended yet.' };
-    if (ticket.payout) return { ticket, message: `Payout as been collected at ${readableCustomDateTime}` };
-
-    ticket = await Tickets.updateOne({ ticketId: id }, { payout: true, payoutDate: Date.now() }, { new: true });
-
-    if (gameConfig.payoutMode === 'Automatic') {
-      logger.info('Automatic Payout');
-      let { balance } = user.wallets[0];
-      balance = Number(balance);
-
-      // eslint-disable-next-line no-restricted-globals
-      if (typeof balance !== 'number' || isNaN(balance)) {
-        logger.info('Invalid balance');
-        return;
-      }
-
-      balance += Number(ticket.winnings);
-      await walletService.updateWallet(user.wallets[0].id, balance);
-    }
-
-    return {
-      ticket,
-      message: `Payout verified - proceed with payment`,
-    };
+  const ticket = await Tickets.findOne({ ticketId: id }).populate('cashierId');
+  if (!ticket) {
+    return { ticket: null, message: 'Invalid ticket' };
   }
 
-  return { ticket: null, message: 'invalid ticket' };
+  const user = ticket.cashierId;
+  const gameConfig = await GameConfig.findOne({ agentId: user.agentId });
+  const currentDateTime = new Date();
+
+  if (differenceInHours(currentDateTime, ticket.createdAt) > 48) {
+    return { ticket, message: 'Ticket has expired' };
+  }
+
+  if (!ticket.roundHasEnded) {
+    return { ticket, message: 'Round has not ended yet.' };
+  }
+
+  if (ticket.payout) {
+    const readableDate = ticket.payoutDate.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      weekday: 'short',
+    });
+    const readableTime = ticket.payoutDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    const readableCustomDateTime = `${readableDate}, ${readableTime}`;
+    return { ticket, message: `Payout has been collected at ${readableCustomDateTime}` };
+  }
+
+  await Tickets.updateOne({ ticketId: id }, { payout: true, payoutDate: Date.now() }, { new: true });
+
+  if (gameConfig.payoutMode === 'Automatic') {
+    logger.info('Automatic Payout');
+    let balance = Number(user.wallets[0].balance);
+
+    if (isNaN(balance)) {
+      logger.info('Invalid balance');
+      return { ticket, message: 'Invalid balance' };
+    }
+
+    balance += Number(ticket.winnings);
+    await walletService.updateWallet(user.wallets[0].id, balance);
+  }
+
+  return {
+    ticket,
+    message: 'Payout verified - proceed with payment',
+  };
 };
+
+module.exports = payoutTicket;
+
 /**
  * Get user by id
  * @param {ObjectId} id

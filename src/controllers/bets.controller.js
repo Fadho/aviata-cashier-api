@@ -227,7 +227,7 @@ const cashierReport = catchAsync(async (req, res) => {
       return bet.payout ? count + bet.winnings : count + 0;
     }, 0);
     const totalOpenPayout = betHistory.reduce((count, bet) => {
-      return !bet.payout ? count + bet.winnings : count + 0;
+      return bet.payout ? count + 0 : count + bet.winnings;
     }, 0);
 
     const data = {
