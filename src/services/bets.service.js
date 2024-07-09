@@ -3,7 +3,7 @@
 /* eslint-disable no-restricted-syntax */
 const mongoose = require('mongoose');
 const { differenceInHours } = require('date-fns');
-const { Tickets, GameConfig, User } = require('../models');
+const { Tickets, GameConfig } = require('../models');
 const walletService = require('./wallet.service');
 const logger = require('../config/logger');
 const { userService } = require('.');
@@ -167,7 +167,6 @@ const getBetHistory = async (filter, startDate, endDate) => {
 async function updateBetsAndCalculateWinnings(roundId, odd) {
   const maxRetries = 3; // Maximum number of retries
   let currentAttempt = 0;
-  console.log('sssss');
 
   while (currentAttempt < maxRetries) {
     const session = await mongoose.startSession();
@@ -200,12 +199,8 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         // Save bet with session
         await bet.save({ session });
 
-        console.log(bet);
-
         const user = await userService.getUserById(bet.cashierId, { session });
         const gameConfig = await GameConfig.find({ agentId: user.agentId }).session(session);
-
-        console.log(gameConfig[0].payoutMode, bet.result);
 
         // Update user's wallet if payout mode is Manual
         if (gameConfig[0].payoutMode === 'Manual' && bet.result === 'win') {
@@ -220,8 +215,6 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
           }
 
           balance += Number(bet.winnings);
-
-          console.log(user.wallets[0].id, balance);
 
           await walletService.updateWallet(user.wallets[0].id, balance, { session });
         }

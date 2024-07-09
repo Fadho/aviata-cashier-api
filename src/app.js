@@ -3,6 +3,7 @@ const helmet = require('helmet');
 const xss = require('xss-clean');
 const mongoSanitize = require('express-mongo-sanitize');
 const compression = require('compression');
+// const bodyParser = require('body-parser');
 const cors = require('cors');
 const passport = require('passport');
 const httpStatus = require('http-status');
@@ -13,6 +14,7 @@ const { authLimiter } = require('./middlewares/rateLimiter');
 const routes = require('./routes/v1');
 const { errorConverter, errorHandler } = require('./middlewares/error');
 const ApiError = require('./utils/ApiError');
+// const { encryptMiddleware, decryptMiddleware } = require('./middlewares/encryption');
 
 const app = express();
 
@@ -30,12 +32,21 @@ app.use(express.json());
 // parse urlencoded request body
 app.use(express.urlencoded({ extended: true }));
 
+// bodyparser for encryption: handles plaintext content-type
+app.use(bodyParser.text({ type: 'text/plain', limit: '10mb' }));
+
 // sanitize request data
 app.use(xss());
 app.use(mongoSanitize());
 
 // gzip compression
 app.use(compression());
+
+// Decryption middleware
+// app.use(decryptMiddleware);
+
+// Encryption middleware
+// app.use(encryptMiddleware);
 
 // enable cors
 app.use(cors());

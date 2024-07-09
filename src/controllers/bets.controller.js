@@ -481,18 +481,14 @@ const getFinancialReports = catchAsync(async (req, res) => {
       // Fetch all relevant exchange rates for the agent's wallets
       for (const currency of currencies) {
         if (currency) {
-          console.log(currency.exchangeRate);
           const { exchangeRate } = currency;
           const { currencyCode } = currency.country[0];
-          console.log(currencyCode, exchangeRate);
           exchangeRates[currencyCode] = exchangeRate;
         }
       }
 
       const house = await userService.getUserByRole('super');
-      console.log(house[0]._id);
       const primaryWallet = await walletService.findWallet(null, house[0].id, true);
-      console.log(primaryWallet);
       let primaryCurrency = await currencyService.getCurrencyById(primaryWallet[0].currencyId);
       primaryCurrency = primaryCurrency.country[0].currencyCode; // Assuming the first primary wallet's currency as primary
 
