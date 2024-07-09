@@ -33,7 +33,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // bodyparser for encryption: handles plaintext content-type
-app.use(bodyParser.text({ type: 'text/plain', limit: '10mb' }));
+// app.use(bodyParser.text({ type: 'text/plain', limit: '10mb' }));
 
 // sanitize request data
 app.use(xss());
