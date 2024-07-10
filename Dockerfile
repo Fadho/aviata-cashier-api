@@ -1,10 +1,16 @@
-FROM node:slim
+FROM node:alpine
 
 RUN mkdir -p /mac/Documents/sportsbook/aviata-cashier-service && chown -R node:node /mac/Documents/sportsbook/aviata-cashier-service
 
 WORKDIR /mac/Documents/sportsbook/aviata-cashier-service
 
 COPY package.json ./
+
+# Add Tini
+ENV TINI_VERSION v0.19.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+RUN chmod +x /tini
+ENTRYPOINT ["/tini", "--"]
 
 USER node
 
@@ -18,4 +24,4 @@ COPY --chown=node:node . .
 
 EXPOSE 3000:3000
 
-CMD ["npm", "start"]
+CMD ["node", "./src/app.js"]
