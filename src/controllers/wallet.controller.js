@@ -26,8 +26,6 @@ const fundWallet = catchAsync(async (req, res) => {
 
     const currency = await currencyService.getCurrencyById(currencyId);
 
-    console.log(currency, 'logs');
-
     let newBalance = parseFloat(wallet[0].balance);
     newBalance -= amount;
     // if all tests pass, update wallet

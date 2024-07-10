@@ -12,7 +12,6 @@ const logger = require('../config/logger');
 const createBetPlaced = catchAsync(async (req, res) => {
   const { result, selections, cashierId, potentialWinnings, roundId } = req.body;
   let { stake } = req.body;
-
   // Fetch the user (cashier) by ID
   const user = await userService.getUserById(cashierId);
   if (!user) {

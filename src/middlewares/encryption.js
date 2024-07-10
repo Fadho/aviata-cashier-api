@@ -1,14 +1,15 @@
 const httpStatus = require('http-status');
 const { decrypt, encrypt } = require('../utils/encryption');
+const logger = require('../config/logger');
 
 // Decrypt middleware
-const decryptMiddleware = (req, res, next) => {
-  if (req.body.data) {
+const decryptMiddleware = async (req, res, next) => {
+  if (req.method === 'POST' && typeof req.body === 'string') {
     try {
-      //   console.log(req.body);
-      const decryptedData = decrypt(req.body.data);
-      req.body.data = JSON.parse(decryptedData);
+      const decryptedData = decrypt(req.body);
+      req.body = JSON.parse(decryptedData);
     } catch (error) {
+      logger.error(error);
       return res.status(httpStatus.BAD_REQUEST).json({ message: 'Invalid encrypted data' });
     }
   }
@@ -18,13 +19,18 @@ const decryptMiddleware = (req, res, next) => {
 // Encrypt middleware
 const encryptMiddleware = (req, res, next) => {
   const originalSend = res.send;
-  res.send = function (data) {
-    if (typeof data === 'object') {
-      data = JSON.stringify(data);
+
+  res.send = function (body) {
+    if (typeof body === 'string') {
+      const encryptedData = encrypt(JSON.stringify(body));
+      // eslint-disable-next-line no-param-reassign
+      body = encryptedData;
+      // eslint-disable-next-line no-console
     }
-    const encryptedData = encrypt(data);
-    originalSend.call(this, encryptedData);
+    res.setHeader('Content-Type', 'text/plain');
+    return originalSend.call(this, body);
   };
+
   next();
 };
 

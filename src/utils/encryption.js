@@ -1,4 +1,5 @@
 const { createDecipheriv, createCipheriv } = require('crypto');
+const logger = require('../config/logger');
 // const { configs } = require('../utils/config');
 
 // let key = configs.ENCRYPTIONKEY;
@@ -16,7 +17,7 @@ const decrypt = (message) => {
     const decryptedMessage = decipher.update(message, 'hex', 'utf8') + decipher.final('utf8');
     return decryptedMessage;
   } catch (error) {
-    console.log(error);
+    logger.error(error);
   }
 };
 
@@ -26,7 +27,7 @@ const encrypt = (message) => {
     const encryptedMessage = cipher.update(message, 'utf8', 'hex') + cipher.final('hex');
     return encryptedMessage;
   } catch (error) {
-    console.log(error);
+    logger.error(error);
   }
 };
 
