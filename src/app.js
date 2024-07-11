@@ -26,7 +26,7 @@ if (config.env !== 'test') {
 // set security HTTP headers
 app.use(helmet());
 
-if (config.env !== 'production') {
+if (!config.secure) {
   // parse json request body
   app.use(express.json());
 }
@@ -34,7 +34,7 @@ if (config.env !== 'production') {
 // parse urlencoded request body
 app.use(express.urlencoded({ extended: true }));
 
-if (config.env === 'production') {
+if (config.secure) {
   // bodyparser for encryption: handles plaintext content-type
   app.use(bodyParser.text({ type: 'text/plain', limit: '10mb' }));
 

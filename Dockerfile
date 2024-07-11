@@ -8,8 +8,6 @@ COPY package.json ./
 
 USER node
 
-ENV NODE_ENV=development
-
 ENV PORT=3000
 
 RUN yarn install --pure-lockfile
@@ -18,4 +16,4 @@ COPY --chown=node:node . .
 
 EXPOSE 3000:3000
 
-CMD ["node", "./src/app.js"]
+CMD ["node", "./src/index.js"]
