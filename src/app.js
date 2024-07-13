@@ -53,7 +53,11 @@ app.use(mongoSanitize());
 app.use(compression());
 
 // enable cors
-const allowedOrigins = ['https://bo.sbegames.com', 'https://cashier.sbegames.com'];
+const allowedOrigins = [
+  'https://bo.sbegames.com',
+  'https://cashier.sbegames.com',
+  'https://websocket.aviata.sportsbookengine.com',
+];
 
 const corsOptions = {
   origin: (origin, callback) => {
