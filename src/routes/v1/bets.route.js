@@ -31,4 +31,6 @@ router
 router.route('/cashout').post(validate(betsValidation.cashoutTicket), betsController.cashoutTicket);
 router.route('/payout/:id').post(auth(), validate(betsValidation.getBetPlacedById), betsController.payoutTicket);
 
+router.route('/game-state').get(betsController.getCurrentGameState);
+
 module.exports = router;

@@ -559,6 +559,39 @@ const payoutTicket = catchAsync(async (req, res) => {
   }
 });
 
+const getCurrentGameState = catchAsync(async (req, res) => {
+  const { agentId } = req.query;
+  let betHistory = [];
+  let totalStake = 0;
+  let totalWinnings = 0;
+
+  const startDate = new Date();
+  const endDate = new Date();
+  // Set startDate to 6 days ago
+  startDate.setDate(endDate.getDate() - 6);
+
+  const users = await userService.getUsers({
+    role: 'cashier',
+    superAgentId: agentId,
+  });
+
+  const cashiers = users;
+  if (cashiers.length < 1) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'No associated cashiers');
+  }
+  // eslint-disable-next-line guard-for-in
+  for (const cashier in cashiers) {
+    betHistory = await betsService.getBetHistory({ cashierId: cashiers[cashier]._id }, startDate, endDate);
+
+    totalStake += betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
+    totalWinnings += betHistory.reduce((count, bet) => count + bet.winnings, 0);
+  }
+
+  const rtp = (totalWinnings / totalStake) * 100;
+
+  return res.status(httpStatus.OK).send({ gameState: rtp });
+});
+
 module.exports = {
   createBetPlaced,
   fetchBetPlaced,
@@ -571,4 +604,5 @@ module.exports = {
   cashoutTicket,
   payoutTicket,
   cashierReport,
+  getCurrentGameState,
 };

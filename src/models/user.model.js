@@ -44,6 +44,10 @@ const userSchema = mongoose.Schema(
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'user',
     },
+    superAgentId: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'user',
+    },
 
     password: {
       type: String,
