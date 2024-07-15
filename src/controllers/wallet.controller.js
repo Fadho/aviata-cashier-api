@@ -90,14 +90,16 @@ const fundWallet = catchAsync(async (req, res) => {
   if (newBalance < 0) throw new ApiError(httpStatus.NOT_FOUND, 'Insufficient funds!');
 
   // in case of of debit we fund super agent
-  // update: we find credit logged in user
-  if (amount < 0) {
+  // update: we find and credit logged in user
+  if (Number(amount) < 0) {
     const loggedInUser = userService.getUserById(req.user.id);
     let wallet = walletService.findWallet(iswallet[0].currencyId, loggedInUser.id, false);
 
     if (!wallet) wallet = walletService.findWallet(iswallet[0].currencyId, loggedInUser.id, true);
 
     if (!wallet) throw new ApiError(httpStatus.NOT_FOUND, 'Agent wallet not found!');
+
+    console.log('logged in user:',wallet)
 
     const agentBalance = wallet.balance + amount * -1;
 
