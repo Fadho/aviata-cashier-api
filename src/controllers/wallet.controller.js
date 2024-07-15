@@ -99,9 +99,9 @@ const fundWallet = catchAsync(async (req, res) => {
 
     if (!wallet) throw new ApiError(httpStatus.NOT_FOUND, 'Agent wallet not found!');
 
-    const agentBalance = wallet[0].balance + amount * -1;
+    const agentBalance = wallet.balance + amount * -1;
 
-    walletService.updateWallet(wallet[0].id, agentBalance);
+    walletService.updateWallet(wallet.id, agentBalance);
   }
 
   // if all tests pass, create wallet
