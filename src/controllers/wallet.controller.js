@@ -93,9 +93,9 @@ const fundWallet = catchAsync(async (req, res) => {
   // update: we find and credit logged in user
   if (Number(amount) < 0) {
     const loggedInUser = userService.getUserById(req.user.id);
-    let wallet = walletService.findWallet(iswallet[0].currencyId, loggedInUser.id, false);
+    let wallet = await walletService.findWallet(iswallet[0].currencyId, loggedInUser.id, false);
 
-    if (!wallet) wallet = walletService.findWallet(iswallet[0].currencyId, loggedInUser.id, true);
+    if (!wallet) wallet = await walletService.findWallet(iswallet[0].currencyId, loggedInUser.id, true);
 
     if (!wallet) throw new ApiError(httpStatus.NOT_FOUND, 'Agent wallet not found!');
 
