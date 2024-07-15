@@ -98,8 +98,6 @@ const fundWallet = catchAsync(async (req, res) => {
 
     if (!wallet) throw new ApiError(httpStatus.NOT_FOUND, 'Agent wallet not found!');
 
-    console.log('logged in user:', wallet, wallet.length);
-
     if (wallet.length === 0) {
       await walletService.createWallet(iswallet[0].currencyId, req.user.id, Number(amount) * -1);
     }
