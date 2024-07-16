@@ -36,6 +36,7 @@ const updateGameData = {
       roundWaitTimeValue: Joi.number(),
       timerCountdownValue: Joi.number(),
       roundBetsLimit: Joi.number(),
+      rtp: Joi.number(),
     })
     .min(1),
 };

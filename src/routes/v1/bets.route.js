@@ -8,8 +8,8 @@ const router = express.Router();
 
 router
   .route('/')
-  .post(validate(auth(), betsValidation.createBetPlaced), betsController.createBetPlaced)
-  .get(validate(auth(), betsValidation.fetchBetPlaced), betsController.fetchBetPlaced);
+  .post(auth(), validate(betsValidation.createBetPlaced), betsController.createBetPlaced)
+  .get(auth(), validate(betsValidation.fetchBetPlaced), betsController.fetchBetPlaced);
 
 router.route('/fetch/:id').get(auth(), validate(betsValidation.getBetPlacedById), betsController.getBetPlacedById);
 router.route('/cancel/:id').get(auth(), validate(betsValidation.cancelTicket), betsController.cancelTicket);
