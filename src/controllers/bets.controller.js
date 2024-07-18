@@ -5,9 +5,10 @@ const httpStatus = require('http-status');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 const pick = require('../utils/pick');
-const { betsService, userService, walletService, currencyService } = require('../services');
+const { betsService, userService, walletService, currencyService, gameService } = require('../services');
 const { Wallets } = require('../models');
 const logger = require('../config/logger');
+const GameConfig = require('../models/gameConfig.model');
 
 const createBetPlaced = catchAsync(async (req, res) => {
   const { result, selections, cashierId, potentialWinnings, roundId } = req.body;
@@ -249,7 +250,6 @@ const getAccountingReports = catchAsync(async (req, res) => {
   try {
     const { startDate, endDate, betType, clientType, cashierId } = req.query;
     const options = pick(req.query, ['sortBy', 'limit', 'page']);
-    let betHistory = [];
 
     const users = await userService.queryUsers(
       {
@@ -264,11 +264,13 @@ const getAccountingReports = catchAsync(async (req, res) => {
     }
     const bets = await Promise.all(
       user.map(async (userItem) => {
-        betHistory = await betsService.getBetHistory(
+        const betHistory = await betsService.getBetHistory(
           { cashierId: userItem.id, ...(betType && { betType }) },
           startDate,
           endDate
         );
+
+        const game = await GameConfig.findOne({ agentId: userItem.agentId });
 
         const totalStake = betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
         const totalWinnings = betHistory.reduce((count, bet) => count + bet.winnings, 0);
@@ -279,13 +281,21 @@ const getAccountingReports = catchAsync(async (req, res) => {
           return !bet.payout ? count + bet.winnings : count + 0;
         }, 0);
 
+        let impWinnings = totalWinnings;
+
+        if (game.payoutMode === 'Automatic') {
+          impWinnings = betHistory.reduce((count, bet) => {
+            return bet.payout ? count + bet.winnings : count + 0;
+          }, 0);
+        }
+
         return {
           totalWinnings,
           totalStake,
           numberOfBets: betHistory.length,
           name: userItem.name,
           clientType,
-          profit: Number(totalStake) - Number(totalWinnings),
+          profit: Number(totalStake) - Number(impWinnings),
           totalClosedPayout,
           totalOpenPayout,
           availableBalance: userItem.wallet,
