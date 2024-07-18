@@ -283,14 +283,14 @@ const getAccountingReports = catchAsync(async (req, res) => {
 
         let impWinnings = totalWinnings;
 
-        if (game.payoutMode === 'Automatic') {
+        if (game.payoutMode === 'Manual') {
           impWinnings = betHistory.reduce((count, bet) => {
             return bet.payout ? count + bet.winnings : count + 0;
           }, 0);
         }
 
         return {
-          totalWinnings,
+          totalWinnings: Number(impWinnings),
           totalStake,
           numberOfBets: betHistory.length,
           name: userItem.name,
