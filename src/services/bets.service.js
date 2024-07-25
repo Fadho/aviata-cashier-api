@@ -166,7 +166,7 @@ const getBetHistory = async (filter, startDate, endDate) => {
  */
 
 async function updateBetsAndCalculateWinnings(roundId, odd) {
-  const maxRetries = 3; // Maximum number of retries
+  const maxRetries = 5; // Maximum number of retries
   let currentAttempt = 0;
 
   while (currentAttempt < maxRetries) {
