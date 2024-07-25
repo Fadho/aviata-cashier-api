@@ -165,88 +165,85 @@ const getBetHistory = async (filter, startDate, endDate) => {
  * @returns {Promise<Tickets>}
  */
 
-async function updateBetsAndCalculateWinnings(roundId, odd, attempt = 0) {
-  const maxRetries = 3; // Maximum number of retries
+async function updateBetsAndCalculateWinnings(roundId, odd) {
+  const maxRetries = 5; // Maximum number of retries
+  let currentAttempt = 0;
 
-  if (attempt >= maxRetries) {
-    logger.error('Max retries reached. Transaction failed');
-    throw new Error('Max retries reached. Transaction failed');
-  }
+  while (currentAttempt < maxRetries) {
+    const session = await mongoose.startSession();
+    let transactionSuccessful = false;
+    try {
+      session.startTransaction();
 
-  const session = await mongoose.startSession();
-  let transactionSuccessful = false;
-  try {
-    session.startTransaction();
+      const bets = await Tickets.find({ roundId }).session(session);
+      for (const bet of bets) {
+        let cumulativeWinnings = 0;
+        let atLeastOneSelectionWins = false;
 
-    const bets = await Tickets.find({ roundId }).session(session);
-    for (const bet of bets) {
-      let cumulativeWinnings = 0;
-      let atLeastOneSelectionWins = false;
+        // eslint-disable-next-line no-continue
+        if (bet.roundHasEnded) continue;
 
-      // eslint-disable-next-line no-continue
-      if (bet.roundHasEnded) continue;
+        for (const selection of bet.selections) {
+          if (selection.odd < odd) {
+            selection.winnings = selection.stake * selection.odd;
+            cumulativeWinnings += selection.winnings;
+            atLeastOneSelectionWins = true;
+          } else {
+            selection.winnings = 0;
+          }
+        }
 
-      for (const selection of bet.selections) {
-        if (selection.odd < odd) {
-          selection.winnings = selection.stake * selection.odd;
-          cumulativeWinnings += selection.winnings;
-          atLeastOneSelectionWins = true;
-        } else {
-          selection.winnings = 0;
+        bet.winnings = cumulativeWinnings;
+        bet.result = atLeastOneSelectionWins ? 'win' : 'loss';
+        bet.roundHasEnded = true;
+        bet.gameOutcome = odd;
+
+        // Save bet with session
+        await bet.save({ session });
+
+        const user = await userService.getUserById(bet.cashierId, { session });
+        const gameConfig = await GameConfig.find({ agentId: user.agentId }).session(session);
+
+        // Update user's wallet if payout mode is Manual
+        if (gameConfig[0].payoutMode === 'Manual' && bet.result === 'win') {
+          logger.info('Manual Payout');
+          let { balance } = user.wallets[0];
+          balance = Number(balance);
+
+          // eslint-disable-next-line no-restricted-globals
+          if (typeof balance !== 'number' || isNaN(balance)) {
+            logger.info('Invalid balance');
+            return;
+          }
+
+          balance += Number(bet.winnings);
+
+          await walletService.updateWallet(user.wallets[0].id, balance, { session });
         }
       }
 
-      bet.winnings = cumulativeWinnings;
-      bet.result = atLeastOneSelectionWins ? 'win' : 'loss';
-      bet.roundHasEnded = true;
-      bet.gameOutcome = odd;
-
-      // Save bet with session
-      await bet.save({ session });
-
-      const user = await userService.getUserById(bet.cashierId, { session });
-      const gameConfig = await GameConfig.find({ agentId: user.agentId }).session(session);
-
-      // Update user's wallet if payout mode is Manual
-      if (gameConfig[0].payoutMode === 'Manual' && bet.result === 'win') {
-        logger.info('Manual Payout');
-        let { balance } = user.wallets[0];
-        balance = Number(balance);
-
-        // eslint-disable-next-line no-restricted-globals
-        if (typeof balance !== 'number' || isNaN(balance)) {
-          logger.info('Invalid balance');
-          return;
-        }
-
-        balance += Number(bet.winnings);
-
-        await walletService.updateWallet(user.wallets[0].id, balance, { session });
+      await session.commitTransaction();
+      transactionSuccessful = true; // Mark the transaction as successful
+      break; // Break the loop on successful transaction
+    } catch (error) {
+      if (!transactionSuccessful) {
+        await session.abortTransaction();
       }
+      if (error.code === 112) {
+        // Write conflict error code in MongoDB
+        logger.warn(`Write conflict detected. Attempt ${currentAttempt + 1} failed. Retrying...`);
+      } else if (currentAttempt === maxRetries - 1) {
+        logger.error('Max retries reached. Transaction failed:', error);
+        throw error; // Throw error on last attempt
+      } else {
+        logger.warn(`Attempt ${currentAttempt + 1} failed. Retrying...`, error);
+      }
+    } finally {
+      session.endSession();
+      currentAttempt++;
     }
-
-    await session.commitTransaction();
-    transactionSuccessful = true; // Mark the transaction as successful
-  } catch (error) {
-    if (!transactionSuccessful) {
-      await session.abortTransaction();
-    }
-
-    if (error.code === 112) {
-      // Write conflict error code in MongoDB
-      logger.warn(`Write conflict detected. Attempt ${attempt + 1} failed. Retrying...`);
-    } else {
-      logger.warn(`Attempt ${attempt + 1} failed. Retrying...`, error);
-    }
-
-    // Recursive call with incremented attempt count
-    return updateBetsAndCalculateWinnings(roundId, odd, attempt + 1);
-  } finally {
-    session.endSession();
   }
 }
-
-module.exports = { updateBetsAndCalculateWinnings };
 
 /**
  * Payout Ticket
