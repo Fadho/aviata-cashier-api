@@ -18,9 +18,9 @@ const { userService } = require('.');
  * @returns {Promise<Tickets>}
  */
 const createBetPlaced = async (result, stake, selections, cashierId, potentialWinnings, roundId) => {
-  // const timestamp = new Date().getTime(); // Get current timestamp
-  const ticketId = String(Math.floor(Math.random() * 10));
-  // timestamp.toString();
+  const minNumber = 1000000000; // Minimum 10-digit number
+  const maxNumber = 9999999999; // Maximum 10-digit number
+  const ticketId = Math.floor(minNumber + Math.random() * (maxNumber - minNumber + 1)).toString();
 
   if (selections.length > 1) {
     return Tickets.create({
