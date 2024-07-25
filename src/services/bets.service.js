@@ -18,8 +18,9 @@ const { userService } = require('.');
  * @returns {Promise<Tickets>}
  */
 const createBetPlaced = async (result, stake, selections, cashierId, potentialWinnings, roundId) => {
-  const timestamp = new Date().getTime(); // Get current timestamp
-  const ticketId = timestamp.toString();
+  // const timestamp = new Date().getTime(); // Get current timestamp
+  const ticketId = String(Math.floor(Math.random() * 10));
+  // timestamp.toString();
 
   if (selections.length > 1) {
     return Tickets.create({
@@ -170,6 +171,7 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
 
   while (currentAttempt < maxRetries) {
     const session = await mongoose.startSession();
+    let transactionSuccessful = false;
     try {
       session.startTransaction();
 
@@ -221,10 +223,16 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
       }
 
       await session.commitTransaction();
+      transactionSuccessful = true; // Mark the transaction as successful
       break; // Break the loop on successful transaction
     } catch (error) {
-      await session.abortTransaction();
-      if (currentAttempt === maxRetries - 1) {
+      if (!transactionSuccessful) {
+        await session.abortTransaction();
+      }
+      if (error.code === 112) {
+        // Write conflict error code in MongoDB
+        logger.warn(`Write conflict detected. Attempt ${currentAttempt + 1} failed. Retrying...`);
+      } else if (currentAttempt === maxRetries - 1) {
         logger.error('Max retries reached. Transaction failed:', error);
         throw error; // Throw error on last attempt
       } else {
