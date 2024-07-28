@@ -79,7 +79,7 @@ const corsOptions = {
   optionsSuccessStatus: 200,
 };
 
-app.use(cors(corsOptions));
+// app.use(cors(corsOptions));
 app.options('*', config.env === 'production' ? cors(corsOptions) : cors());
 
 // jwt authentication

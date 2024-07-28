@@ -3,7 +3,7 @@
 /* eslint-disable no-restricted-syntax */
 const mongoose = require('mongoose');
 const { differenceInHours } = require('date-fns');
-const { Tickets, GameConfig } = require('../models');
+const { Tickets, GameConfig, Rounds } = require('../models');
 const walletService = require('./wallet.service');
 const logger = require('../config/logger');
 const { userService } = require('.');
@@ -174,14 +174,10 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
     let transactionSuccessful = false;
     try {
       session.startTransaction();
-
-      const bets = await Tickets.find({ roundId }).session(session);
+      const bets = await Tickets.find({ roundId, roundHasEnded: false }).session(session);
       for (const bet of bets) {
         let cumulativeWinnings = 0;
         let atLeastOneSelectionWins = false;
-
-        // eslint-disable-next-line no-continue
-        if (bet.roundHasEnded) continue;
 
         for (const selection of bet.selections) {
           if (selection.odd < odd) {
@@ -224,6 +220,14 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
 
       await session.commitTransaction();
       transactionSuccessful = true; // Mark the transaction as successful
+
+      // check if round exists else save
+      const exists = await Rounds.find({ roundId });
+      console.log(exists.length)
+      if (exists.length === 0) Rounds.create({ roundId, odd });
+
+      // eslint-disable-next-line no-use-before-define
+      checkOpenBets();
       break; // Break the loop on successful transaction
     } catch (error) {
       if (!transactionSuccessful) {
@@ -243,6 +247,19 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
       currentAttempt++;
     }
   }
+}
+
+/**
+ * check for open bets after round closes
+ * @param {String} roundId
+ * @param {Number}  odd
+ */
+
+function checkOpenBets(roundId, odd) {
+  const bets = Tickets.find({ roundId, roundHasEnded: false });
+  console.log(bets.length)
+  if (!bets.length) return;
+  updateBetsAndCalculateWinnings(roundId, odd);
 }
 
 /**

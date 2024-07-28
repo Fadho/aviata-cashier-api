@@ -6,3 +6,4 @@ module.exports.Game = require('./game.model');
 module.exports.Currency = require('./currency.model');
 module.exports.Wallets = require('./wallet.model');
 module.exports.TransferHistory = require('./transferHistory.model');
+module.exports.Rounds = require('./rounds.model');
