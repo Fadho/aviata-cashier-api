@@ -223,7 +223,6 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
 
       // check if round exists else save
       const exists = await Rounds.find({ roundId });
-      console.log(exists.length)
       if (exists.length === 0) Rounds.create({ roundId, odd });
 
       // eslint-disable-next-line no-use-before-define
@@ -257,7 +256,6 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
 
 function checkOpenBets(roundId, odd) {
   const bets = Tickets.find({ roundId, roundHasEnded: false });
-  console.log(bets.length)
   if (!bets.length) return;
   updateBetsAndCalculateWinnings(roundId, odd);
 }
