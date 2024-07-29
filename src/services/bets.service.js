@@ -225,10 +225,14 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
       const exists = await Rounds.find({ roundId });
       if (exists.length === 0) Rounds.create({ roundId, odd });
 
+      // exit if no open bet
+      // if (!bets.length) break;
+
       // eslint-disable-next-line no-use-before-define
-      checkOpenBets();
+      await closeOpenBets();
       break; // Break the loop on successful transaction
     } catch (error) {
+      // console.log(error)
       if (!transactionSuccessful) {
         await session.abortTransaction();
       }
@@ -254,11 +258,47 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
  * @param {Number}  odd
  */
 
-function checkOpenBets(roundId, odd) {
-  const bets = Tickets.find({ roundId, roundHasEnded: false });
-  if (!bets.length) return;
-  updateBetsAndCalculateWinnings(roundId, odd);
-}
+// function checkOpenBets(roundId, odd) {
+//   const bets = Tickets.find({ roundId, roundHasEnded: false });
+//   if (!bets.length) return;
+//   updateBetsAndCalculateWinnings(roundId, odd);
+// }
+
+/**
+ * check for open bets after round closes
+ * @param {String} roundId
+ * @param {Number}  odd
+ */
+
+const closeOpenBets = async () => {
+  // find all open bet
+  const openRounds = await Tickets.aggregate([
+    {
+      $match: { roundHasEnded: false },
+    },
+    {
+      $group: {
+        _id: '$roundId',
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        roundId: '$_id',
+      },
+    },
+  ]);
+
+  if (!openRounds.length) return;
+
+  // eslint-disable-next-line guard-for-in
+  for (const round in openRounds) {
+    const roundData = await Rounds.find({ roundId: openRounds[round].roundId });
+    if (roundData.length && roundData[0].roundId) {
+      await updateBetsAndCalculateWinnings(roundData[0].roundId, roundData[0].odd);
+    }
+  }
+};
 
 /**
  * Payout Ticket
