@@ -16,4 +16,4 @@ COPY --chown=node:node . .
 
 EXPOSE 3000:3000
 
-CMD ["node", "./src/cluster.js"]
+CMD ["node", "./src/index.js"]
