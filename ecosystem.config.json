@@ -3,7 +3,7 @@
     {
       "name": "Cashier Service",
       "script": "src/index.js",
-      "instances": 1,
+      "instances": 3,
       "autorestart": true,
       "watch": false,
       "time": true,
