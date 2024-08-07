@@ -228,11 +228,11 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
       // exit if no open bet
       // if (!bets.length) break;
 
-      // Check for open bets without recursion
       // eslint-disable-next-line no-use-before-define
       await closeOpenBets();
       break; // Break the loop on successful transaction
     } catch (error) {
+      // console.log(error)
       if (!transactionSuccessful) {
         await session.abortTransaction();
       }
@@ -257,6 +257,19 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
  * @param {String} roundId
  * @param {Number}  odd
  */
+
+// function checkOpenBets(roundId, odd) {
+//   const bets = Tickets.find({ roundId, roundHasEnded: false });
+//   if (!bets.length) return;
+//   updateBetsAndCalculateWinnings(roundId, odd);
+// }
+
+/**
+ * check for open bets after round closes
+ * @param {String} roundId
+ * @param {Number}  odd
+ */
+
 const closeOpenBets = async () => {
   // find all open tickets
   const openTickets = await Tickets.aggregate([
@@ -278,8 +291,9 @@ const closeOpenBets = async () => {
 
   if (!openTickets.length) return;
 
-  for (const ticket of openTickets) {
-    const roundData = await Rounds.find({ roundId: ticket.roundId });
+  // eslint-disable-next-line guard-for-in
+  for (const ticket in openTickets) {
+    const roundData = await Rounds.find({ roundId: openTickets[ticket].roundId });
     if (roundData.length && roundData[0].roundId) {
       await updateBetsAndCalculateWinnings(roundData[0].roundId, roundData[0].odd);
     }
