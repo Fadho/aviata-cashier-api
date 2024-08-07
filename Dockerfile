@@ -14,6 +14,8 @@ RUN yarn install --pure-lockfile
 
 COPY --chown=node:node . .
 
+RUN export NODE_OPTIONS="--max-old-space-size=8192"
+
 EXPOSE 3000:3000
 
 CMD ["node", "./src/index.js"]

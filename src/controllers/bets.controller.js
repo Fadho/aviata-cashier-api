@@ -577,8 +577,9 @@ const getCurrentGameState = catchAsync(async (req, res) => {
 
   const startDate = new Date();
   const endDate = new Date();
-  // Set startDate to 6 days ago
-  startDate.setDate(endDate.getDate() - 6);
+  // Set startDate to 6 days ago - cannot scale
+  // set startDate to yesterday
+  startDate.setDate(endDate.getDate() - 1);
 
   const users = await userService.getUsers({
     role: 'cashier',
