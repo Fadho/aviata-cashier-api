@@ -8,7 +8,7 @@ COPY package.json ./
 
 USER node
 
-ENV PORT=3000
+ENV PORT=3002
 
 RUN yarn install --pure-lockfile
 
@@ -16,6 +16,6 @@ COPY --chown=node:node . .
 
 RUN export NODE_OPTIONS="--max-old-space-size=8192"
 
-EXPOSE 3000:3000
+EXPOSE 3002:3002
 
 CMD ["node", "./src/index.js"]
