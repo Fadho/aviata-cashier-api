@@ -272,15 +272,19 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
 
 /**
  * check for open bets after round closes
- * @param {String} roundId
+ * @param {ObjectId} ticketId
  * @param {Number}  odd
  */
 
 const cashoutBetForPlayer = async (ticketId, odd) => {
-  const bet = Tickets.findOne({ _id: ticketId, roundHasEnded: false });
+  const bet = await Tickets.findOne({ _id: ticketId, roundHasEnded: false });
   if (!bet) return;
 
-  return Tickets.findOneAndUpdate({ _id: ticketId }, { winnings: bet.stake * odd, roundHasEnded: true }, { new: true });
+  return Tickets.findOneAndUpdate(
+    { _id: ticketId },
+    { winnings: bet.stake * odd, roundHasEnded: true, selections: [{ odd, stake: bet.stake }] },
+    { new: true }
+  );
 };
 
 /**

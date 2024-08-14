@@ -77,6 +77,12 @@ const cashoutTicket = {
     roundId: Joi.string().required(),
   }),
 };
+const cashoutPlayerTicket = {
+  body: Joi.object().keys({
+    odd: Joi.number().required(),
+    ticketId: Joi.string().custom(objectId).required(),
+  }),
+};
 
 module.exports = {
   createBetPlaced,
@@ -87,4 +93,5 @@ module.exports = {
   cancelTicket,
   cashoutTicket,
   createBetPlacedPlayer,
+  cashoutPlayerTicket,
 };

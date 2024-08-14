@@ -13,6 +13,8 @@ router
 
 router.route('/player').post(validate(betsValidation.createBetPlacedPlayer), betsController.createBetPlaced);
 
+router.route('/player/cashout').post(validate(betsValidation.cashoutPlayerTicket), betsController.cashoutPlayerBet);
+
 router.route('/fetch/:id').get(auth(), validate(betsValidation.getBetPlacedById), betsController.getBetPlacedById);
 router.route('/cancel/:id').get(auth(), validate(betsValidation.cancelTicket), betsController.cancelTicket);
 router.route('/history').get(auth(), validate(betsValidation.getBetHistory), betsController.getBetHistory);
