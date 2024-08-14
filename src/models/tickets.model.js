@@ -48,6 +48,7 @@ const ticketSchema = mongoose.Schema(
     },
     potentialWinnings: {
       type: Number,
+      default: 0,
       required: true,
     },
     deviceId: {

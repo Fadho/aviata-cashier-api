@@ -11,7 +11,7 @@ const logger = require('../config/logger');
 const GameConfig = require('../models/gameConfig.model');
 
 const createBetPlaced = catchAsync(async (req, res) => {
-  const { result, selections, cashierId, potentialWinnings, roundId } = req.body;
+  const { result, selections, cashierId, potentialWinnings, roundId, gameType, playerId, deviceId } = req.body;
   let { stake } = req.body;
   // Fetch the user (cashier) by ID
   const user = await userService.getUserById(cashierId);
@@ -39,10 +39,26 @@ const createBetPlaced = catchAsync(async (req, res) => {
   await walletService.updateWallet(userWallet.id, balance - stake);
 
   // Create the bet
-  const betPlaced = await betsService.createBetPlaced(result, stake, selections, cashierId, potentialWinnings, roundId);
-
+  let betPlaced = {};
+  if (gameType === 'shootout') {
+    betPlaced = await betsService.createBetPlacedForPlayer(stake, gameType, roundId, cashierId, playerId, deviceId);
+  } else {
+    betPlaced = await betsService.createBetPlaced(result, stake, selections, cashierId, potentialWinnings, roundId);
+  }
   // Respond with the created bet
   res.status(httpStatus.CREATED).send(betPlaced);
+});
+
+const cashoutPlayerBet = catchAsync(async (req, res) => {
+  const { ticketId, odd } = req.body;
+
+  const betCashed = await betsService.cashoutBetForPlayer(ticketId, odd);
+
+  if (!betCashed) {
+    res.status(httpStatus.NOT_FOUND).send();
+  }
+  // Respond with the created bet
+  res.status(httpStatus.CREATED).send(betCashed);
 });
 
 const fetchBetPlaced = catchAsync(async (req, res) => {
@@ -616,4 +632,5 @@ module.exports = {
   payoutTicket,
   cashierReport,
   getCurrentGameState,
+  cashoutPlayerBet,
 };

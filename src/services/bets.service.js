@@ -38,6 +38,24 @@ const createBetPlaced = async (result, stake, selections, cashierId, potentialWi
 };
 
 /**
+ * create a new ticket
+ * @param {number} stake
+ * @param {string} gameType
+ * @param {string} roundId
+ * @param {ObjectId} cashierId
+ * @param {ObjectId} playerId
+ * @param {ObjectId} deviceId
+ * @returns {Promise<Tickets>}
+ */
+const createBetPlacedForPlayer = async (stake, gameType, roundId, cashierId, playerId, deviceId) => {
+  const minNumber = 1000000000; // Minimum 10-digit number
+  const maxNumber = 9999999999; // Maximum 10-digit number
+  const ticketId = Math.floor(minNumber + Math.random() * (maxNumber - minNumber + 1)).toString();
+
+  return Tickets.create({ stake, gameType, cashierId, ticketId, betType: 'single', playerId, roundId, deviceId });
+};
+
+/**
  * create a new shop account
  * @returns {Promise<Tickets>}
  */
@@ -258,6 +276,19 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
  * @param {Number}  odd
  */
 
+const cashoutBetForPlayer = async (ticketId, odd) => {
+  const bet = Tickets.findOne({ _id: ticketId, roundHasEnded: false });
+  if (!bet) return;
+
+  return Tickets.findOneAndUpdate({ _id: ticketId }, { winnings: bet.stake * odd, roundHasEnded: true }, { new: true });
+};
+
+/**
+ * check for open bets after round closes
+ * @param {String} roundId
+ * @param {Number}  odd
+ */
+
 // function checkOpenBets(roundId, odd) {
 //   const bets = Tickets.find({ roundId, roundHasEnded: false });
 //   if (!bets.length) return;
@@ -392,4 +423,6 @@ module.exports = {
   payoutTicket,
   getCancelledBetHistory,
   updateBetsAndCalculateWinnings,
+  createBetPlacedForPlayer,
+  cashoutBetForPlayer,
 };
