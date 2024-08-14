@@ -4,10 +4,13 @@ const { objectId } = require('./custom.validation');
 const createBetPlaced = {
   body: Joi.object().keys({
     selections: Joi.array().items(Joi.object().keys({ odd: Joi.number().required(), stake: Joi.number().required() })),
-    potentialWinnings: Joi.number().required(),
+    potentialWinnings: Joi.number(),
     stake: Joi.number().required(),
     cashierId: Joi.string().required().custom(objectId),
+    playerId: Joi.string().custom(objectId),
+    deviceId: Joi.string().custom(objectId),
     roundId: Joi.string().required(),
+    gameType: Joi.string(),
   }),
 };
 const fetchBetPlaced = {
