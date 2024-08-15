@@ -11,7 +11,7 @@ router
   .post(auth(), validate(betsValidation.createBetPlaced), betsController.createBetPlaced)
   .get(auth(), validate(betsValidation.fetchBetPlaced), betsController.fetchBetPlaced);
 
-router.route('/player').post(validate(betsValidation.createBetPlacedPlayer), betsController.createBetPlaced);
+router.route('/player').post(validate(betsValidation.createBetPlacedPlayer), betsController.createBetPlacedForPlayer);
 
 router.route('/player/cashout').post(validate(betsValidation.cashoutPlayerTicket), betsController.cashoutPlayerBet);
 

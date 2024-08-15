@@ -6,7 +6,7 @@ const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 const pick = require('../utils/pick');
 const { betsService, userService, walletService, currencyService } = require('../services');
-const { Wallets } = require('../models');
+const { Wallets, Player } = require('../models');
 const logger = require('../config/logger');
 const GameConfig = require('../models/gameConfig.model');
 
@@ -45,6 +45,42 @@ const createBetPlaced = catchAsync(async (req, res) => {
   } else {
     betPlaced = await betsService.createBetPlaced(result, stake, selections, cashierId, potentialWinnings, roundId);
   }
+  // Respond with the created bet
+  res.status(httpStatus.CREATED).send(betPlaced);
+});
+
+const createBetPlacedForPlayer = catchAsync(async (req, res) => {
+  const { cashierId, roundId, gameType, playerId, deviceId } = req.body;
+  let { stake } = req.body;
+  // Fetch the user (cashier) by ID
+  const player = await Player.findById(playerId);
+  if (!player) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
+  }
+
+  // Validate balance and stake
+  const userWallet = player.wallet;
+  let balance = userWallet;
+
+  stake = Number(stake);
+  balance = Number(balance);
+
+  // eslint-disable-next-line no-restricted-globals
+  if (typeof balance !== 'number' || typeof stake !== 'number' || isNaN(balance) || isNaN(stake)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid balance or stake amount');
+  }
+
+  if (balance - stake < 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Bet cannot be placed, insufficient funds');
+  }
+
+  // Update wallet balance
+  await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance - stake });
+
+  let betPlaced;
+  if (gameType === 'shootout')
+    betPlaced = await betsService.createBetPlacedForPlayer(stake, gameType, roundId, cashierId, playerId, deviceId);
+
   // Respond with the created bet
   res.status(httpStatus.CREATED).send(betPlaced);
 });
@@ -633,4 +669,5 @@ module.exports = {
   cashierReport,
   getCurrentGameState,
   cashoutPlayerBet,
+  createBetPlacedForPlayer,
 };
