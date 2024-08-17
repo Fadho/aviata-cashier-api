@@ -46,61 +46,78 @@ const getRoundById = async (id) => {
 
 const startGame = async (superAgentId, gameType) => {
   if (!superAgentId) return;
-  // Find all rounds that are currently running (roundHasEnded is false)
-  const runningRounds = await Rounds.find({ roundHasEnded: false, superAgentId, gameType }).limit(3);
-  // console.log(runningRounds.length, runningRounds);
 
-  if (runningRounds.length === 0) {
-    // No running rounds, create three new rounds with orders 1, 2, and 3
-    for (let i = 1; i <= 3; i++) {
+  const session = await Rounds.startSession(); // Start a new session
+  session.startTransaction(); // Start a transaction
+
+  try {
+    // Find all rounds that are currently running (roundHasEnded is false)
+    const runningRounds = await Rounds.find({ roundHasEnded: false, superAgentId, gameType }).limit(3).session(session);
+
+    if (runningRounds.length === 0) {
+      // No running rounds, create three new rounds with orders 1, 2, and 3
+      for (let i = 1; i <= 3; i++) {
+        let roundId = generateRandomId();
+        let exists = await Rounds.findOne({ roundId, superAgentId, gameType }).session(session);
+
+        // Ensure the new round ID is unique
+        while (exists) {
+          roundId = generateRandomId();
+          exists = await Rounds.findOne({ roundId, superAgentId, gameType }).session(session);
+        }
+
+        // Create the new round with the appropriate order
+        const newRound = await Rounds.create([{ roundId, order: i, superAgentId, gameType }], { session });
+        runningRounds.push(newRound[0]); // Add the new round to the runningRounds list
+      }
+      await session.commitTransaction(); // Commit the transaction
+      session.endSession(); // End the session
+      return runningRounds.map((round) => round.roundId);
+    }
+
+    if (runningRounds.length < 3) {
+      // Shift orders: 2 becomes 1, 3 becomes 2
+      // eslint-disable-next-line no-restricted-syntax
+      for (const round of runningRounds) {
+        if (round.order === 3) {
+          round.order = 2;
+        } else if (round.order === 2) {
+          round.order = 1;
+        }
+        await round.save({ session }); // Save the updated order
+      }
+
+      // Create and assign a new round with order 3
       let roundId = generateRandomId();
-      let exists = await Rounds.findOne({ roundId, superAgentId, gameType });
+      let exists = await Rounds.findOne({ roundId, superAgentId, gameType }).session(session);
+      const exists2 = await Rounds.findOne({ order: 3, superAgentId, gameType }).session(session);
 
       // Ensure the new round ID is unique
       while (exists) {
         roundId = generateRandomId();
-        exists = await Rounds.findOne({ roundId, superAgentId, gameType });
+        exists = await Rounds.findOne({ roundId, superAgentId, gameType }).session(session);
       }
 
-      // Create the new round with the appropriate order
-      const newRound = await Rounds.create({ roundId, order: i, superAgentId, gameType });
-      runningRounds.push(newRound); // Add the new round to the runningRounds list
+      if (exists2) {
+        runningRounds.push(exists2); // Add the new round to the runningRounds list
+        await session.commitTransaction(); // Commit the transaction
+        session.endSession(); // End the session
+        return runningRounds.map((round) => round.roundId);
+      }
+
+      // Create the new round with order 3
+      const newRound = await Rounds.create([{ roundId, order: 3, superAgentId, gameType }], { session });
+      runningRounds.push(newRound[0]); // Add the new round to the runningRounds list
     }
+
+    await session.commitTransaction(); // Commit the transaction
     return runningRounds.map((round) => round.roundId);
+  } catch (error) {
+    await session.abortTransaction(); // Abort the transaction in case of an error
+    throw error; // Re-throw the error after aborting
+  } finally {
+    session.endSession(); // End the session
   }
-  if (runningRounds.length < 3) {
-    // Shift orders: 2 becomes 1, 3 becomes 2
-    runningRounds.forEach((round) => {
-      if (round.order === 3) {
-        round.order = 2;
-      } else if (round.order === 2) {
-        round.order = 1;
-      }
-      round.save(); // Save the updated order
-    });
-
-    // Create and assign a new round with order 3
-    let roundId = generateRandomId();
-    let exists = await Rounds.findOne({ roundId, superAgentId, gameType });
-    const exists2 = await Rounds.findOne({ order: 3, superAgentId, gameType });
-
-    // Ensure the new round ID is unique
-    while (exists) {
-      roundId = generateRandomId();
-      exists = await Rounds.findOne({ roundId, superAgentId, gameType });
-    }
-
-    if (exists2) {
-      runningRounds.push(exists2); // Add the new round to the runningRounds list
-      return runningRounds.map((round) => round.roundId);
-    }
-
-    // Create the new round with order 3
-    const newRound = await Rounds.create({ roundId, order: 3, superAgentId, gameType });
-    runningRounds.push(newRound); // Add the new round to the runningRounds list
-  }
-
-  return runningRounds.map((round) => round.roundId);
 };
 
 // const startGame = async (superAgentId, gameType) => {
@@ -181,16 +198,36 @@ const startGame = async (superAgentId, gameType) => {
 //   return runningRounds.slice(0, 3).map((round) => round.roundId);
 // };
 
-
 const closeGame = async (superAgentId, roundId, odd) => {
   if (!superAgentId || !roundId) return;
-  console.log(superAgentId, roundId, odd);
-  await Rounds.findOneAndUpdate(
-    { superAgentId, roundId, roundHasEnded: false },
-    { superAgentId, roundId, odd, order: 0, roundHasEnded: true },
-    { new: true }
-  );
-  updateBetsAndCalculateWinnings(roundId, odd);
+
+  const session = await Rounds.startSession(); // Start a new session
+  session.startTransaction(); // Start a transaction
+
+  try {
+    // console.log(superAgentId, roundId, odd);
+
+    // Update the round to mark it as ended
+    const updatedRound = await Rounds.findOneAndUpdate(
+      { superAgentId, roundId, roundHasEnded: false },
+      { odd, order: 0, roundHasEnded: true },
+      { new: true, session } // Use the session for this operation
+    );
+
+    if (updatedRound) {
+      // If the round was successfully updated, calculate winnings
+      await updateBetsAndCalculateWinnings(roundId, odd);
+    } else {
+      console.error(`Failed to close round ${roundId}. Round not found or already ended.`);
+    }
+
+    await session.commitTransaction(); // Commit the transaction if successful
+  } catch (error) {
+    await session.abortTransaction(); // Abort the transaction in case of an error
+    console.error(`Error closing round ${roundId}:`, error);
+  } finally {
+    session.endSession(); // End the session
+  }
 };
 
 module.exports = {
