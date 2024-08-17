@@ -48,7 +48,7 @@ const startGame = async (superAgentId, gameType) => {
   if (!superAgentId) return;
   // Find all rounds that are currently running (roundHasEnded is false)
   const runningRounds = await Rounds.find({ roundHasEnded: false, superAgentId, gameType }).limit(3);
-  console.log(runningRounds.length, runningRounds);
+  // console.log(runningRounds.length, runningRounds);
 
   if (runningRounds.length === 0) {
     // No running rounds, create three new rounds with orders 1, 2, and 3
