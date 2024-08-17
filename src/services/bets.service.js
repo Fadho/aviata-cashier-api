@@ -221,9 +221,7 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
       await session.commitTransaction();
       transactionSuccessful = true; // Mark the transaction as successful
 
-      // check if round exists else save
-      const exists = await Rounds.find({ roundId });
-      if (exists.length === 0) Rounds.create({ roundId, odd });
+      // if (exists.length === 0) Rounds.create({ roundId, odd });
 
       // exit if no open bet
       // if (!bets.length) break;

@@ -9,7 +9,7 @@ const ticketSchema = mongoose.Schema(
     },
     cashierId: {
       type: mongoose.SchemaTypes.ObjectId,
-      ref: 'Cashier',
+      ref: 'User',
       required: true,
     },
     ticketId: {
