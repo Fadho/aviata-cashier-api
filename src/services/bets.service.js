@@ -193,7 +193,7 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         bet.result = atLeastOneSelectionWins ? 'win' : 'loss';
         bet.roundHasEnded = true;
         bet.gameOutcome = odd;
-        if (!bet.gameOutcome || !bet.winnings) {
+        if (!bet.gameOutcome) {
           console.log(bet)
           return;
         }
