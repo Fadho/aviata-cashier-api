@@ -207,6 +207,8 @@ const closeGame = async (superAgentId, roundId, odd) => {
   try {
     // console.log(superAgentId, roundId, odd);
 
+    odd = Number(odd);
+
     // Update the round to mark it as ended
     const updatedRound = await Rounds.findOneAndUpdate(
       { superAgentId, roundId, roundHasEnded: false },
