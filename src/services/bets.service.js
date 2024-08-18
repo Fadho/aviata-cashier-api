@@ -193,6 +193,10 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         bet.result = atLeastOneSelectionWins ? 'win' : 'loss';
         bet.roundHasEnded = true;
         bet.gameOutcome = odd;
+        if (!bet.gameOutcome || !bet.winnings) {
+          console.log(bet)
+          return;
+        }
 
         // Save bet with session
         await bet.save({ session });
