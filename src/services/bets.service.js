@@ -3,7 +3,7 @@
 /* eslint-disable no-restricted-syntax */
 const mongoose = require('mongoose');
 const { differenceInHours } = require('date-fns');
-const { Tickets, GameConfig, Rounds } = require('../models');
+const { Tickets, GameConfig, Rounds, Player } = require('../models');
 const walletService = require('./wallet.service');
 const logger = require('../config/logger');
 const { userService } = require('.');
@@ -271,7 +271,7 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
 }
 
 /**
- * check for open bets after round closes
+ * cashout bet function for multiplayer games
  * @param {ObjectId} ticketId
  * @param {Number}  odd
  */
@@ -280,11 +280,15 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
   const bet = await Tickets.findOne({ _id: ticketId, roundHasEnded: false });
   if (!bet) return;
 
-  return Tickets.findOneAndUpdate(
+  const player = Player.findOne({ _id: bet.playerId });
+
+  await Tickets.findOneAndUpdate(
     { _id: ticketId },
     { winnings: bet.stake * odd, roundHasEnded: true, selections: [{ odd, stake: bet.stake }] },
     { new: true }
   );
+
+  return Player.findOneAndUpdate({ _id: bet.playerId }, { wallet: player.wallet + bet.stake * odd }, { new: true });
 };
 
 /**

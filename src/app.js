@@ -61,7 +61,10 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (
+    if (config.env === 'development') {
+      // Allow access from anywhere in development
+      callback(null, true);
+    } else if (
       !origin ||
       allowedOrigins.some((pattern) => {
         if (typeof pattern === 'string') {
@@ -79,8 +82,8 @@ const corsOptions = {
   optionsSuccessStatus: 200,
 };
 
-if (config.env === 'production') app.use(cors(corsOptions));
-app.options('*', config.env === 'production' ? cors(corsOptions) : cors());
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // jwt authentication
 app.use(passport.initialize());
