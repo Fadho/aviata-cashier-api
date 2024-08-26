@@ -57,6 +57,7 @@ const allowedOrigins = [
   'https://bo.sbegames.com',
   'https://cashier.sbegames.com',
   'https://websocket.aviata.sportsbookengine.com',
+  'https://orca-app-dhbnz.ondigitalocean.app',
 ];
 
 const corsOptions = {
