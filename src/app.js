@@ -58,6 +58,7 @@ const allowedOrigins = [
   'https://cashier.sbegames.com',
   'https://websocket.aviata.sportsbookengine.com',
   'https://shoutout-cashier.staging.sbegames.com',
+  'https://next-backoffice-gamma.vercel.app/',
 ];
 
 const corsOptions = {
