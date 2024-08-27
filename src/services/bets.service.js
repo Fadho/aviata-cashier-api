@@ -280,15 +280,15 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
   const bet = await Tickets.findOne({ _id: ticketId, roundHasEnded: false });
   if (!bet) return;
 
-  const player = Player.findOne({ _id: bet.playerId });
+  const player = await Player.findOne({ playerId: bet.playerId, deviceId: bet.deviceId });
 
   await Tickets.findOneAndUpdate(
     { _id: ticketId },
-    { winnings: bet.stake * odd, roundHasEnded: true, selections: [{ odd, stake: bet.stake }] },
+    { winnings: bet.stake * odd, roundHasEnded: true, selections: [{ odd, stake: bet.stake }], gameOutcome: odd },
     { new: true }
   );
 
-  return Player.findOneAndUpdate({ _id: bet.playerId }, { wallet: player.wallet + bet.stake * odd }, { new: true });
+  return Player.findOneAndUpdate({ _id: player.id }, { wallet: player.wallet + bet.stake * odd }, { new: true });
 };
 
 /**

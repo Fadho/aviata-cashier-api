@@ -16,6 +16,11 @@ const ticketSchema = mongoose.Schema(
       type: mongoose.SchemaTypes.String,
       unique: true,
     },
+    playerId: {
+      type: mongoose.SchemaTypes.String,
+      ref: 'Player',
+      required: true,
+    },
     betType: {
       type: String,
       lowercase: true,
@@ -52,7 +57,7 @@ const ticketSchema = mongoose.Schema(
       required: true,
     },
     deviceId: {
-      type: String,
+      type: mongoose.SchemaTypes.ObjectId,
       // required: true,
     },
     gameType: {

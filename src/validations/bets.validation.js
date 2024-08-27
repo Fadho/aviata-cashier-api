@@ -16,7 +16,7 @@ const createBetPlacedPlayer = {
   body: Joi.object().keys({
     stake: Joi.number().required(),
     cashierId: Joi.string().required().custom(objectId),
-    playerId: Joi.string().custom(objectId),
+    playerId: Joi.string().required(),
     deviceId: Joi.string().custom(objectId),
     roundId: Joi.string().required(),
     gameType: Joi.string(),

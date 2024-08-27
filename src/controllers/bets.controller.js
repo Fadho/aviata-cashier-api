@@ -53,7 +53,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
   const { cashierId, roundId, gameType, playerId, deviceId } = req.body;
   let { stake } = req.body;
   // Fetch the user (cashier) by ID
-  const player = await Player.findById(playerId);
+  const player = await Player.findOne({ playerId, deviceId });
   if (!player) {
     throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
   }
@@ -73,7 +73,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
   if (balance - stake < 0) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Bet cannot be placed, insufficient funds');
   }
-
+  console.log(balance - stake)
   // Update wallet balance
   await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance - stake });
 
