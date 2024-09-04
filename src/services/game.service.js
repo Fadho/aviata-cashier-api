@@ -1,7 +1,7 @@
 // const httpStatus = require('http-status');
 const userService = require('./user.service');
 // const ApiError = require('../utils/ApiError');
-const { GameConfig, Game } = require('../models');
+const { GameConfig, Game, Jackpot } = require('../models');
 
 /**
  * Authenticate Game
@@ -38,7 +38,6 @@ const createGameData = async (body) => {
 };
 
 const getGameConfig = async (body) => {
-  console.log(body)
   let gameConfig = await GameConfig.find({ agentId: body.agentId, gameType: body.gameType }).select('-id');
   if (!gameConfig.length) {
     gameConfig = await GameConfig.create({ agentId: body.agentId, gameType: body.gameType });
@@ -47,6 +46,11 @@ const getGameConfig = async (body) => {
   let game = await Game.find({ agentId: body.agentId, gameType: body.gameType }).select('-id');
   if (!game.length) {
     game = await Game.create({ agentId: body.agentId, gameType: body.gameType });
+  }
+
+  let jackpot = await Jackpot.find({ agentId: body.agentId, gameType: body.gameType }).select('-id');
+  if (!jackpot.length) {
+    jackpot = await Game.create({ agentId: body.agentId, gameType: body.gameType });
   }
 
   if (!game || !gameConfig) {
@@ -69,7 +73,6 @@ const updateGameData = async (id, gameType, body) => {
 };
 
 const getGameData = async (agentId, gameType) => {
-  console.log( agentId, gameType )
   const game = await Game.findOne({ agentId, gameType }).select('-id');
   return game;
 };

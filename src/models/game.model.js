@@ -17,18 +17,6 @@ const gameSchema = mongoose.Schema({
     required: true,
     default: 10,
   },
-  jackpotBronzeAmount: {
-    type: mongoose.SchemaTypes.Number,
-    default: 1000,
-  },
-  jackpotSilverAmount: {
-    type: mongoose.SchemaTypes.Number,
-    default: 1000,
-  },
-  jackpotGoldAmount: {
-    type: mongoose.SchemaTypes.Number,
-    default: 1000,
-  },
   agentId: {
     type: mongoose.SchemaTypes.ObjectId,
     ref: 'User',

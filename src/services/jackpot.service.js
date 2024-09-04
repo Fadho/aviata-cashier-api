@@ -11,23 +11,26 @@ const { userService } = require('.');
 // const dropJackpot = async (id) => {
 //   return JackpotWinners.findById(id).populate('currencyId');
 // };
+
+
+
 /**
- * create a new shop account
+ * create a new jackpot
  * @param {object} balance
  * @param {boolean} primary
  * @param {ObjectId} userId
  * @param {ObjectId} currencyId
  * @returns {Promise<JackpotWinners>}
  */
-const createWallet = async (currencyId, userId, balance, primary) => {
+const createJackpot = async (currencyId, userId, balance, primary) => {
   let wallet;
   if (primary) {
-    wallet = await JackpotWinners.create({ currencyId, userId, balance, primaryWallet: true });
+    wallet = await JackpotWinners.create({ currencyId, userId, balance, primaryJackpot: true });
   } else {
     wallet = await JackpotWinners.create({ currencyId, balance, userId });
   }
 
-  return userService.getAndUpdateWallet(userId, wallet._id);
+  return userService.getAndUpdateJackpot(userId, wallet._id);
 };
 
 /**
@@ -37,8 +40,8 @@ const createWallet = async (currencyId, userId, balance, primary) => {
  * @param {boolean} primary
  * @returns {Promise<JackpotWinners[]>}
  */
-const findWallet = async (currencyId, userId, primary) => {
-  if (primary) return JackpotWinners.find({ userId, primaryWallet: true });
+const findJackpot = async (currencyId, userId, primary) => {
+  if (primary) return JackpotWinners.find({ userId, primaryJackpot: true });
   return JackpotWinners.find({ currencyId, userId });
 };
 /**
@@ -47,13 +50,13 @@ const findWallet = async (currencyId, userId, primary) => {
  * @param {number} balance
  * @returns {Promise<JackpotWinners>}
  */
-const updateWallet = async (id, balance) => {
+const updateJackpot = async (id, balance) => {
   return JackpotWinners.findByIdAndUpdate(id, { balance }, { new: true });
 };
 
 module.exports = {
-  createWallet,
-  findWallet,
-  updateWallet,
-  getWalletById,
+  createJackpot,
+  findJackpot,
+  updateJackpot,
+  getJackpotById,
 };

@@ -12,6 +12,11 @@ const jackpotWinnersSchema = mongoose.Schema(
       enum: ['bronze', 'silver', 'gold'],
       required: true,
     },
+
+    playerId: {
+      type: mongoose.SchemaTypes.String,
+      required: true,
+    },
     username: {
       type: mongoose.SchemaTypes.String,
       ref: 'User',

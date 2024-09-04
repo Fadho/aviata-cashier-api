@@ -9,3 +9,4 @@ module.exports.TransferHistory = require('./transferHistory.model');
 module.exports.Rounds = require('./rounds.model');
 module.exports.Player = require('./player.model');
 module.exports.JackpotWinners = require('./jackpotWinners.model');
+module.exports.Jackpot = require('./jackpot.model');
