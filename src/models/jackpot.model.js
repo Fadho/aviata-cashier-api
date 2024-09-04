@@ -27,9 +27,9 @@ const jackpotSettingsSchema = mongoose.Schema({
     default: 800,
   },
   minStakeToWin: {
-    type: mongoose.SchemaTypes.Array,
+    type: mongoose.SchemaTypes.Number,
     required: true,
-    default: [50, 100, 200, 500],
+    default: 20,
   },
   agentId: {
     type: mongoose.SchemaTypes.ObjectId,

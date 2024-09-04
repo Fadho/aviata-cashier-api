@@ -2,6 +2,7 @@ const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { gameService, tokenService } = require('../services');
+const { Jackpot } = require('../models');
 
 const authenticateGame = catchAsync(async (req, res) => {
   const user = await gameService.authenticateGame(req.params.id);
@@ -55,6 +56,17 @@ const updateGameData = catchAsync(async (req, res) => {
   res.send(user);
 });
 
+const getAgentJackpots = catchAsync(async (req, res) => {
+  const { agentId, gameType } = req.body;
+  const jackpot = await Jackpot.find({ agentId, gameType });
+  res.send(jackpot);
+});
+
+const updateAgentJackpot = catchAsync(async (req, res) => {
+  const jackpot = await Jackpot.findById(req.body.jackpotId, { ...req.body });
+  res.send(jackpot);
+});
+
 module.exports = {
   createGameConfig,
   getGame,
@@ -64,4 +76,6 @@ module.exports = {
   createGameData,
   getGameData,
   getGameSettings,
+  getAgentJackpots,
+  updateAgentJackpot,
 };

@@ -622,7 +622,7 @@ const payoutTicket = catchAsync(async (req, res) => {
 });
 
 const getCurrentGameState = catchAsync(async (req, res) => {
-  const { agentId } = req.query;
+  const { agentId, gameType } = req.query;
   let betHistory = [];
   let totalStake = 0;
   let totalWinnings = 0;
@@ -644,7 +644,7 @@ const getCurrentGameState = catchAsync(async (req, res) => {
   }
   // eslint-disable-next-line guard-for-in
   for (const cashier in cashiers) {
-    betHistory = await betsService.getBetHistory({ cashierId: cashiers[cashier]._id }, startDate, endDate);
+    betHistory = await betsService.getBetHistory({ cashierId: cashiers[cashier]._id }, startDate, endDate, gameType);
 
     totalStake += betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
     totalWinnings += betHistory.reduce((count, bet) => count + bet.winnings, 0);

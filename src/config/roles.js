@@ -15,6 +15,8 @@ const allRoles = {
     'fundWallet',
     'convertWallet',
     'ticketReports',
+    'getJackpot',
+    'updateJackpot',
   ],
   admin: [
     'getUsers',
@@ -29,6 +31,7 @@ const allRoles = {
     'fundWallet',
     'convertWallet',
     'ticketReports',
+    'getJackpot'
   ],
   cashier: ['placeBet', 'fetchBets'],
 };

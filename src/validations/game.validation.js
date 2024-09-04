@@ -30,20 +30,39 @@ const getgame = {
   }),
 };
 
-const updateJackpot = {
-  params: Joi.object().keys({
-    agentId: Joi.required().custom(objectId).required(),
+const getAgentJackpots = {
+  body: Joi.object().keys({
+    agentId: Joi.string().custom(objectId).required(),
     gameType: Joi.string().required(),
   }),
-  body: Joi.object()
-    .keys({
-      jackpotBronzeAmount: Joi.number(),
-      jackpotSilverAmount: Joi.number(),
-      jackpotGoldAmount: Joi.number(),
-      rtp: Joi.number(),
-    })
-    .min(1),
 };
+
+const updateJackpot = {
+  body: Joi.object().keys({
+    jackpotId: Joi.string().custom(objectId).required(),
+    percentageContributions: 1,
+    lowLimitAmount: Joi.number(),
+    highLimitAmount: Joi.number(),
+    minDisplayAmount: Joi.number(),
+    minStakeToWin: Joi.number(),
+    jackpotName: Joi.string(),
+  }),
+};
+
+// const updateJackpot = {
+//   params: Joi.object().keys({
+//     agentId: Joi.required().custom(objectId).required(),
+//     gameType: Joi.string().required(),
+//   }),
+//   body: Joi.object()
+//     .keys({
+//       jackpotBronzeAmount: Joi.number(),
+//       jackpotSilverAmount: Joi.number(),
+//       jackpotGoldAmount: Joi.number(),
+//       rtp: Joi.number(),
+//     })
+//     .min(1),
+// };
 
 const updateGameData = {
   params: Joi.object().keys({
@@ -83,4 +102,5 @@ module.exports = {
   updateGameConfig,
   updateGameData,
   updateJackpot,
+  getAgentJackpots,
 };

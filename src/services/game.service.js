@@ -45,12 +45,12 @@ const getGameConfig = async (body) => {
 
   let game = await Game.find({ agentId: body.agentId, gameType: body.gameType }).select('-id');
   if (!game.length) {
-    game = await Game.create({ agentId: body.agentId, gameType: body.gameType });
+    game = await Game.create({ agentId: body.agentId, gameType: body.gameType, jackpotName: 'Bronze' });
   }
 
   let jackpot = await Jackpot.find({ agentId: body.agentId, gameType: body.gameType }).select('-id');
   if (!jackpot.length) {
-    jackpot = await Jackpot.create({ agentId: body.agentId, gameType: body.gameType });
+    jackpot = await Jackpot.create({ agentId: body.agentId, gameType: body.gameType, jackpotName: 'Bronze' });
   }
 
   if (!game || !gameConfig) {
