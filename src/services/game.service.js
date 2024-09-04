@@ -38,29 +38,39 @@ const createGameData = async (body) => {
 };
 
 const getGameConfig = async (body) => {
-  const gameConfig = await GameConfig.find({ agentId: body }).select('-id');
-  const game = await Game.find({ agentId: body }).select('-id');
-
-  const data = { game, gameConfig };
-
-  if (!game.length || !gameConfig.length) {
-    return { data, message: 'Not Found' };
+  console.log(body)
+  let gameConfig = await GameConfig.find({ agentId: body.agentId, gameType: body.gameType }).select('-id');
+  if (!gameConfig.length) {
+    gameConfig = await GameConfig.create({ agentId: body.agentId, gameType: body.gameType });
   }
+
+  let game = await Game.find({ agentId: body.agentId, gameType: body.gameType }).select('-id');
+  if (!game.length) {
+    game = await Game.create({ agentId: body.agentId, gameType: body.gameType });
+  }
+
+  if (!game || !gameConfig) {
+    return { data: { game, gameConfig }, message: 'Not Found' };
+  }
+
+  const data = { game: game[0], gameConfig: gameConfig[0] };
+
   return { data, message: 'Fetched Game Data successfully.' };
 };
 
-const updateGameConfig = async (id, body) => {
-  const gameConfig = await GameConfig.findOneAndUpdate({ agentId: id }, body, { new: true });
+const updateGameConfig = async (id, gameType, body) => {
+  const gameConfig = await GameConfig.findOneAndUpdate({ agentId: id, gameType }, body, { new: true });
   return { data: gameConfig, message: 'Game Config updated successfully.' };
 };
 
-const updateGameData = async (id, body) => {
-  const game = await Game.findOneAndUpdate({ agentId: id }, body, { new: true });
+const updateGameData = async (id, gameType, body) => {
+  const game = await Game.findOneAndUpdate({ agentId: id, gameType }, body, { new: true });
   return { data: game, message: 'Game Data updated successfully.' };
 };
 
-const getGameData = async (body) => {
-  const game = await Game.findOne({ agentId: body }).select('-id');
+const getGameData = async (agentId, gameType) => {
+  console.log( agentId, gameType )
+  const game = await Game.findOne({ agentId, gameType }).select('-id');
   return game;
 };
 

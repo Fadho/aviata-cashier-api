@@ -8,6 +8,7 @@ const createGameConfig = {
     ticketSizeMin: Joi.number(),
     ticketSizeMax: Joi.number(),
     quickPick: Joi.array(),
+    gameType: Joi.string().required(),
     agentId: Joi.string().required(),
   }),
 };
@@ -17,6 +18,7 @@ const createGameData = {
     roundWaitTimeValue: Joi.number(),
     timerCountdownValue: Joi.number(),
     roundBetsLimit: Joi.number(),
+    gameType: Joi.string().required(),
     agentId: Joi.string().required(),
   }),
 };
@@ -24,12 +26,29 @@ const createGameData = {
 const getgame = {
   params: Joi.object().keys({
     agentId: Joi.string().custom(objectId).required(),
+    gameType: Joi.string().required(),
   }),
+};
+
+const updateJackpot = {
+  params: Joi.object().keys({
+    agentId: Joi.required().custom(objectId).required(),
+    gameType: Joi.string().required(),
+  }),
+  body: Joi.object()
+    .keys({
+      jackpotBronzeAmount: Joi.number(),
+      jackpotSilverAmount: Joi.number(),
+      jackpotGoldAmount: Joi.number(),
+      rtp: Joi.number(),
+    })
+    .min(1),
 };
 
 const updateGameData = {
   params: Joi.object().keys({
     agentId: Joi.required().custom(objectId).required(),
+    gameType: Joi.string().required(),
   }),
   body: Joi.object()
     .keys({
@@ -52,6 +71,7 @@ const updateGameConfig = {
       ticketSizeMin: Joi.number(),
       ticketSizeMax: Joi.number(),
       quickPick: Joi.array(),
+      depositBonus: Joi.number(),
     })
     .min(1),
 };
@@ -62,4 +82,5 @@ module.exports = {
   getgame,
   updateGameConfig,
   updateGameData,
+  updateJackpot,
 };

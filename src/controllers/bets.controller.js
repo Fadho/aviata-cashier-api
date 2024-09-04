@@ -107,7 +107,7 @@ const fetchBetPlaced = catchAsync(async (req, res) => {
 });
 
 const getBetHistory = catchAsync(async (req, res) => {
-  const filter = pick(req.query, ['betType', 'cashierId', 'stake', 'payout']);
+  const filter = pick(req.query, ['betType', 'cashierId', 'stake', 'payout', 'gameType']);
   const { startDate, endDate } = req.query;
   const options = pick(req.query, ['sortBy', 'limit', 'page', 'populate']);
   const result = await betsService.getBetHistoryReport(filter, options, startDate, endDate);

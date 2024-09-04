@@ -37,6 +37,14 @@ const gameConfigSchema = mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  gameType: {
+    type: mongoose.SchemaTypes.String,
+    default: 'aviata',
+  },
+  depositBonus: {
+    type: mongoose.SchemaTypes.Number,
+    default: 2,
+  },
 });
 /**
  * @typedef GameConfig

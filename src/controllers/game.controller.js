@@ -20,7 +20,8 @@ const createGameData = catchAsync(async (req, res) => {
 });
 
 const getGame = catchAsync(async (req, res) => {
-  const data = await gameService.getGameConfig(req.params.agentId);
+  const { agentId, gameType } = req.params;
+  const data = await gameService.getGameConfig({ agentId, gameType });
   if (!data) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
   }
@@ -28,7 +29,8 @@ const getGame = catchAsync(async (req, res) => {
 });
 
 const getGameData = catchAsync(async (req, res) => {
-  const data = await gameService.getGameData(req.params.agentId);
+  const { agentId, gameType } = req.params;
+  const data = await gameService.getGameData(agentId, gameType);
   if (!data) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
   }
@@ -44,12 +46,12 @@ const getGameSettings = catchAsync(async (req, res) => {
 });
 
 const updateGameConfig = catchAsync(async (req, res) => {
-  const user = await gameService.updateGameConfig(req.params.agentId, req.body);
+  const user = await gameService.updateGameConfig(req.params.agentId, req.params.gameType, req.body);
   res.send(user);
 });
 
 const updateGameData = catchAsync(async (req, res) => {
-  const user = await gameService.updateGameData(req.params.agentId, req.body);
+  const user = await gameService.updateGameData(req.params.agentId, req.params.gameType, req.body);
   res.send(user);
 });
 

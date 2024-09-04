@@ -39,6 +39,7 @@ const getBetHistory = {
     clientType: Joi.string(),
     cashierId: Joi.string().custom(objectId),
     betType: Joi.string(),
+    gameType: Joi.string(),
     startDate: Joi.string(),
     endDate: Joi.string(),
     sortBy: Joi.string(),

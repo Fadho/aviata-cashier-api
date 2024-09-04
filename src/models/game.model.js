@@ -17,6 +17,18 @@ const gameSchema = mongoose.Schema({
     required: true,
     default: 10,
   },
+  jackpotBronzeAmount: {
+    type: mongoose.SchemaTypes.Number,
+    default: 1000,
+  },
+  jackpotSilverAmount: {
+    type: mongoose.SchemaTypes.Number,
+    default: 1000,
+  },
+  jackpotGoldAmount: {
+    type: mongoose.SchemaTypes.Number,
+    default: 1000,
+  },
   agentId: {
     type: mongoose.SchemaTypes.ObjectId,
     ref: 'User',
@@ -27,6 +39,10 @@ const gameSchema = mongoose.Schema({
     enum: [95, 90, 80, 65],
     default: 95,
     required: true,
+  },
+  gameType: {
+    type: mongoose.SchemaTypes.String,
+    default: 'aviata',
   },
 });
 
