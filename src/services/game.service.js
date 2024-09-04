@@ -50,7 +50,7 @@ const getGameConfig = async (body) => {
 
   let jackpot = await Jackpot.find({ agentId: body.agentId, gameType: body.gameType }).select('-id');
   if (!jackpot.length) {
-    jackpot = await Game.create({ agentId: body.agentId, gameType: body.gameType });
+    jackpot = await Jackpot.create({ agentId: body.agentId, gameType: body.gameType });
   }
 
   if (!game || !gameConfig) {
