@@ -60,6 +60,7 @@ const allowedOrigins = [
   'https://shoutout-cashier.staging.sbegames.com',
   'https://next-backoffice-gamma.vercel.app',
   'http://localhost:3000',
+  'http://localhost:5173/',
 ];
 
 const corsOptions = {
