@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax */
 
-const { JackpotWinners } = require('../models');
+const { JackpotWinners, Jackpot, Player } = require('../models');
 const { userService } = require('.');
 
 /**
@@ -8,29 +8,26 @@ const { userService } = require('.');
  * @param {string} id
  * @returns {Promise<JackpotWinners>}
  */
-// const dropJackpot = async (id) => {
-//   return JackpotWinners.findById(id).populate('currencyId');
-// };
+const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
+  const player = await Player.findById(playerId);
+  const jackpot = await Jackpot.findById(id);
 
-
+  if (!jackpot || !player) {
+    return;
+  }
+  await Player.findByIdAndUpdate(playerId, { wallet: player.wallet + Number(jackpotAmount) });
+  return JackpotWinners.create({ jackpotAmount, jackpotType: jackpot.jackpotName, playerId, deviceId });
+};
 
 /**
  * create a new jackpot
- * @param {object} balance
- * @param {boolean} primary
- * @param {ObjectId} userId
- * @param {ObjectId} currencyId
- * @returns {Promise<JackpotWinners>}
+ * @param {string} agentId
+ * @param {string} gameType
+ * @param {string} jackpotName
+ * @returns {Promise<Jackpot>}
  */
-const createJackpot = async (currencyId, userId, balance, primary) => {
-  let wallet;
-  if (primary) {
-    wallet = await JackpotWinners.create({ currencyId, userId, balance, primaryJackpot: true });
-  } else {
-    wallet = await JackpotWinners.create({ currencyId, balance, userId });
-  }
-
-  return userService.getAndUpdateJackpot(userId, wallet._id);
+const createJackpot = async (agentId, gameType, jackpotName) => {
+  return Jackpot.create({ agentId, gameType, jackpotName });
 };
 
 /**
@@ -40,23 +37,22 @@ const createJackpot = async (currencyId, userId, balance, primary) => {
  * @param {boolean} primary
  * @returns {Promise<JackpotWinners[]>}
  */
-const findJackpot = async (currencyId, userId, primary) => {
-  if (primary) return JackpotWinners.find({ userId, primaryJackpot: true });
-  return JackpotWinners.find({ currencyId, userId });
+const findJackpot = async ({ agentId, gameType }) => {
+  return Jackpot.find({ agentId, gameType });
 };
 /**
- * update a wallet
+ * update jackpot by jackpotId
  * @param {ObjectId} id
- * @param {number} balance
+ * @param {Object} body
  * @returns {Promise<JackpotWinners>}
  */
-const updateJackpot = async (id, balance) => {
-  return JackpotWinners.findByIdAndUpdate(id, { balance }, { new: true });
+const updateAgentJackpot = async (id, body) => {
+  return Jackpot.findOneAndUpdate(id, body, { new: true });
 };
 
 module.exports = {
   createJackpot,
   findJackpot,
-  updateJackpot,
-  getJackpotById,
+  updateAgentJackpot,
+  dropJackpot,
 };

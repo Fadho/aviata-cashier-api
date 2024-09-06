@@ -73,7 +73,6 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
   if (balance - stake < 0) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Bet cannot be placed, insufficient funds');
   }
-  console.log(balance - stake)
   // Update wallet balance
   await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance - stake });
 

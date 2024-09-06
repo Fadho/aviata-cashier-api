@@ -3,23 +3,26 @@ const { toJSON, paginate } = require('./plugins');
 
 const jackpotWinnersSchema = mongoose.Schema(
   {
-    JackpotAmount: {
+    jackpotAmount: {
       type: mongoose.SchemaTypes.Number,
       required: true,
     },
-    JackpotType: {
+
+    jackpotType: {
       type: mongoose.SchemaTypes.String,
-      enum: ['bronze', 'silver', 'gold'],
+      // enum: ['Bronze', 'Silver', 'Gold'],
       required: true,
     },
 
     playerId: {
       type: mongoose.SchemaTypes.String,
+      ref: 'Player',
       required: true,
     },
-    username: {
-      type: mongoose.SchemaTypes.String,
-      ref: 'User',
+
+    deviceId: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'GameDevice',
       required: true,
     },
   },

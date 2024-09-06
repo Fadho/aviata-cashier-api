@@ -59,6 +59,7 @@ const allowedOrigins = [
   'https://websocket.aviata.sportsbookengine.com',
   'https://shoutout-cashier.staging.sbegames.com',
   'https://next-backoffice-gamma.vercel.app',
+  'https://localhost:3000',
 ];
 
 const corsOptions = {
