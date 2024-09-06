@@ -9,7 +9,6 @@ const jackpotSettingsSchema = mongoose.Schema({
   jackpotName: {
     type: mongoose.SchemaTypes.String,
     required: true,
-    unique: true,
   },
   lowLimitAmount: {
     type: mongoose.SchemaTypes.Number,
