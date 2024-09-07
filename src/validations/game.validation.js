@@ -45,7 +45,6 @@ const updateJackpot = {
     highLimitAmount: Joi.number(),
     minDisplayAmount: Joi.number(),
     minStakeToWin: Joi.number(),
-    jackpotName: Joi.string(),
   }),
 };
 
