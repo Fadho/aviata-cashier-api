@@ -37,7 +37,9 @@ router
 
 router
   .route('/jackpot')
-  .post(auth('getJackpot'), validate(gameValidation.getAgentJackpots), gameController.getAgentJackpots)
+  .post(validate(gameValidation.getAgentJackpots), gameController.getAgentJackpots)
   .patch(auth('updateJackpot'), validate(gameValidation.updateJackpot), gameController.updateAgentJackpot);
+
+router.route('/jackpot/dropJackpot').post(validate(gameValidation.dropJackpot), gameController.dropJackpot);
 
 module.exports = router;

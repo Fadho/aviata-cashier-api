@@ -20,6 +20,12 @@ const jackpotWinnersSchema = mongoose.Schema(
       required: true,
     },
 
+    cashierId: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+
     deviceId: {
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'GameDevice',

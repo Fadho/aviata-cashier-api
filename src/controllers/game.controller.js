@@ -1,7 +1,7 @@
 const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
-const { gameService, tokenService } = require('../services');
+const { gameService, tokenService, jackpotService } = require('../services');
 const { Jackpot } = require('../models');
 
 const authenticateGame = catchAsync(async (req, res) => {
@@ -58,7 +58,7 @@ const updateGameData = catchAsync(async (req, res) => {
 
 const getAgentJackpots = catchAsync(async (req, res) => {
   const { agentId, gameType } = req.body;
-  const jackpot = await Jackpot.find({ agentId, gameType });
+  const jackpot = await jackpotService.getAgentJackpots({ agentId, gameType });
   res.send(jackpot);
 });
 
@@ -69,9 +69,16 @@ const updateAgentJackpot = catchAsync(async (req, res) => {
   res.send(jackpot);
 });
 
+const dropJackpot = catchAsync(async (req, res) => {
+  const { jackpotId, deviceId, playerId, jackpotAmount } = req.body;
+  const jackpot = await jackpotService.dropJackpot(jackpotId, deviceId, playerId, jackpotAmount);
+  res.send(jackpot);
+});
+
 module.exports = {
   createGameConfig,
   getGame,
+  dropJackpot,
   updateGameConfig,
   updateGameData,
   authenticateGame,

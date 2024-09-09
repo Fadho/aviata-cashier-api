@@ -13,9 +13,19 @@ const playerSchema = mongoose.Schema(
       default: 0,
     },
 
+    playLevel: {
+      type: mongoose.SchemaTypes.Number,
+      default: 20,
+    },
+
     deviceId: {
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'GameDevice',
+    },
+
+    cashierId: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'User',
     },
 
     agentId: {

@@ -10,6 +10,7 @@ const envVarsSchema = Joi.object()
     PORT: Joi.number().default(3000),
     SECURE: Joi.boolean().default(false),
     MONGODB_URL: Joi.string().required().description('Mongo DB url'),
+    WEBSOCKET_URL: Joi.string().required().description('websocket base url'),
     JWT_SECRET: Joi.string().required().description('JWT secret key'),
     JWT_ACCESS_EXPIRATION_MINUTES: Joi.number().default(30).description('minutes after which access tokens expire'),
     JWT_REFRESH_EXPIRATION_DAYS: Joi.number().default(30).description('days after which refresh tokens expire'),
@@ -32,6 +33,7 @@ module.exports = {
   env: envVars.NODE_ENV,
   port: envVars.PORT,
   secure: envVars.SECURE,
+  websocket_url: envVars.WEBSOCKET_URL,
   mongoose: {
     url: envVars.MONGODB_URL + (envVars.NODE_ENV === 'test' ? '-test' : ''),
     options: {

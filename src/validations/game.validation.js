@@ -48,20 +48,14 @@ const updateJackpot = {
   }),
 };
 
-// const updateJackpot = {
-//   params: Joi.object().keys({
-//     agentId: Joi.required().custom(objectId).required(),
-//     gameType: Joi.string().required(),
-//   }),
-//   body: Joi.object()
-//     .keys({
-//       jackpotBronzeAmount: Joi.number(),
-//       jackpotSilverAmount: Joi.number(),
-//       jackpotGoldAmount: Joi.number(),
-//       rtp: Joi.number(),
-//     })
-//     .min(1),
-// };
+const dropJackpot = {
+  body: Joi.object().keys({
+    jackpotId: Joi.string().custom(objectId).required(),
+    deviceId: Joi.string().custom(objectId).required(),
+    playerId: Joi.number().required(),
+    jackpotAmount: Joi.number().required(),
+  }),
+};
 
 const updateGameData = {
   params: Joi.object().keys({
@@ -102,4 +96,5 @@ module.exports = {
   updateGameData,
   updateJackpot,
   getAgentJackpots,
+  dropJackpot,
 };
