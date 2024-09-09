@@ -58,7 +58,7 @@ const updateGameData = catchAsync(async (req, res) => {
 
 const getAgentJackpots = catchAsync(async (req, res) => {
   const { agentId, gameType } = req.body;
-  const jackpot = await jackpotService.getAgentJackpots({ agentId, gameType });
+  const jackpot = await jackpotService.getAgentJackpots(agentId, gameType);
   res.send(jackpot);
 });
 

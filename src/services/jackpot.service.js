@@ -24,8 +24,8 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
     deviceId,
     cashierId: player.cashierId,
   });
-  const response = await axios.post(`${config.websocket_url}/drop-jackpot`, { playerId, deviceId, jackpotAmount });
-  console.log(response)
+  await axios.post(`${config.websocket_url}/drop-jackpot`, { playerId, deviceId, jackpotAmount });
+
   return winner;
 };
 
