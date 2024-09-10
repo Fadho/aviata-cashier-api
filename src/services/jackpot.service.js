@@ -18,8 +18,6 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
     gameType: jackpot.gameType,
   });
 
-  console.log(jackpotWinners, jackpot, player);
-
   if (!jackpotWinners || !jackpot || !player) {
     return;
   }

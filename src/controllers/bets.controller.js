@@ -407,7 +407,7 @@ const getFinancialReports = catchAsync(async (req, res) => {
           endDate
         );
 
-        const cashierJackpots = await jackpotService.getJackpotHistory({ cashierId: cashier._id }, startDate, endDate);
+        const cashierJackpotWinners = await jackpotService.getJackpotHistory({ cashierId: cashier._id }, startDate, endDate);
 
         const userWallets = await Wallets.find({ userId: cashier._id }).populate('currencyId');
 
@@ -428,6 +428,9 @@ const getFinancialReports = catchAsync(async (req, res) => {
               jackpot1Payout: 0,
               jackpot2Payout: 0,
               jackpot3Payout: 0,
+              jackpot1Contributions: 0,
+              jackpot2Contributions: 0,
+              jackpot3Contributions: 0,
               totalClosedPayout: 0,
               totalOpenPayout: 0,
             };
@@ -444,13 +447,16 @@ const getFinancialReports = catchAsync(async (req, res) => {
             currencyReport.profit = currencyReport.totalStake - currencyReport.totalWinnings;
           });
 
-          cashierJackpots.forEach((jackpot) => {
+          cashierJackpotWinners.forEach((jackpot) => {
             if (jackpot.name === 'Bronze') {
-              currencyReport.jackpot1Payout += jackpot.amount;
+              currencyReport.jackpot1Payout += jackpot.jackpotAmount;
+              currencyReport.jackpot1Contributions += jackpot.jackpotContributions;
             } else if (jackpot.name === 'Silver') {
-              currencyReport.jackpot2Payout += jackpot.amount;
+              currencyReport.jackpot2Payout += jackpot.jackpotAmount;
+              currencyReport.jackpot2Contributions += jackpot.jackpotContributions;
             } else if (jackpot.name === 'Gold') {
-              currencyReport.jackpot3Payout += jackpot.amount;
+              currencyReport.jackpot3Payout += jackpot.jackpotAmount;
+              currencyReport.jackpot3Contributions += jackpot.jackpotContributions;
             }
           });
         }
@@ -474,6 +480,9 @@ const getFinancialReports = catchAsync(async (req, res) => {
                 jackpot1Payout: 0,
                 jackpot2Payout: 0,
                 jackpot3Payout: 0,
+                jackpot1Contributions: 0,
+                jackpot2Contributions: 0,
+                jackpot3Contributions: 0,
                 totalClosedPayout: 0,
                 totalOpenPayout: 0,
               };
@@ -485,8 +494,11 @@ const getFinancialReports = catchAsync(async (req, res) => {
             totals[currency].totalClosedPayout += currencyReport.totalClosedPayout;
             totals[currency].totalOpenPayout += currencyReport.totalOpenPayout;
             totals[currency].jackpot1Payout += currencyReport.jackpot1Payout;
+            totals[currency].jackpot1Contributions += currencyReport.jackpot1Contributions;
             totals[currency].jackpot2Payout += currencyReport.jackpot2Payout;
+            totals[currency].jackpot2Contributions += currencyReport.jackpot2Contributions;
             totals[currency].jackpot3Payout += currencyReport.jackpot3Payout;
+            totals[currency].jackpot3Contributions += currencyReport.jackpot3Contributions;
             totals[currency].profit = totals[currency].totalStake - totals[currency].totalWinnings;
           }
         }
@@ -505,6 +517,9 @@ const getFinancialReports = catchAsync(async (req, res) => {
                 jackpot1Payout: 0,
                 jackpot2Payout: 0,
                 jackpot3Payout: 0,
+                jackpot1Contributions: 0,
+                jackpot2Contributions: 0,
+                jackpot3Contributions: 0,
                 totalClosedPayout: 0,
                 totalOpenPayout: 0,
               };
@@ -516,8 +531,11 @@ const getFinancialReports = catchAsync(async (req, res) => {
             totals[currency].totalClosedPayout += currencyReport.totalClosedPayout;
             totals[currency].totalOpenPayout += currencyReport.totalOpenPayout;
             totals[currency].jackpot1Payout += currencyReport.jackpot1Payout;
+            totals[currency].jackpot1Contributions += currencyReport.jackpot1Contributions;
             totals[currency].jackpot2Payout += currencyReport.jackpot2Payout;
+            totals[currency].jackpot1Contributions += currencyReport.jackpot1Contributions;
             totals[currency].jackpot3Payout += currencyReport.jackpot3Payout;
+            totals[currency].jackpot1Contributions += currencyReport.jackpot1Contributions;
             totals[currency].profit = totals[currency].totalStake - totals[currency].totalWinnings;
           }
         }
@@ -548,8 +566,11 @@ const getFinancialReports = catchAsync(async (req, res) => {
         convertedTotals[primaryCurrency].totalClosedPayout += currencyReport.totalClosedPayout * conversionRate;
         convertedTotals[primaryCurrency].totalOpenPayout += currencyReport.totalOpenPayout * conversionRate;
         convertedTotals[primaryCurrency].jackpot1Payout += currencyReport.jackpot1Payout * conversionRate;
+        convertedTotals[primaryCurrency].jackpot1Contributions += currencyReport.jackpot1Contributions * conversionRate;
         convertedTotals[primaryCurrency].jackpot2Payout += currencyReport.jackpot2Payout * conversionRate;
+        convertedTotals[primaryCurrency].jackpot2Contributions += currencyReport.jackpot2Contributions * conversionRate;
         convertedTotals[primaryCurrency].jackpot3Payout += currencyReport.jackpot3Payout * conversionRate;
+        convertedTotals[primaryCurrency].jackpot3Contributions += currencyReport.jackpot3Contributions * conversionRate;
         convertedTotals[primaryCurrency].profit =
           convertedTotals[primaryCurrency].totalStake - convertedTotals[primaryCurrency].totalWinnings;
       }
