@@ -5,25 +5,41 @@ const jackpotWinnersSchema = mongoose.Schema(
   {
     jackpotAmount: {
       type: mongoose.SchemaTypes.Number,
+      // required: true,
+    },
+
+    jackpotContributions: {
+      type: mongoose.SchemaTypes.Number,
       required: true,
     },
 
     jackpotType: {
       type: mongoose.SchemaTypes.String,
-      // enum: ['Bronze', 'Silver', 'Gold'],
+      enum: ['Bronze', 'Silver', 'Gold'],
+      required: true,
+    },
+
+    gameType: {
+      type: mongoose.SchemaTypes.String,
+      required: true,
+    },
+
+    active: {
+      type: mongoose.SchemaTypes.Boolean,
+      default: false,
       required: true,
     },
 
     playerId: {
       type: mongoose.SchemaTypes.String,
       ref: 'Player',
-      required: true,
+      // required: true,
     },
 
     cashierId: {
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'User',
-      required: true,
+      // required: true,
     },
 
     deviceId: {

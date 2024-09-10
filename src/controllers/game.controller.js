@@ -75,6 +75,31 @@ const dropJackpot = catchAsync(async (req, res) => {
   res.send(jackpot);
 });
 
+const updateAgentJackpotContribution = catchAsync(async (req, res) => {
+  const {
+    bronzeJackpotId,
+    bronzeContributions,
+    silverJackpotId,
+    silverContributions,
+    goldJackpotId,
+    goldContributions,
+    deviceId,
+    gameType,
+  } = req.body;
+
+  const jackpot = await jackpotService.updateJackpotContributions(
+    bronzeJackpotId,
+    bronzeContributions,
+    silverJackpotId,
+    silverContributions,
+    goldJackpotId,
+    goldContributions,
+    deviceId,
+    gameType
+  );
+  res.send(jackpot);
+});
+
 module.exports = {
   createGameConfig,
   getGame,
@@ -87,4 +112,5 @@ module.exports = {
   getGameSettings,
   getAgentJackpots,
   updateAgentJackpot,
+  updateAgentJackpotContribution,
 };

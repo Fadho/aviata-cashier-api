@@ -12,19 +12,36 @@ const config = require('../config/config');
 const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
   const player = await Player.findOne({ playerId, deviceId });
   const jackpot = await Jackpot.findById(id);
+  const jackpotWinners = await JackpotWinners.findOne({
+    jackpotType: jackpot.jackpotName,
+    active: true,
+    gameType: jackpot.gameType,
+  });
 
-  if (!jackpot || !player) {
+  console.log(jackpotWinners, jackpot, player);
+
+  if (!jackpotWinners || !jackpot || !player) {
     return;
   }
   await Player.findByIdAndUpdate(player._id, { wallet: player.wallet + Number(jackpotAmount) });
-  const winner = await JackpotWinners.create({
-    jackpotAmount,
-    jackpotType: jackpot.jackpotName,
+  const winner = await JackpotWinners.findOneAndUpdate(
+    {
+      _id: jackpotWinners._id,
+    },
+    {
+      jackpotAmount,
+      playerId,
+      cashierId: player.cashierId,
+      active: false,
+    },
+    { new: true }
+  );
+  await axios.post(`${config.websocket_url}/drop-jackpot`, {
     playerId,
     deviceId,
-    cashierId: player.cashierId,
+    jackpotAmount,
+    jackpotType: jackpot.jackpotName,
   });
-  await axios.post(`${config.websocket_url}/drop-jackpot`, { playerId, deviceId, jackpotAmount });
 
   return winner;
 };
@@ -90,6 +107,85 @@ const getAgentJackpots = async (agentId, gameType) => {
   return Jackpot.find({ agentId, gameType });
 };
 
+const updateJackpotContributions = async (
+  bronzeJackpotId,
+  bronzeContributions,
+  silverJackpotId,
+  silverContributions,
+  goldJackpotId,
+  goldContributions,
+  deviceId,
+  gameType
+) => {
+  const bronzeJackpot = await Jackpot.findOne({ _id: bronzeJackpotId });
+  const silverJackpot = await Jackpot.findOne({ _id: silverJackpotId });
+  const goldJackpot = await Jackpot.findOne({ _id: goldJackpotId });
+
+  let activeBronzeContribution;
+  let activeSilverContribution;
+  let activeGoldContribution;
+
+  if (bronzeJackpot) {
+    activeBronzeContribution = await JackpotWinners.findOne({ jackpotType: 'Bronze', active: true, gameType });
+
+    if (activeBronzeContribution) {
+      activeBronzeContribution = await JackpotWinners.findOneAndUpdate(
+        { _id: activeBronzeContribution._id },
+        { jackpotContributions: activeBronzeContribution.jackpotContributions + Number(bronzeContributions), active: true },
+        { new: true }
+      );
+    } else {
+      activeBronzeContribution = await JackpotWinners.create({
+        jackpotType: 'Bronze',
+        active: true,
+        jackpotContributions: bronzeContributions,
+        deviceId,
+        gameType,
+      });
+    }
+  }
+
+  if (silverJackpot) {
+    activeSilverContribution = await JackpotWinners.findOne({ jackpotType: 'Silver', active: true, gameType });
+    if (activeSilverContribution) {
+      activeSilverContribution = await JackpotWinners.findOneAndUpdate(
+        { _id: activeSilverContribution._id },
+        { jackpotContributions: activeSilverContribution.jackpotContributions + Number(silverContributions) },
+        { new: true }
+      );
+    } else {
+      activeSilverContribution = await JackpotWinners.create({
+        jackpotType: 'Silver',
+        active: true,
+        jackpotContributions: silverContributions,
+        deviceId,
+        gameType,
+      });
+    }
+  }
+
+  if (goldJackpot) {
+    activeGoldContribution = await JackpotWinners.findOne({ jackpotType: 'Gold', active: true, gameType });
+    if (activeGoldContribution) {
+      activeGoldContribution = await JackpotWinners.findOneAndUpdate(
+        { _id: activeGoldContribution._id },
+        { jackpotContributions: activeGoldContribution.jackpotContributions + Number(goldContributions) },
+        { new: true }
+      );
+    } else {
+      activeGoldContribution = await JackpotWinners.create({
+        jackpotType: 'Gold',
+        active: true,
+        jackpotContributions: goldContributions,
+        deviceId,
+        gameType,
+      });
+    }
+  }
+
+  return { activeBronzeContribution, activeSilverContribution, activeGoldContribution };
+};
+
 module.exports = {
   createJackpot,
   findJackpot,
@@ -97,4 +193,5 @@ module.exports = {
   dropJackpot,
   getJackpotHistory,
   getAgentJackpots,
+  updateJackpotContributions,
 };
