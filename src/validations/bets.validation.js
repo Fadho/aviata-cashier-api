@@ -53,6 +53,7 @@ const getAccountingReports = {
     clientType: Joi.string(),
     cashierId: Joi.string().custom(objectId),
     agentId: Joi.string().custom(objectId),
+    gameType: Joi.string(),
     betType: Joi.string(),
     startDate: Joi.string(),
     endDate: Joi.string(),

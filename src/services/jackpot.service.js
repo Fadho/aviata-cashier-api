@@ -18,6 +18,31 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
     gameType: jackpot.gameType,
   });
 
+  const today = new Date();
+
+  const extractTime = (date) => ({
+    hours: date.getHours(),
+    minutes: date.getMinutes(),
+    seconds: date.getSeconds(),
+  });
+
+  if (jackpot.startTime || jackpot.endTime) {
+    const startTime = extractTime(jackpot.startTime);
+    const endTime = extractTime(jackpot.endTime);
+
+    const isTimeLater = (time1, time2) => {
+      if (time1.hours > time2.hours) return true;
+      if (time1.hours < time2.hours) return false;
+
+      if (time1.minutes > time2.minutes) return true;
+      if (time1.minutes < time2.minutes) return false;
+
+      return time1.seconds > time2.seconds;
+    };
+
+    if (!isTimeLater(startTime, today) || !isTimeLater(today, endTime)) return;
+  }
+
   if (!jackpotWinners || !jackpot || !player) {
     return;
   }
@@ -51,8 +76,17 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
  * @param {string} jackpotName
  * @returns {Promise<Jackpot>}
  */
-const createJackpot = async (agentId, gameType, jackpotName) => {
-  return Jackpot.create({ agentId, gameType, jackpotName });
+const createJackpot = async (agentId, gameType, jackpotName, startTime, endTime) => {
+  return Jackpot.create({
+    agentId,
+    gameType,
+    jackpotName,
+    ...(startTime &&
+      endTime && {
+        startTime,
+        endTime,
+      }),
+  });
 };
 
 /**

@@ -361,7 +361,7 @@ const getAccountingReports = catchAsync(async (req, res) => {
 
 const getFinancialReports = catchAsync(async (req, res) => {
   try {
-    const { startDate, endDate, betType, agentId } = req.query;
+    const { startDate, endDate, betType, agentId, gameType } = req.query;
     const options = pick(req.query, ['sortBy', 'limit', 'page']);
 
     let initialAgents;
@@ -402,12 +402,16 @@ const getFinancialReports = catchAsync(async (req, res) => {
 
       for (const cashier of cashiers.results) {
         const cashierBets = await betsService.getBetHistory(
-          { cashierId: cashier._id, ...(betType && { betType }) },
+          { cashierId: cashier._id, ...(betType && { betType }), ...(gameType && { gameType }) },
           startDate,
           endDate
         );
 
-        const cashierJackpotWinners = await jackpotService.getJackpotHistory({ cashierId: cashier._id }, startDate, endDate);
+        const cashierJackpotWinners = await jackpotService.getJackpotHistory(
+          { cashierId: cashier._id, ...(betType && { betType }), ...(gameType && { gameType }) },
+          startDate,
+          endDate
+        );
 
         const userWallets = await Wallets.find({ userId: cashier._id }).populate('currencyId');
 

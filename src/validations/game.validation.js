@@ -40,11 +40,13 @@ const getAgentJackpots = {
 const updateJackpot = {
   body: Joi.object().keys({
     jackpotId: Joi.string().custom(objectId).required(),
-    percentageContributions: 1,
+    percentageContributions: Joi.number(),
     lowLimitAmount: Joi.number(),
     highLimitAmount: Joi.number(),
     minDisplayAmount: Joi.number(),
     minStakeToWin: Joi.number(),
+    startTime: Joi.string(),
+    endTime: Joi.string(),
   }),
 };
 

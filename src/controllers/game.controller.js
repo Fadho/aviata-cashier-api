@@ -65,7 +65,7 @@ const getAgentJackpots = catchAsync(async (req, res) => {
 const updateAgentJackpot = catchAsync(async (req, res) => {
   const { jackpotId } = req.body;
   delete req.body.jackpotId;
-  const jackpot = await Jackpot.findOneAndUpdate({ _id: jackpotId }, req.body);
+  const jackpot = await Jackpot.findOneAndUpdate({ _id: jackpotId }, req.body, { new: true });
   res.send(jackpot);
 });
 

@@ -30,6 +30,12 @@ const jackpotSettingsSchema = mongoose.Schema({
     required: true,
     default: 20,
   },
+  startTime: {
+    type: Date,
+  },
+  endTime: {
+    type: Date,
+  },
   agentId: {
     type: mongoose.SchemaTypes.ObjectId,
     ref: 'User',
