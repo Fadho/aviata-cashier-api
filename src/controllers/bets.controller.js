@@ -365,13 +365,15 @@ const getFinancialReports = catchAsync(async (req, res) => {
     const options = pick(req.query, ['sortBy', 'limit', 'page']);
 
     let initialAgents;
+    const pagination = {};
 
     // Fetch agents at the top level (with no parent agent)
     if (req.user.role === 'super') {
-      initialAgents = await userService.queryUsers(
-        { agentId: agentId ? { agentId } : { $exists: false }, role: 'admin' },
-        options
-      );
+      initialAgents = await userService.queryUsers({ agentId: agentId || { $exists: false }, role: 'admin' }, options);
+      pagination.page = initialAgents.page;
+      pagination.limit = initialAgents.limit;
+      pagination.totalPages = initialAgents.totalPages;
+      pagination.totalResults = initialAgents.totalResults;
     } else {
       // Use req.user as the initial agent if their role is not 'super'
       initialAgents = !agentId
@@ -382,6 +384,12 @@ const getFinancialReports = catchAsync(async (req, res) => {
     const getUserHierarchy = async (parentId) => {
       const agents = await userService.queryUsers({ agentId: parentId, role: 'admin' }, options);
       const hierarchy = {};
+      if (!req.user.role === 'super') {
+        pagination.page = agents.page;
+        pagination.limit = agents.limit;
+        pagination.totalPages = agents.totalPages;
+        pagination.totalResults = agents.totalResults;
+      }
 
       for (const agent of agents.results) {
         hierarchy[agent.name] = {
@@ -626,7 +634,7 @@ const getFinancialReports = catchAsync(async (req, res) => {
       );
     }
 
-    return res.status(httpStatus.CREATED).send(hierarchy);
+    return res.status(httpStatus.CREATED).send({ hierarchy, pagination });
   } catch (error) {
     logger.error(error);
     throw new ApiError(httpStatus.NOT_FOUND, error.message);
