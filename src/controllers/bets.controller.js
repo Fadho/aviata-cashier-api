@@ -423,8 +423,6 @@ const getFinancialReports = catchAsync(async (req, res) => {
           endDate
         );
 
-        console.log(cashier.username, cashierJackpotWinners);
-
         const userWallets = await Wallets.find({ userId: cashier._id }).populate('currencyId');
 
         for (const wallet of userWallets) {

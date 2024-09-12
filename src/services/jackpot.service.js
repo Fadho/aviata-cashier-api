@@ -132,7 +132,6 @@ const getJackpotHistory = async (filter, startDate, endDate) => {
     filter = dateFilter;
   }
   const tickets = await JackpotWinners.find(filter);
-  console.log(filter, tickets)
   return tickets;
 };
 
