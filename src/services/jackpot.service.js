@@ -218,6 +218,28 @@ const updateJackpotContributions = async (
   return { activeBronzeContribution, activeSilverContribution, activeGoldContribution };
 };
 
+const getAgentJackpotContributions = async (deviceId, gameType) => {
+  let bronzeJackpot = await JackpotWinners.findOne({ jackpotType: 'Bronze', deviceId });
+
+  if (!bronzeJackpot) {
+    bronzeJackpot = await JackpotWinners.create({ jackpotType: 'Bronze', deviceId, gameType });
+    bronzeJackpot = bronzeJackpot._doc;
+  }
+  let silverJackpot = await JackpotWinners.findOne({ jackpotType: 'Silver', deviceId });
+  if (!silverJackpot) {
+    silverJackpot = await JackpotWinners.create({ jackpotType: 'Silver', deviceId, gameType });
+    silverJackpot = silverJackpot._doc;
+  }
+
+  let goldJackpot = await JackpotWinners.findOne({ jackpotType: 'Gold', deviceId });
+  if (!goldJackpot) {
+    goldJackpot = await JackpotWinners.create({ jackpotType: 'Gold', deviceId, gameType });
+    goldJackpot = goldJackpot._doc;
+  }
+
+  return [bronzeJackpot, silverJackpot, goldJackpot];
+};
+
 module.exports = {
   createJackpot,
   findJackpot,
@@ -226,4 +248,5 @@ module.exports = {
   getJackpotHistory,
   getAgentJackpots,
   updateJackpotContributions,
+  getAgentJackpotContributions,
 };

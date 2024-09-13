@@ -10,7 +10,8 @@ const jackpotWinnersSchema = mongoose.Schema(
 
     jackpotContributions: {
       type: mongoose.SchemaTypes.Number,
-      required: true,
+      default: 0,
+      // required: true,
     },
 
     jackpotType: {

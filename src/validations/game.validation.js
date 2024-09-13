@@ -72,6 +72,13 @@ const updateAgentContribution = {
   }),
 };
 
+const getAgentContribution = {
+  body: Joi.object().keys({
+    deviceId: Joi.required().custom(objectId),
+    gameType: Joi.string().required(),
+  }),
+};
+
 const updateGameData = {
   params: Joi.object().keys({
     agentId: Joi.required().custom(objectId).required(),
@@ -114,4 +121,5 @@ module.exports = {
   getAgentJackpots,
   dropJackpot,
   updateAgentContribution,
+  getAgentContribution
 };

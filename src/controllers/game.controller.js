@@ -100,6 +100,13 @@ const updateAgentJackpotContribution = catchAsync(async (req, res) => {
   res.send(jackpot);
 });
 
+const getAgentJackpotContribution = catchAsync(async (req, res) => {
+  const { deviceId, gameType } = req.body;
+
+  const jackpot = await jackpotService.getAgentJackpotContributions(deviceId, gameType);
+  res.send(jackpot);
+});
+
 module.exports = {
   createGameConfig,
   getGame,
@@ -113,4 +120,5 @@ module.exports = {
   getAgentJackpots,
   updateAgentJackpot,
   updateAgentJackpotContribution,
+  getAgentJackpotContribution,
 };

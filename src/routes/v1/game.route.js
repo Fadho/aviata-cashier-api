@@ -46,4 +46,8 @@ router
   .route('/jackpot/updateAgentContribution')
   .post(validate(gameValidation.updateAgentContribution), gameController.updateAgentJackpotContribution);
 
+router
+  .route('/jackpot/agentContribution')
+  .post(validate(gameValidation.getAgentContribution), gameController.getAgentJackpotContribution);
+
 module.exports = router;
