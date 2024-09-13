@@ -21,7 +21,7 @@ router.get('/gameData/:agentId/:gameType', gameController.getGameData);
 router.get('/getGameSettings', gameController.getGameSettings);
 
 router
-  .route('/gameData/:agentId')
+  .route('/gameData/:agentId/:gameType')
   .patch(auth('manageGameConfig'), validate(gameValidation.updateGameData), gameController.updateGameData);
 
 router

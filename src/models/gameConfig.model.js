@@ -39,7 +39,7 @@ const gameConfigSchema = mongoose.Schema({
   },
   gameType: {
     type: mongoose.SchemaTypes.String,
-    required: true,
+    // required: true,
   },
   depositBonus: {
     type: mongoose.SchemaTypes.Number,

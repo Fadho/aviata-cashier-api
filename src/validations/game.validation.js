@@ -90,6 +90,7 @@ const updateGameData = {
 const updateGameConfig = {
   params: Joi.object().keys({
     agentId: Joi.required().custom(objectId).required(),
+    gameType: Joi.string().required(),
   }),
   body: Joi.object()
     .keys({
