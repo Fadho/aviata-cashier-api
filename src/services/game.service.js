@@ -77,8 +77,8 @@ const getGameData = async (agentId, gameType) => {
   return game;
 };
 
-const getGameSettings = async () => {
-  const game = await GameConfig.findOne();
+const getGameSettings = async (agentId) => {
+  const game = await GameConfig.find({ agentId });
   return game;
 };
 

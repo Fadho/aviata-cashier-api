@@ -39,7 +39,7 @@ const gameConfigSchema = mongoose.Schema({
   },
   gameType: {
     type: mongoose.SchemaTypes.String,
-    default: 'aviata',
+    required: true,
   },
   depositBonus: {
     type: mongoose.SchemaTypes.Number,
