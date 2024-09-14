@@ -6,9 +6,10 @@ const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 const pick = require('../utils/pick');
 const { betsService, userService, walletService, currencyService, jackpotService } = require('../services');
-const { Wallets, Player } = require('../models');
+const { Wallets, Player, User } = require('../models');
 const logger = require('../config/logger');
 const GameConfig = require('../models/gameConfig.model');
+const JackpotWinners = require('../models/jackpotWinners.model');
 
 const createBetPlaced = catchAsync(async (req, res) => {
   const { result, selections, cashierId, potentialWinnings, roundId, gameType, playerId, deviceId } = req.body;
@@ -57,6 +58,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
   if (!player) {
     throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
   }
+  console.log(player)
 
   // Validate balance and stake
   const userWallet = player.wallet;
@@ -76,10 +78,27 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
   // Update wallet balance
   await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance - stake });
 
+  const cashier = await User.findById(cashierId);
+
   let betPlaced;
   if (gameType === 'shootout')
     betPlaced = await betsService.createBetPlacedForPlayer(stake, gameType, roundId, cashierId, playerId, deviceId);
+  const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType);
+  const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
+  const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
+  const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
 
+  const contributions = await jackpotService.updateJackpotContributions(
+    bronzeJackpot._id,
+    bronzeJackpot.percentageContributions * stake,
+    silverJackpot._id,
+    silverJackpot.percentageContributions * stake,
+    goldJackpot._id,
+    goldJackpot.percentageContributions * stake,
+    deviceId,
+    gameType
+  );
+  console.log(jackpotContributions, contributions)
   // Respond with the created bet
   res.status(httpStatus.CREATED).send(betPlaced);
 });

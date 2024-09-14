@@ -26,7 +26,8 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
     seconds: date.getSeconds(),
   });
 
-  if (jackpot.startTime || jackpot.endTime) {
+  // Check if jackpot.startTime and jackpot.endTime exist and are valid
+  if (jackpot.startTime instanceof Date && jackpot.endTime instanceof Date) {
     const startTime = extractTime(jackpot.startTime);
     const endTime = extractTime(jackpot.endTime);
 
@@ -40,7 +41,10 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
       return time1.seconds > time2.seconds;
     };
 
-    if (!isTimeLater(startTime, today) || !isTimeLater(today, endTime)) return;
+    // Ensure that today's time is between startTime and endTime
+    if (!isTimeLater(startTime, today) || !isTimeLater(today, endTime)) {
+      return; // Exit if current time is not in the range
+    }
   }
 
   if (!jackpotWinners || !jackpot || !player) {
@@ -219,21 +223,21 @@ const updateJackpotContributions = async (
 };
 
 const getAgentJackpotContributions = async (deviceId, gameType) => {
-  let bronzeJackpot = await JackpotWinners.findOne({ jackpotType: 'Bronze', deviceId });
+  let bronzeJackpot = await JackpotWinners.findOne({ active: true, jackpotType: 'Bronze', deviceId });
 
   if (!bronzeJackpot) {
-    bronzeJackpot = await JackpotWinners.create({ jackpotType: 'Bronze', deviceId, gameType });
+    bronzeJackpot = await JackpotWinners.create({ active: true, jackpotType: 'Bronze', deviceId, gameType });
     bronzeJackpot = bronzeJackpot._doc;
   }
-  let silverJackpot = await JackpotWinners.findOne({ jackpotType: 'Silver', deviceId });
+  let silverJackpot = await JackpotWinners.findOne({ active: true, jackpotType: 'Silver', deviceId });
   if (!silverJackpot) {
-    silverJackpot = await JackpotWinners.create({ jackpotType: 'Silver', deviceId, gameType });
+    silverJackpot = await JackpotWinners.create({ active: true, jackpotType: 'Silver', deviceId, gameType });
     silverJackpot = silverJackpot._doc;
   }
 
-  let goldJackpot = await JackpotWinners.findOne({ jackpotType: 'Gold', deviceId });
+  let goldJackpot = await JackpotWinners.findOne({ active: true, jackpotType: 'Gold', deviceId });
   if (!goldJackpot) {
-    goldJackpot = await JackpotWinners.create({ jackpotType: 'Gold', deviceId, gameType });
+    goldJackpot = await JackpotWinners.create({ active: true, jackpotType: 'Gold', deviceId, gameType });
     goldJackpot = goldJackpot._doc;
   }
 
