@@ -58,7 +58,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
   if (!player) {
     throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
   }
-  console.log(player)
+  console.log(player);
 
   // Validate balance and stake
   const userWallet = player.wallet;
@@ -98,7 +98,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     deviceId,
     gameType
   );
-  console.log(jackpotContributions, contributions)
+  console.log(jackpotContributions, contributions);
   // Respond with the created bet
   res.status(httpStatus.CREATED).send(betPlaced);
 });
@@ -537,7 +537,12 @@ const getFinancialReports = catchAsync(async (req, res) => {
             totals[currency].jackpot2Contributions += currencyReport.jackpot2Contributions;
             totals[currency].jackpot3Payout += currencyReport.jackpot3Payout;
             totals[currency].jackpot3Contributions += currencyReport.jackpot3Contributions;
-            totals[currency].profit = totals[currency].totalStake - totals[currency].totalWinnings;
+            totals[currency].profit =
+              totals[currency].totalStake -
+              totals[currency].totalWinnings -
+              totals[currency].jackpot1Payout -
+              totals[currency].jackpot2Payout -
+              totals[currency].jackpot3Payout;
           }
         }
       }
@@ -574,7 +579,12 @@ const getFinancialReports = catchAsync(async (req, res) => {
             totals[currency].jackpot1Contributions += currencyReport.jackpot1Contributions;
             totals[currency].jackpot3Payout += currencyReport.jackpot3Payout;
             totals[currency].jackpot1Contributions += currencyReport.jackpot1Contributions;
-            totals[currency].profit = totals[currency].totalStake - totals[currency].totalWinnings;
+            totals[currency].profit =
+              totals[currency].totalStake -
+              totals[currency].totalWinnings -
+              totals[currency].jackpot1Payout -
+              totals[currency].jackpot2Payout -
+              totals[currency].jackpot3Payout;
           }
         }
       }
@@ -616,7 +626,11 @@ const getFinancialReports = catchAsync(async (req, res) => {
         convertedTotals[primaryCurrency].jackpot3Payout += currencyReport.jackpot3Payout * conversionRate;
         convertedTotals[primaryCurrency].jackpot3Contributions += currencyReport.jackpot3Contributions * conversionRate;
         convertedTotals[primaryCurrency].profit =
-          convertedTotals[primaryCurrency].totalStake - convertedTotals[primaryCurrency].totalWinnings;
+          convertedTotals[primaryCurrency].totalStake -
+          convertedTotals[primaryCurrency].totalWinnings -
+          convertedTotals[primaryCurrency].jackpot1Payout -
+          convertedTotals[primaryCurrency].jackpot2Payout -
+          convertedTotals[primaryCurrency].jackpot3Payout;
       }
 
       // Format numbers to two decimal places
