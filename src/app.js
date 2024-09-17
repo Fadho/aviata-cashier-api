@@ -62,6 +62,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
   'https://websocket.shootout.sbegames.com',
+  'https://websocket2.shootout.sbegames.com',
 ];
 
 const corsOptions = {
