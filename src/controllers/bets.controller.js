@@ -6,7 +6,7 @@ const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 const pick = require('../utils/pick');
 const { betsService, userService, walletService, currencyService, jackpotService } = require('../services');
-const { Wallets, Player, User } = require('../models');
+const { Wallets, Player, User, Jackpot } = require('../models');
 const logger = require('../config/logger');
 const GameConfig = require('../models/gameConfig.model');
 const JackpotWinners = require('../models/jackpotWinners.model');
@@ -58,7 +58,6 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
   if (!player) {
     throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
   }
-  console.log(player);
 
   // Validate balance and stake
   const userWallet = player.wallet;
@@ -78,12 +77,12 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
   // Update wallet balance
   await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance - stake });
 
-  const cashier = await User.findById(cashierId);
+  // const cashier = await User.findById(cashierId);
 
   let betPlaced;
   if (gameType === 'shootout')
     betPlaced = await betsService.createBetPlacedForPlayer(stake, gameType, roundId, cashierId, playerId, deviceId);
-  const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType);
+  const jackpotContributions = await JackpotWinners.find({ deviceId });
   const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
   const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
   const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
