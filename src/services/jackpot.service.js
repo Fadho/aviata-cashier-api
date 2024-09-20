@@ -16,6 +16,7 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
     jackpotType: jackpot.jackpotName,
     active: true,
     gameType: jackpot.gameType,
+    deviceId,
   });
 
   const today = new Date();
@@ -54,6 +55,7 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
   const winner = await JackpotWinners.findOneAndUpdate(
     {
       _id: jackpotWinners._id,
+      active: true,
     },
     {
       jackpotAmount,
@@ -69,6 +71,8 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
     jackpotAmount,
     jackpotType: jackpot.jackpotName,
   });
+
+  config.log(winner);
 
   return winner;
 };
