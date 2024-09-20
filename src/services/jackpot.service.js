@@ -162,7 +162,7 @@ const updateJackpotContributions = async (
   let activeGoldContribution;
 
   if (bronzeJackpot) {
-    activeBronzeContribution = await JackpotWinners.findOne({ jackpotType: 'Bronze', active: true, gameType });
+    activeBronzeContribution = await JackpotWinners.findOne({ jackpotType: 'Bronze', active: true, gameType, deviceId });
 
     if (activeBronzeContribution) {
       activeBronzeContribution = await JackpotWinners.findOneAndUpdate(
@@ -182,7 +182,7 @@ const updateJackpotContributions = async (
   }
 
   if (silverJackpot) {
-    activeSilverContribution = await JackpotWinners.findOne({ jackpotType: 'Silver', active: true, gameType });
+    activeSilverContribution = await JackpotWinners.findOne({ jackpotType: 'Silver', active: true, gameType, deviceId });
     if (activeSilverContribution) {
       activeSilverContribution = await JackpotWinners.findOneAndUpdate(
         { _id: activeSilverContribution._id },
@@ -201,7 +201,7 @@ const updateJackpotContributions = async (
   }
 
   if (goldJackpot) {
-    activeGoldContribution = await JackpotWinners.findOne({ jackpotType: 'Gold', active: true, gameType });
+    activeGoldContribution = await JackpotWinners.findOne({ jackpotType: 'Gold', active: true, gameType, deviceId });
     if (activeGoldContribution) {
       activeGoldContribution = await JackpotWinners.findOneAndUpdate(
         { _id: activeGoldContribution._id },
