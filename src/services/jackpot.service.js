@@ -30,7 +30,8 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
       gameType: jackpot.gameType,
       deviceId,
     }).session(session);
-    if (!jackpotWinners) throw new Error('No active jackpot winner found');
+    if (!jackpotWinners || jackpotWinners.jackpotContributions < jackpotAmount)
+      throw new Error('No active jackpot winner found');
 
     // Time validation
     const today = new Date();
