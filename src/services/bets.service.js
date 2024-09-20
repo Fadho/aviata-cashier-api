@@ -48,11 +48,41 @@ const createBetPlaced = async (result, stake, selections, cashierId, potentialWi
  * @returns {Promise<Tickets>}
  */
 const createBetPlacedForPlayer = async (stake, gameType, roundId, cashierId, playerId, deviceId) => {
-  const minNumber = 1000000000; // Minimum 10-digit number
-  const maxNumber = 9999999999; // Maximum 10-digit number
-  const ticketId = Math.floor(minNumber + Math.random() * (maxNumber - minNumber + 1)).toString();
+  const session = await mongoose.startSession(); // Start a Mongoose session
+  session.startTransaction(); // Start a transaction
 
-  return Tickets.create({ stake, gameType, cashierId, ticketId, betType: 'single', playerId, roundId, deviceId });
+  try {
+    const minNumber = 1000000000; // Minimum 10-digit number
+    const maxNumber = 9999999999; // Maximum 10-digit number
+    const ticketId = Math.floor(minNumber + Math.random() * (maxNumber - minNumber + 1)).toString();
+
+    // Create a new ticket in the session
+    const ticket = await Tickets.create(
+      [
+        {
+          stake,
+          gameType,
+          cashierId,
+          ticketId,
+          betType: 'single',
+          playerId,
+          roundId,
+          deviceId,
+        },
+      ],
+      { session }
+    );
+
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession(); // End the session
+
+    return ticket[0]; // Return the created ticket
+  } catch (error) {
+    await session.abortTransaction(); // Abort the transaction on error
+    session.endSession();
+    throw new Error(`Error creating ticket: ${error.message}`);
+  }
 };
 
 /**
@@ -277,18 +307,46 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
  */
 
 const cashoutBetForPlayer = async (ticketId, odd) => {
-  const bet = await Tickets.findOne({ _id: ticketId, roundHasEnded: false });
-  if (!bet) return;
+  const session = await mongoose.startSession(); // Start a session
+  session.startTransaction(); // Begin a transaction
 
-  const player = await Player.findOne({ playerId: bet.playerId, deviceId: bet.deviceId });
+  try {
+    // Find the bet (ticket) that hasn't ended yet
+    const bet = await Tickets.findOne({ _id: ticketId, roundHasEnded: false }).session(session);
+    if (!bet) return;
 
-  await Tickets.findOneAndUpdate(
-    { _id: ticketId },
-    { winnings: bet.stake * odd, roundHasEnded: true, selections: [{ odd, stake: bet.stake }], gameOutcome: odd },
-    { new: true }
-  );
+    // Find the player associated with the bet
+    const player = await Player.findOne({ playerId: bet.playerId, deviceId: bet.deviceId }).session(session);
 
-  return Player.findOneAndUpdate({ _id: player.id }, { wallet: player.wallet + bet.stake * odd }, { new: true });
+    // Update the bet details
+    await Tickets.findOneAndUpdate(
+      { _id: ticketId },
+      {
+        winnings: bet.stake * odd,
+        roundHasEnded: true,
+        selections: [{ odd, stake: bet.stake }],
+        gameOutcome: odd,
+      },
+      { new: true, session } // Include session in the update
+    );
+
+    // Update the player's wallet with the winnings
+    const updatedPlayer = await Player.findOneAndUpdate(
+      { _id: player.id },
+      { wallet: player.wallet + bet.stake * odd },
+      { new: true, session } // Include session in the update
+    );
+
+    // Commit the transaction
+    await session.commitTransaction();
+    return updatedPlayer;
+  } catch (error) {
+    // If any error occurs, abort the transaction
+    await session.abortTransaction();
+    throw new Error(`Error during bet cashout: ${error.message}`);
+  } finally {
+    session.endSession(); // End the session
+  }
 };
 
 /**

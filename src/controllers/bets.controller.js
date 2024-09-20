@@ -2,6 +2,7 @@
 /* eslint-disable no-plusplus */
 /* eslint-disable no-await-in-loop */
 const httpStatus = require('http-status');
+const mongoose = require('mongoose');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 const pick = require('../utils/pick');
@@ -51,56 +52,85 @@ const createBetPlaced = catchAsync(async (req, res) => {
 });
 
 const createBetPlacedForPlayer = catchAsync(async (req, res) => {
-  const { cashierId, roundId, gameType, playerId, deviceId } = req.body;
-  let { stake } = req.body;
-  // Fetch the user (cashier) by ID
-  const player = await Player.findOne({ playerId, deviceId });
-  if (!player) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
+  const session = await mongoose.startSession(); // Start a Mongoose session
+  session.startTransaction(); // Begin a transaction
+
+  try {
+    const { cashierId, roundId, gameType, playerId, deviceId } = req.body;
+    let { stake } = req.body;
+
+    // Fetch the player by playerId and deviceId
+    const player = await Player.findOne({ playerId, deviceId }).session(session);
+    if (!player) {
+      throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
+    }
+
+    // Validate balance and stake
+    let balance = Number(player.wallet);
+    stake = Number(stake);
+
+    // eslint-disable-next-line no-restricted-globals
+    if (isNaN(balance) || isNaN(stake) || balance < stake) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount');
+    }
+
+    // Update wallet balance
+    balance -= stake;
+    await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance }, { session });
+
+    // Fetch cashier by cashierId
+    const cashier = await User.findById(cashierId).session(session);
+    if (!cashier) {
+      throw new ApiError(httpStatus.NOT_FOUND, 'cashier with provided ID not found');
+    }
+
+    // Place the bet
+    let betPlaced;
+    if (gameType === 'shootout') {
+      betPlaced = await betsService.createBetPlacedForPlayer(
+        stake,
+        gameType,
+        roundId,
+        cashierId,
+        playerId,
+        deviceId,
+        session
+      );
+    }
+
+    // Get jackpot contributions
+    const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType, session);
+    const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
+    const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
+    const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
+
+    // Update jackpot contributions
+    await jackpotService.updateJackpotContributions(
+      bronzeJackpot._id,
+      bronzeJackpot.percentageContributions * stake,
+      silverJackpot._id,
+      silverJackpot.percentageContributions * stake,
+      goldJackpot._id,
+      goldJackpot.percentageContributions * stake,
+      deviceId,
+      gameType,
+      session
+    );
+
+    // Commit the transaction
+    await session.commitTransaction();
+
+    // Log jackpot contributions and respond with the bet
+    console.log(jackpotContributions);
+    res.status(httpStatus.CREATED).send(betPlaced);
+  } catch (error) {
+    // Roll back transaction if any error occurs
+    await session.abortTransaction();
+    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, `Error placing bet: ${error.message}`);
+  } finally {
+    // End the session
+    session.endSession();
   }
-  console.log(player);
-
-  // Validate balance and stake
-  const userWallet = player.wallet;
-  let balance = userWallet;
-
-  stake = Number(stake);
-  balance = Number(balance);
-
-  // eslint-disable-next-line no-restricted-globals
-  if (typeof balance !== 'number' || typeof stake !== 'number' || isNaN(balance) || isNaN(stake)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid balance or stake amount');
-  }
-
-  if (balance - stake < 0) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Bet cannot be placed, insufficient funds');
-  }
-  // Update wallet balance
-  await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance - stake });
-
-  const cashier = await User.findById(cashierId);
-
-  let betPlaced;
-  if (gameType === 'shootout')
-    betPlaced = await betsService.createBetPlacedForPlayer(stake, gameType, roundId, cashierId, playerId, deviceId);
-  const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType);
-  const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
-  const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
-  const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
-
-  const contributions = await jackpotService.updateJackpotContributions(
-    bronzeJackpot._id,
-    bronzeJackpot.percentageContributions * stake,
-    silverJackpot._id,
-    silverJackpot.percentageContributions * stake,
-    goldJackpot._id,
-    goldJackpot.percentageContributions * stake,
-    deviceId,
-    gameType
-  );
-  console.log(jackpotContributions, contributions);
-  // Respond with the created bet
-  res.status(httpStatus.CREATED).send(betPlaced);
 });
 
 const cashoutPlayerBet = catchAsync(async (req, res) => {
