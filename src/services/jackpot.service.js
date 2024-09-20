@@ -223,19 +223,19 @@ const updateJackpotContributions = async (
 };
 
 const getAgentJackpotContributions = async (deviceId, gameType) => {
-  let bronzeJackpot = await JackpotWinners.findOne({ active: true, jackpotType: 'Bronze', deviceId });
+  let bronzeJackpot = await JackpotWinners.findOne({ active: true, jackpotType: 'Bronze', deviceId, gameType });
 
   if (!bronzeJackpot) {
     bronzeJackpot = await JackpotWinners.create({ active: true, jackpotType: 'Bronze', deviceId, gameType });
     bronzeJackpot = bronzeJackpot._doc;
   }
-  let silverJackpot = await JackpotWinners.findOne({ active: true, jackpotType: 'Silver', deviceId });
+  let silverJackpot = await JackpotWinners.findOne({ active: true, jackpotType: 'Silver', deviceId, gameType });
   if (!silverJackpot) {
     silverJackpot = await JackpotWinners.create({ active: true, jackpotType: 'Silver', deviceId, gameType });
     silverJackpot = silverJackpot._doc;
   }
 
-  let goldJackpot = await JackpotWinners.findOne({ active: true, jackpotType: 'Gold', deviceId });
+  let goldJackpot = await JackpotWinners.findOne({ active: true, jackpotType: 'Gold', deviceId, gameType });
   if (!goldJackpot) {
     goldJackpot = await JackpotWinners.create({ active: true, jackpotType: 'Gold', deviceId, gameType });
     goldJackpot = goldJackpot._doc;
