@@ -1,6 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 
 const axios = require('axios');
+const mongoose = require('mongoose');
 const { JackpotWinners, Jackpot, Player } = require('../models');
 const config = require('../config/config');
 
@@ -10,71 +11,94 @@ const config = require('../config/config');
  * @returns {Promise<JackpotWinners>}
  */
 const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
-  const player = await Player.findOne({ playerId, deviceId });
-  const jackpot = await Jackpot.findById(id);
-  const jackpotWinners = await JackpotWinners.findOne({
-    jackpotType: jackpot.jackpotName,
-    active: true,
-    gameType: jackpot.gameType,
-    deviceId,
-  });
+  const session = await mongoose.startSession(); // Start a MongoDB session
+  session.startTransaction(); // Begin a transaction
 
-  const today = new Date();
+  try {
+    // Find the player
+    const player = await Player.findOne({ playerId, deviceId }).session(session);
+    if (!player) throw new Error('Player not found');
 
-  const extractTime = (date) => ({
-    hours: date.getHours(),
-    minutes: date.getMinutes(),
-    seconds: date.getSeconds(),
-  });
+    // Find the jackpot
+    const jackpot = await Jackpot.findById(id).session(session);
+    if (!jackpot) throw new Error('Jackpot not found');
 
-  // Check if jackpot.startTime and jackpot.endTime exist and are valid
-  if (jackpot.startTime instanceof Date && jackpot.endTime instanceof Date) {
-    const startTime = extractTime(jackpot.startTime);
-    const endTime = extractTime(jackpot.endTime);
-
-    const isTimeLater = (time1, time2) => {
-      if (time1.hours > time2.hours) return true;
-      if (time1.hours < time2.hours) return false;
-
-      if (time1.minutes > time2.minutes) return true;
-      if (time1.minutes < time2.minutes) return false;
-
-      return time1.seconds > time2.seconds;
-    };
-
-    // Ensure that today's time is between startTime and endTime
-    if (!isTimeLater(startTime, today) || !isTimeLater(today, endTime)) {
-      return; // Exit if current time is not in the range
-    }
-  }
-
-  if (!jackpotWinners || !jackpot || !player) {
-    return;
-  }
-  await Player.findByIdAndUpdate(player._id, { wallet: player.wallet + Number(jackpotAmount) });
-  const winner = await JackpotWinners.findOneAndUpdate(
-    {
-      _id: jackpotWinners._id,
+    // Find active jackpot winners
+    const jackpotWinners = await JackpotWinners.findOne({
+      jackpotType: jackpot.jackpotName,
       active: true,
-    },
-    {
-      jackpotAmount,
+      gameType: jackpot.gameType,
+      deviceId,
+    }).session(session);
+    if (!jackpotWinners) throw new Error('No active jackpot winner found');
+
+    // Time validation
+    const today = new Date();
+    const extractTime = (date) => ({
+      hours: date.getHours(),
+      minutes: date.getMinutes(),
+      seconds: date.getSeconds(),
+    });
+
+    if (jackpot.startTime instanceof Date && jackpot.endTime instanceof Date) {
+      const startTime = extractTime(jackpot.startTime);
+      const endTime = extractTime(jackpot.endTime);
+      const currentTime = extractTime(today);
+
+      const isTimeValid = (start, current, end) => {
+        return (
+          (start.hours < current.hours || (start.hours === current.hours && start.minutes <= current.minutes)) &&
+          (current.hours < end.hours || (current.hours === end.hours && current.minutes <= end.minutes))
+        );
+      };
+
+      if (!isTimeValid(startTime, currentTime, endTime)) {
+        throw new Error('Current time is not within jackpot time range');
+      }
+    }
+
+    // Update player's wallet
+    player.wallet += Number(jackpotAmount);
+    await player.save({ session });
+
+    // Update the jackpot winner to mark as inactive and record details
+    const winner = await JackpotWinners.findOneAndUpdate(
+      { _id: jackpotWinners._id, active: true },
+      {
+        jackpotAmount,
+        playerId,
+        cashierId: player.cashierId,
+        active: false,
+      },
+      { new: true, session }
+    );
+
+    if (!winner) throw new Error('Failed to update jackpot winner');
+
+    // Notify the WebSocket server about the jackpot drop
+    await axios.post(`${config.websocket_url}/drop-jackpot`, {
       playerId,
-      cashierId: player.cashierId,
-      active: false,
-    },
-    { new: true }
-  );
-  await axios.post(`${config.websocket_url}/drop-jackpot`, {
-    playerId,
-    deviceId,
-    jackpotAmount,
-    jackpotType: jackpot.jackpotName,
-  });
+      deviceId,
+      jackpotAmount,
+      jackpotType: jackpot.jackpotName,
+    });
 
-  config.log(winner);
+    // Commit the transaction if everything is successful
+    await session.commitTransaction();
 
-  return winner;
+    // Log the winner for debugging
+    console.log('winner: ', winner);
+
+    return winner;
+  } catch (error) {
+    // Rollback the transaction in case of any errors
+    await session.abortTransaction();
+    console.log(`Error in dropJackpot: ${error.message}`);
+    throw new Error('Error processing jackpot drop');
+  } finally {
+    // End the session to free up resources
+    session.endSession();
+  }
 };
 
 /**
