@@ -70,7 +70,6 @@ const updateAgentJackpot = catchAsync(async (req, res) => {
 });
 
 const dropJackpot = catchAsync(async (req, res) => {
-  console.log(req.body)
   const { jackpotId, deviceId, playerId, jackpotAmount } = req.body;
   const jackpot = await jackpotService.dropJackpot(jackpotId, deviceId, playerId, jackpotAmount);
   res.send(jackpot);
