@@ -99,11 +99,11 @@ passport.use('jwt', jwtStrategy);
 // limit repeated failed requests to auth endpoints
 if (config.env === 'production') {
   app.use('/cashier/v1/auth', authLimiter);
+}
+
+if (config.env === 'production') {
+  // v1 api routes
   app.use('/cashier/v1', routes);
-  app.use('/cashier/v1/bet', (req, res, next) => {
-    req.setTimeout(5 * 1000);
-    next();
-  });
 } else {
   // v1 api routes
   app.use('/v1', routes);
