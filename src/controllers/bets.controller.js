@@ -10,7 +10,7 @@ const { betsService, userService, walletService, currencyService, jackpotService
 const { Wallets, Player, User } = require('../models');
 const logger = require('../config/logger');
 const GameConfig = require('../models/gameConfig.model');
-const JackpotWinners = require('../models/jackpotWinners.model');
+// const JackpotWinners = require('../models/jackpotWinners.model');
 
 const createBetPlaced = catchAsync(async (req, res) => {
   const { result, selections, cashierId, potentialWinnings, roundId, gameType, playerId, deviceId } = req.body;
@@ -76,7 +76,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
 
     // Update wallet balance
     balance -= stake;
-    await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance }, { session });
+    Player.findOneAndUpdate({ _id: player.id }, { wallet: balance }, { session });
 
     // Fetch cashier by cashierId
     const cashier = await User.findById(cashierId).session(session);
@@ -85,18 +85,18 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     }
 
     // Place the bet
-    let betPlaced;
-    if (gameType === 'shootout') {
-      betPlaced = await betsService.createBetPlacedForPlayer(
-        stake,
-        gameType,
-        roundId,
-        cashierId,
-        playerId,
-        deviceId,
-        session
-      );
-    }
+    // const betPlaced;
+    // if (gameType === 'shootout') {
+    const betPlaced = await betsService.createBetPlacedForPlayer(
+      stake,
+      gameType,
+      roundId,
+      cashierId,
+      playerId,
+      deviceId,
+      session
+    );
+    // }
 
     // Get jackpot contributions
     const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType, session);
@@ -105,7 +105,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
 
     // Update jackpot contributions
-    await jackpotService.updateJackpotContributions(
+    jackpotService.updateJackpotContributions(
       bronzeJackpot._id,
       bronzeJackpot.percentageContributions * stake,
       silverJackpot._id,
@@ -121,7 +121,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     await session.commitTransaction();
 
     // Log jackpot contributions and respond with the bet
-    console.log(jackpotContributions);
+    // console.log(jackpotContributions);
     res.status(httpStatus.CREATED).send(betPlaced);
   } catch (error) {
     // Roll back transaction if any error occurs
