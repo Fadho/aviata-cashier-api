@@ -85,7 +85,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     }
 
     // Fetch jackpot contributions after confirming the cashier exists
-    const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType, session);
+    const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType);
 
     // Place the bet
     const betPlaced = await betsService.createBetPlacedForPlayer(
@@ -104,7 +104,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       contribution: jackpot.percentageContributions * stake,
     }));
 
-    await Promise.all(
+    Promise.all(
       jackpotUpdates.map((jackpot) =>
         jackpotService.updateJackpotContributions(jackpot.id, jackpot.contribution, deviceId, gameType, session)
       )
