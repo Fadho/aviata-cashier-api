@@ -47,10 +47,7 @@ const createBetPlaced = async (result, stake, selections, cashierId, potentialWi
  * @param {ObjectId} deviceId
  * @returns {Promise<Tickets>}
  */
-const createBetPlacedForPlayer = async (stake, gameType, roundId, cashierId, playerId, deviceId) => {
-  const session = await mongoose.startSession(); // Start a Mongoose session
-  session.startTransaction(); // Start a transaction
-
+const createBetPlacedForPlayer = async (stake, gameType, roundId, cashierId, playerId, deviceId, session) => {
   try {
     const minNumber = 1000000000; // Minimum 10-digit number
     const maxNumber = 9999999999; // Maximum 10-digit number
@@ -73,14 +70,8 @@ const createBetPlacedForPlayer = async (stake, gameType, roundId, cashierId, pla
       { session }
     );
 
-    // Commit the transaction
-    await session.commitTransaction();
-    session.endSession(); // End the session
-
     return ticket[0]; // Return the created ticket
   } catch (error) {
-    await session.abortTransaction(); // Abort the transaction on error
-    session.endSession();
     throw new Error(`Error creating ticket: ${error.message}`);
   }
 };

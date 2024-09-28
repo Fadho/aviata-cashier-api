@@ -59,16 +59,16 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     const { cashierId, roundId, gameType, playerId, deviceId } = req.body;
     let { stake } = req.body;
 
-    // Fetch the player by playerId and deviceId
+    // Fetch the player and validate balance in one query
     const player = await Player.findOne({ playerId, deviceId }).session(session);
     if (!player) {
-      throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
+      throw new ApiError(httpStatus.NOT_FOUND, 'Player with provided ID not found');
     }
 
-    // Validate balance and stake
     let balance = Number(player.wallet);
     stake = Number(stake);
 
+    // Validate balance and stake
     // eslint-disable-next-line no-restricted-globals
     if (isNaN(balance) || isNaN(stake) || balance < stake) {
       throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount');
@@ -78,15 +78,18 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     balance -= stake;
     await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance }, { session });
 
-    // Fetch cashier by cashierId
-    const cashier = await User.findById(cashierId).session(session);
+    // Fetch cashier and jackpot contributions concurrently
+    const [cashier, jackpotContributions] = await Promise.all([
+      User.findById(cashierId).session(session),
+      // eslint-disable-next-line no-use-before-define
+      jackpotService.getAgentJackpots(cashier.agentId, gameType, session),
+    ]);
+
     if (!cashier) {
-      throw new ApiError(httpStatus.NOT_FOUND, 'cashier with provided ID not found');
+      throw new ApiError(httpStatus.NOT_FOUND, 'Cashier with provided ID not found');
     }
 
     // Place the bet
-    // const betPlaced;
-    // if (gameType === 'shootout') {
     const betPlaced = await betsService.createBetPlacedForPlayer(
       stake,
       gameType,
@@ -96,32 +99,21 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       deviceId,
       session
     );
-    // }
-
-    // Get jackpot contributions
-    const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType, session);
-    const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
-    const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
-    const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
 
     // Update jackpot contributions
-    jackpotService.updateJackpotContributions(
-      bronzeJackpot._id,
-      bronzeJackpot.percentageContributions * stake,
-      silverJackpot._id,
-      silverJackpot.percentageContributions * stake,
-      goldJackpot._id,
-      goldJackpot.percentageContributions * stake,
-      deviceId,
-      gameType,
-      session
+    const jackpotUpdates = jackpotContributions.map((jackpot) => ({
+      id: jackpot._id,
+      contribution: jackpot.percentageContributions * stake,
+    }));
+
+    await Promise.all(
+      jackpotUpdates.map((jackpot) =>
+        jackpotService.updateJackpotContributions(jackpot.id, jackpot.contribution, deviceId, gameType, session)
+      )
     );
 
     // Commit the transaction
     await session.commitTransaction();
-
-    // Log jackpot contributions and respond with the bet
-    // console.log(jackpotContributions);
     res.status(httpStatus.CREATED).send(betPlaced);
   } catch (error) {
     // Roll back transaction if any error occurs
