@@ -78,16 +78,14 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     balance -= stake;
     await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance }, { session });
 
-    // Fetch cashier and jackpot contributions concurrently
-    const [cashier, jackpotContributions] = await Promise.all([
-      User.findById(cashierId).session(session),
-      // eslint-disable-next-line no-use-before-define
-      jackpotService.getAgentJackpots(cashier.agentId, gameType, session),
-    ]);
-
+    // Fetch cashier by cashierId
+    const cashier = await User.findById(cashierId).session(session);
     if (!cashier) {
       throw new ApiError(httpStatus.NOT_FOUND, 'Cashier with provided ID not found');
     }
+
+    // Fetch jackpot contributions after confirming the cashier exists
+    const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType, session);
 
     // Place the bet
     const betPlaced = await betsService.createBetPlacedForPlayer(
