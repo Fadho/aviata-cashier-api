@@ -59,16 +59,16 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     const { cashierId, roundId, gameType, playerId, deviceId } = req.body;
     let { stake } = req.body;
 
-    // Fetch the player and validate balance in one query
+    // Fetch the player by playerId and deviceId
     const player = await Player.findOne({ playerId, deviceId }).session(session);
     if (!player) {
-      throw new ApiError(httpStatus.NOT_FOUND, 'Player with provided ID not found');
+      throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
     }
 
+    // Validate balance and stake
     let balance = Number(player.wallet);
     stake = Number(stake);
 
-    // Validate balance and stake
     // eslint-disable-next-line no-restricted-globals
     if (isNaN(balance) || isNaN(stake) || balance < stake) {
       throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount');
@@ -81,13 +81,12 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     // Fetch cashier by cashierId
     const cashier = await User.findById(cashierId).session(session);
     if (!cashier) {
-      throw new ApiError(httpStatus.NOT_FOUND, 'Cashier with provided ID not found');
+      throw new ApiError(httpStatus.NOT_FOUND, 'cashier with provided ID not found');
     }
 
-    // Fetch jackpot contributions after confirming the cashier exists
-    const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType);
-
     // Place the bet
+    // const betPlaced;
+    // if (gameType === 'shootout') {
     const betPlaced = await betsService.createBetPlacedForPlayer(
       stake,
       gameType,
@@ -97,21 +96,32 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       deviceId,
       session
     );
+    // }
+
+    // Get jackpot contributions
+    const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType, session);
+    const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
+    const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
+    const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
 
     // Update jackpot contributions
-    const jackpotUpdates = jackpotContributions.map((jackpot) => ({
-      id: jackpot._id,
-      contribution: jackpot.percentageContributions * stake,
-    }));
-
-    Promise.all(
-      jackpotUpdates.map((jackpot) =>
-        jackpotService.updateJackpotContributions(jackpot.id, jackpot.contribution, deviceId, gameType, session)
-      )
+    jackpotService.updateJackpotContributions(
+      bronzeJackpot._id,
+      bronzeJackpot.percentageContributions * stake,
+      silverJackpot._id,
+      silverJackpot.percentageContributions * stake,
+      goldJackpot._id,
+      goldJackpot.percentageContributions * stake,
+      deviceId,
+      gameType,
+      session
     );
 
     // Commit the transaction
     await session.commitTransaction();
+
+    // Log jackpot contributions and respond with the bet
+    // console.log(jackpotContributions);
     res.status(httpStatus.CREATED).send(betPlaced);
   } catch (error) {
     // Roll back transaction if any error occurs
@@ -636,9 +646,9 @@ const getFinancialReports = catchAsync(async (req, res) => {
 
         convertedTotals[primaryCurrency].totalWinnings += currencyReport.totalWinnings * conversionRate;
         convertedTotals[primaryCurrency].totalStake += currencyReport.totalStake * conversionRate;
-        convertedTotals[primaryCurrency].numberOfBets += currencyReport.numberOfBets;
-        convertedTotals[primaryCurrency].totalClosedPayout += currencyReport.totalClosedPayout * conversionRate;
-        convertedTotals[primaryCurrency].totalOpenPayout += currencyReport.totalOpenPayout * conversionRate;
+        // convertedTotals[primaryCurrency].numberOfBets += currencyReport.numberOfBets;
+        // convertedTotals[primaryCurrency].totalClosedPayout += currencyReport.totalClosedPayout * conversionRate;
+        // convertedTotals[primaryCurrency].totalOpenPayout += currencyReport.totalOpenPayout * conversionRate;
         convertedTotals[primaryCurrency].jackpot1Payout += currencyReport.jackpot1Payout * conversionRate;
         convertedTotals[primaryCurrency].jackpot1Contributions += currencyReport.jackpot1Contributions * conversionRate;
         convertedTotals[primaryCurrency].jackpot2Payout += currencyReport.jackpot2Payout * conversionRate;
