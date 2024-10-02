@@ -85,7 +85,6 @@ const createBetPlacedForPlayer = async (stake, gameType, roundId, cashierId, pla
   }
 };
 
-
 /**
  * create a new shop account
  * @returns {Promise<Tickets>}
