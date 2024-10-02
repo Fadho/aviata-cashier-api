@@ -3,7 +3,7 @@
 /* eslint-disable no-restricted-syntax */
 const mongoose = require('mongoose');
 const { differenceInHours } = require('date-fns');
-const { Tickets, GameConfig, Rounds } = require('../models');
+const { Tickets, GameConfig, Rounds, Player } = require('../models');
 const walletService = require('./wallet.service');
 const logger = require('../config/logger');
 const { userService } = require('.');
@@ -35,6 +35,54 @@ const createBetPlaced = async (result, stake, selections, cashierId, potentialWi
     });
   }
   return Tickets.create({ result, stake, selections, cashierId, ticketId, betType: 'single', potentialWinnings, roundId });
+};
+
+/**
+ * create a new ticket
+ * @param {number} stake
+ * @param {string} gameType
+ * @param {string} roundId
+ * @param {ObjectId} cashierId
+ * @param {ObjectId} playerId
+ * @param {ObjectId} deviceId
+ * @returns {Promise<Tickets>}
+ */
+const createBetPlacedForPlayer = async (stake, gameType, roundId, cashierId, playerId, deviceId) => {
+  const session = await mongoose.startSession(); // Start a Mongoose session
+  session.startTransaction(); // Start a transaction
+
+  try {
+    const minNumber = 1000000000; // Minimum 10-digit number
+    const maxNumber = 9999999999; // Maximum 10-digit number
+    const ticketId = Math.floor(minNumber + Math.random() * (maxNumber - minNumber + 1)).toString();
+
+    // Create a new ticket in the session
+    const ticket = await Tickets.create(
+      [
+        {
+          stake,
+          gameType,
+          cashierId,
+          ticketId,
+          betType: 'single',
+          playerId,
+          roundId,
+          deviceId,
+        },
+      ],
+      { session }
+    );
+
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession(); // End the session
+
+    return ticket[0]; // Return the created ticket
+  } catch (error) {
+    await session.abortTransaction(); // Abort the transaction on error
+    session.endSession();
+    throw new Error(`Error creating ticket: ${error.message}`);
+  }
 };
 
 /**
@@ -257,6 +305,55 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
 }
 
 /**
+ * cashout bet function for multiplayer games
+ * @param {ObjectId} ticketId
+ * @param {Number}  odd
+ */
+
+const cashoutBetForPlayer = async (ticketId, odd) => {
+  const session = await mongoose.startSession(); // Start a session
+  session.startTransaction(); // Begin a transaction
+
+  try {
+    // Find the bet (ticket) that hasn't ended yet
+    const bet = await Tickets.findOne({ _id: ticketId, roundHasEnded: false }).session(session);
+    if (!bet) return;
+
+    // Find the player associated with the bet
+    const player = await Player.findOne({ playerId: bet.playerId, deviceId: bet.deviceId }).session(session);
+
+    // Update the bet details
+    await Tickets.findOneAndUpdate(
+      { _id: ticketId },
+      {
+        winnings: bet.stake * odd,
+        roundHasEnded: true,
+        selections: [{ odd, stake: bet.stake }],
+        gameOutcome: odd,
+      },
+      { new: true, session } // Include session in the update
+    );
+
+    // Update the player's wallet with the winnings
+    const updatedPlayer = await Player.findOneAndUpdate(
+      { _id: player.id },
+      { wallet: player.wallet + bet.stake * odd },
+      { new: true, session } // Include session in the update
+    );
+
+    // Commit the transaction
+    await session.commitTransaction();
+    return updatedPlayer;
+  } catch (error) {
+    // If any error occurs, abort the transaction
+    await session.abortTransaction();
+    throw new Error(`Error during bet cashout: ${error.message}`);
+  } finally {
+    session.endSession(); // End the session
+  }
+};
+
+/**
  * check for open bets after round closes
  * @param {String} roundId
  * @param {Number}  odd
@@ -396,4 +493,6 @@ module.exports = {
   payoutTicket,
   getCancelledBetHistory,
   updateBetsAndCalculateWinnings,
+  createBetPlacedForPlayer,
+  cashoutBetForPlayer,
 };

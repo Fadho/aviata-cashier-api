@@ -1,7 +1,7 @@
 // const httpStatus = require('http-status');
 const userService = require('./user.service');
 // const ApiError = require('../utils/ApiError');
-const { GameConfig, Game } = require('../models');
+const { GameConfig, Game, Jackpot } = require('../models');
 
 /**
  * Authenticate Game
@@ -38,34 +38,47 @@ const createGameData = async (body) => {
 };
 
 const getGameConfig = async (body) => {
-  const gameConfig = await GameConfig.find({ agentId: body }).select('-id');
-  const game = await Game.find({ agentId: body }).select('-id');
-
-  const data = { game, gameConfig };
-
-  if (!game.length || !gameConfig.length) {
-    return { data, message: 'Not Found' };
+  let gameConfig = await GameConfig.find({ agentId: body.agentId, gameType: body.gameType }).select('-id');
+  if (!gameConfig.length) {
+    gameConfig = await GameConfig.create({ agentId: body.agentId, gameType: body.gameType });
   }
+
+  let game = await Game.find({ agentId: body.agentId, gameType: body.gameType }).select('-id');
+  if (!game.length) {
+    game = await Game.create({ agentId: body.agentId, gameType: body.gameType });
+  }
+
+  // let jackpot = await Jackpot.find({ agentId: body.agentId, gameType: body.gameType }).select('-id');
+  // if (!jackpot.length) {
+  //   jackpot = await Jackpot.create({ agentId: body.agentId, gameType: body.gameType, jackpotName: 'Bronze' });
+  // }
+
+  if (!game || !gameConfig) {
+    return { data: { game, gameConfig }, message: 'Not Found' };
+  }
+
+  const data = { game: game[0], gameConfig: gameConfig[0] };
+
   return { data, message: 'Fetched Game Data successfully.' };
 };
 
-const updateGameConfig = async (id, body) => {
-  const gameConfig = await GameConfig.findOneAndUpdate({ agentId: id }, body, { new: true });
+const updateGameConfig = async (id, gameType, body) => {
+  const gameConfig = await GameConfig.findOneAndUpdate({ agentId: id, gameType }, body, { new: true });
   return { data: gameConfig, message: 'Game Config updated successfully.' };
 };
 
-const updateGameData = async (id, body) => {
-  const game = await Game.findOneAndUpdate({ agentId: id }, body, { new: true });
+const updateGameData = async (id, gameType, body) => {
+  const game = await Game.findOneAndUpdate({ agentId: id, gameType }, body, { new: true });
   return { data: game, message: 'Game Data updated successfully.' };
 };
 
-const getGameData = async (body) => {
-  const game = await Game.findOne({ agentId: body }).select('-id');
+const getGameData = async (agentId, gameType) => {
+  const game = await Game.findOne({ agentId, gameType }).select('-id');
   return game;
 };
 
-const getGameSettings = async () => {
-  const game = await GameConfig.findOne();
+const getGameSettings = async (agentId) => {
+  const game = await GameConfig.find({ agentId });
   return game;
 };
 

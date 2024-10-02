@@ -28,6 +28,10 @@ const gameSchema = mongoose.Schema({
     default: 95,
     required: true,
   },
+  gameType: {
+    type: mongoose.SchemaTypes.String,
+    default: 'aviata',
+  },
 });
 
 // add plugin that converts mongoose to json

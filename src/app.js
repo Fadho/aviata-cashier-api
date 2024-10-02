@@ -57,11 +57,21 @@ const allowedOrigins = [
   'https://bo.sbegames.com',
   'https://cashier.sbegames.com',
   'https://websocket.aviata.sportsbookengine.com',
+  'https://shoutout-cashier.staging.sbegames.com',
+  'https://next-backoffice-gamma.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://websocket.shootout.sbegames.com',
+  'https://websocket2.shootout.sbegames.com',
+  'https://shootout.cashier.sbegames.com',
 ];
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (
+    if (config.env === 'development') {
+      // Allow access from anywhere in development
+      callback(null, true);
+    } else if (
       !origin ||
       allowedOrigins.some((pattern) => {
         if (typeof pattern === 'string') {
@@ -79,8 +89,8 @@ const corsOptions = {
   optionsSuccessStatus: 200,
 };
 
-if (config.env === 'production') app.use(cors(corsOptions));
-app.options('*', config.env === 'production' ? cors(corsOptions) : cors());
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // jwt authentication
 app.use(passport.initialize());

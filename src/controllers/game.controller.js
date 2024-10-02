@@ -1,7 +1,8 @@
 const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
-const { gameService, tokenService } = require('../services');
+const { gameService, tokenService, jackpotService } = require('../services');
+const { Jackpot } = require('../models');
 
 const authenticateGame = catchAsync(async (req, res) => {
   const user = await gameService.authenticateGame(req.params.id);
@@ -20,7 +21,8 @@ const createGameData = catchAsync(async (req, res) => {
 });
 
 const getGame = catchAsync(async (req, res) => {
-  const data = await gameService.getGameConfig(req.params.agentId);
+  const { agentId, gameType } = req.params;
+  const data = await gameService.getGameConfig({ agentId, gameType });
   if (!data) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
   }
@@ -28,7 +30,8 @@ const getGame = catchAsync(async (req, res) => {
 });
 
 const getGameData = catchAsync(async (req, res) => {
-  const data = await gameService.getGameData(req.params.agentId);
+  const { agentId, gameType } = req.params;
+  const data = await gameService.getGameData(agentId, gameType);
   if (!data) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
   }
@@ -36,7 +39,7 @@ const getGameData = catchAsync(async (req, res) => {
 });
 
 const getGameSettings = catchAsync(async (req, res) => {
-  const data = await gameService.getGameSettings();
+  const data = await gameService.getGameSettings(req.user.agentId);
   if (!data) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Game not found');
   }
@@ -44,22 +47,78 @@ const getGameSettings = catchAsync(async (req, res) => {
 });
 
 const updateGameConfig = catchAsync(async (req, res) => {
-  const user = await gameService.updateGameConfig(req.params.agentId, req.body);
+  const user = await gameService.updateGameConfig(req.params.agentId, req.params.gameType, req.body);
   res.send(user);
 });
 
 const updateGameData = catchAsync(async (req, res) => {
-  const user = await gameService.updateGameData(req.params.agentId, req.body);
+  const user = await gameService.updateGameData(req.params.agentId, req.params.gameType, req.body);
   res.send(user);
+});
+
+const getAgentJackpots = catchAsync(async (req, res) => {
+  const { agentId, gameType } = req.body;
+  const jackpot = await jackpotService.getAgentJackpots(agentId, gameType);
+  res.send(jackpot);
+});
+
+const updateAgentJackpot = catchAsync(async (req, res) => {
+  const { jackpotId } = req.body;
+  delete req.body.jackpotId;
+  const jackpot = await Jackpot.findOneAndUpdate({ _id: jackpotId }, req.body, { new: true });
+  res.send(jackpot);
+});
+
+const dropJackpot = catchAsync(async (req, res) => {
+  const { jackpotId, deviceId, playerId, jackpotAmount } = req.body;
+  const jackpot = await jackpotService.dropJackpot(jackpotId, deviceId, playerId, jackpotAmount);
+  res.send(jackpot);
+});
+
+const updateAgentJackpotContribution = catchAsync(async (req, res) => {
+  const {
+    bronzeJackpotId,
+    bronzeContributions,
+    silverJackpotId,
+    silverContributions,
+    goldJackpotId,
+    goldContributions,
+    deviceId,
+    gameType,
+  } = req.body;
+
+  const jackpot = await jackpotService.updateJackpotContributions(
+    bronzeJackpotId,
+    bronzeContributions,
+    silverJackpotId,
+    silverContributions,
+    goldJackpotId,
+    goldContributions,
+    deviceId,
+    gameType
+  );
+  res.send(jackpot);
+});
+
+const getAgentJackpotContribution = catchAsync(async (req, res) => {
+  const { deviceId, gameType } = req.body;
+
+  const jackpot = await jackpotService.getAgentJackpotContributions(deviceId, gameType);
+  res.send(jackpot);
 });
 
 module.exports = {
   createGameConfig,
   getGame,
+  dropJackpot,
   updateGameConfig,
   updateGameData,
   authenticateGame,
   createGameData,
   getGameData,
   getGameSettings,
+  getAgentJackpots,
+  updateAgentJackpot,
+  updateAgentJackpotContribution,
+  getAgentJackpotContribution,
 };

@@ -8,8 +8,21 @@ const createBetPlaced = {
     stake: Joi.number().required(),
     cashierId: Joi.string().required().custom(objectId),
     roundId: Joi.string().required(),
+    gameType: Joi.string(),
   }),
 };
+
+const createBetPlacedPlayer = {
+  body: Joi.object().keys({
+    stake: Joi.number().required(),
+    cashierId: Joi.string().required().custom(objectId),
+    playerId: Joi.string().required(),
+    deviceId: Joi.string().custom(objectId),
+    roundId: Joi.string().required(),
+    gameType: Joi.string(),
+  }),
+};
+
 const fetchBetPlaced = {
   query: Joi.object().keys({
     selections: Joi.array().items(Joi.string().custom(objectId)),
@@ -26,6 +39,7 @@ const getBetHistory = {
     clientType: Joi.string(),
     cashierId: Joi.string().custom(objectId),
     betType: Joi.string(),
+    gameType: Joi.string(),
     startDate: Joi.string(),
     endDate: Joi.string(),
     sortBy: Joi.string(),
@@ -39,6 +53,7 @@ const getAccountingReports = {
     clientType: Joi.string(),
     cashierId: Joi.string().custom(objectId),
     agentId: Joi.string().custom(objectId),
+    gameType: Joi.string(),
     betType: Joi.string(),
     startDate: Joi.string(),
     endDate: Joi.string(),
@@ -64,6 +79,12 @@ const cashoutTicket = {
     roundId: Joi.string().required(),
   }),
 };
+const cashoutPlayerTicket = {
+  body: Joi.object().keys({
+    odd: Joi.number().required(),
+    ticketId: Joi.string().custom(objectId).required(),
+  }),
+};
 
 module.exports = {
   createBetPlaced,
@@ -73,4 +94,6 @@ module.exports = {
   getAccountingReports,
   cancelTicket,
   cashoutTicket,
+  createBetPlacedPlayer,
+  cashoutPlayerTicket,
 };

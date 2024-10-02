@@ -8,3 +8,4 @@ module.exports.currencyService = require('./currency.service');
 module.exports.walletService = require('./wallet.service');
 module.exports.transferHistoryService = require('./transferHistory.service');
 module.exports.roundsService = require('./rounds.service');
+module.exports.jackpotService = require('./jackpot.service');
