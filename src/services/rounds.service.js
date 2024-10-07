@@ -113,6 +113,7 @@ const startGame = async (superAgentId, gameType) => {
     await session.commitTransaction(); // Commit the transaction
     return runningRounds.map((round) => round.roundId);
   } catch (error) {
+    console.log(error)
     await session.abortTransaction(); // Abort the transaction in case of an error
     throw error; // Re-throw the error after aborting
   } finally {
@@ -216,11 +217,11 @@ const closeGame = async (superAgentId, roundId, odd) => {
       { new: true, session } // Use the session for this operation
     );
 
-    if (updatedRound) {
+    if (updatedRound && !(updatedRound.gameType === 'shootout')) {
       // If the round was successfully updated, calculate winnings
       await updateBetsAndCalculateWinnings(roundId, odd);
     } else {
-      console.error(`Failed to close round ${roundId}. Round not found or already ended.`);
+      console.error(`Failed to update bets ${updatedRound}`);
     }
 
     await session.commitTransaction(); // Commit the transaction if successful
