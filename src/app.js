@@ -111,7 +111,7 @@ if (config.env === 'production') {
 
 app.get('/', (req, res) => {
   res.status(httpStatus.OK).json({
-    message: 'Welcome to Aviata API',
+    message: 'Welcome to Shootout API',
   });
 });
 

@@ -227,22 +227,24 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         let cumulativeWinnings = 0;
         let atLeastOneSelectionWins = false;
 
-        for (const selection of bet.selections) {
-          if (selection.odd < odd) {
-            selection.winnings = selection.stake * selection.odd;
-            cumulativeWinnings += selection.winnings;
-            atLeastOneSelectionWins = true;
-          } else {
-            selection.winnings = 0;
+        if (bet.gameType === 'aviata') {
+          for (const selection of bet.selections) {
+            if (selection.odd < odd) {
+              selection.winnings = selection.stake * selection.odd;
+              cumulativeWinnings += selection.winnings;
+              atLeastOneSelectionWins = true;
+            } else {
+              selection.winnings = 0;
+            }
           }
-        }
 
-        bet.winnings = cumulativeWinnings;
-        bet.result = atLeastOneSelectionWins ? 'win' : 'loss';
+          bet.winnings = cumulativeWinnings;
+          bet.result = atLeastOneSelectionWins ? 'win' : 'loss';
+        }
+        bet.winnings = bet.winnings ? 'win' : 'loss';
         bet.roundHasEnded = true;
         bet.gameOutcome = odd;
         if (!bet.gameOutcome) {
-          console.log(bet)
           return;
         }
 
@@ -284,7 +286,6 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
       await closeOpenBets();
       break; // Break the loop on successful transaction
     } catch (error) {
-      // console.log(error)
       if (!transactionSuccessful) {
         await session.abortTransaction();
       }
