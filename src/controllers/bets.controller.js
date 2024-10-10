@@ -1,3 +1,5 @@
+/* eslint-disable no-use-before-define */
+/* eslint-disable no-param-reassign */
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable no-plusplus */
 /* eslint-disable no-await-in-loop */
@@ -311,15 +313,22 @@ const getGamingActivity = catchAsync(async (req, res) => {
 
 const cashierReport = catchAsync(async (req, res) => {
   try {
-    const { startDate, endDate, betType } = req.query;
+    const { startDate, endDate, betType, gameType } = req.query;
     const cashierId = req.user.id;
-    let betHistory = [];
-    const user = await userService.getUserById(cashierId);
+    // let betHistory = [];
+    const [user, betHistory] = await Promise.all([
+      userService.getUserById(cashierId),
+      betsService.getBetHistory({ cashierId, ...(betType && { betType }) }, startDate, endDate),
+    ]);
 
     if (!user) {
       throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record by ClientType not found');
     }
-    betHistory = await betsService.getBetHistory({ cashierId, ...(betType && { betType }) }, startDate, endDate);
+    const cashierJackpotWinners = await jackpotService.getJackpotHistory(
+      { cashierId, ...(gameType && { gameType }) },
+      startDate,
+      endDate
+    );
 
     const totalStake = betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
     const totalWinnings = betHistory.reduce((count, bet) => count + bet.winnings, 0);
@@ -330,15 +339,46 @@ const cashierReport = catchAsync(async (req, res) => {
       return bet.payout ? count + 0 : count + bet.winnings;
     }, 0);
 
+    let jackpot1Payout = 0;
+    let jackpot1Contributions = 0;
+    let jackpot2Payout = 0;
+    let jackpot2Contributions = 0;
+    let jackpot3Payout = 0;
+    let jackpot3Contributions = 0;
+
+    cashierJackpotWinners.forEach((jackpot) => {
+      if (jackpot.jackpotType === 'Bronze') {
+        jackpot1Payout += jackpot.jackpotAmount;
+        jackpot1Contributions += jackpot.jackpotContributions;
+      } else if (jackpot.jackpotType === 'Silver') {
+        jackpot2Payout += jackpot.jackpotAmount;
+        jackpot2Contributions += jackpot.jackpotContributions;
+      } else if (jackpot.jackpotType === 'Gold') {
+        jackpot3Payout += jackpot.jackpotAmount;
+        jackpot3Contributions += jackpot.jackpotContributions;
+      }
+    });
+
     const data = {
       totalWinnings,
       totalStake,
       numberOfBets: betHistory.length,
       name: user.name,
-      profit: Number(totalStake) - Number(totalWinnings),
+      profit:
+        Number(totalStake) -
+        Number(totalWinnings) -
+        Number(jackpot1Payout) -
+        Number(jackpot2Payout) -
+        Number(jackpot3Payout),
       totalClosedPayout,
       totalOpenPayout,
       availableBalance: user.wallets[0].balance,
+      jackpot1Payout,
+      jackpot2Payout,
+      jackpot3Payout,
+      jackpot1Contributions,
+      jackpot2Contributions,
+      jackpot3Contributions,
     };
     return res.status(httpStatus.OK).send(data);
   } catch (error) {
@@ -408,11 +448,113 @@ const getAccountingReports = catchAsync(async (req, res) => {
   }
 });
 
+// utils for getFinancialReports
+const fetchExchangeRates = async () => {
+  const exchangeRates = {};
+  const currencies = await currencyService.getCurrencies();
+  // Fetch all relevant exchange rates for the agent's wallets
+  for (const currency of currencies) {
+    if (currency) {
+      const { exchangeRate } = currency;
+      const { currencyCode } = currency.country[0];
+      exchangeRates[currencyCode] = exchangeRate;
+    }
+  }
+  return exchangeRates;
+};
+
+const fetchPrimaryCurrency = async () => {
+  const house = await userService.getUserByRole('super');
+  const primaryWallet = await walletService.findWallet(null, house[0].id, true);
+  let primaryCurrency = await currencyService.getCurrencyById(primaryWallet[0].currencyId);
+  primaryCurrency = primaryCurrency.country[0].currencyCode; // Assuming the first primary wallet's currency as primary
+  return primaryCurrency;
+};
+
+// Aggregate totals for a given hierarchy
+const aggregateTotals = (hierarchy) => {
+  const totals = {
+    totalWinnings: 0,
+    totalStake: 0,
+    numberOfBets: 0,
+    profit: 0,
+    jackpot1Payout: 0,
+    jackpot2Payout: 0,
+    jackpot3Payout: 0,
+    jackpot1Contributions: 0,
+    jackpot2Contributions: 0,
+    jackpot3Contributions: 0,
+    totalClosedPayout: 0,
+    totalOpenPayout: 0,
+  };
+
+  // Sum up the totals for each cashier and agent recursively
+  Object.keys(hierarchy.cashiers).forEach((cashierName) => {
+    Object.keys(hierarchy.cashiers[cashierName]).forEach((currencyCode) => {
+      const cashierReport = hierarchy.cashiers[cashierName][currencyCode];
+      totals.totalWinnings += cashierReport.totalWinnings;
+      totals.totalStake += cashierReport.totalStake;
+      totals.numberOfBets += cashierReport.numberOfBets;
+      totals.profit += cashierReport.profit;
+      totals.jackpot1Payout += cashierReport.jackpot1Payout;
+      totals.jackpot2Payout += cashierReport.jackpot2Payout;
+      totals.jackpot3Payout += cashierReport.jackpot3Payout;
+      totals.jackpot1Contributions += cashierReport.jackpot1Contributions;
+      totals.jackpot2Contributions += cashierReport.jackpot2Contributions;
+      totals.jackpot3Contributions += cashierReport.jackpot3Contributions;
+      totals.totalClosedPayout += cashierReport.totalClosedPayout;
+      totals.totalOpenPayout += cashierReport.totalOpenPayout;
+    });
+  });
+
+  Object.keys(hierarchy.agents).forEach((agentName) => {
+    const agentTotals = aggregateTotals(hierarchy.agents[agentName]);
+    totals.totalWinnings += agentTotals.totalWinnings;
+    totals.totalStake += agentTotals.totalStake;
+    totals.numberOfBets += agentTotals.numberOfBets;
+    totals.profit += agentTotals.profit;
+    totals.jackpot1Payout += agentTotals.jackpot1Payout;
+    totals.jackpot2Payout += agentTotals.jackpot2Payout;
+    totals.jackpot3Payout += agentTotals.jackpot3Payout;
+    totals.jackpot1Contributions += agentTotals.jackpot1Contributions;
+    totals.jackpot2Contributions += agentTotals.jackpot2Contributions;
+    totals.jackpot3Contributions += agentTotals.jackpot3Contributions;
+    totals.totalClosedPayout += agentTotals.totalClosedPayout;
+    totals.totalOpenPayout += agentTotals.totalOpenPayout;
+  });
+
+  return totals;
+};
+
+// Convert totals into the primary currency using exchange rates
+const convertToPrimaryCurrency = (totals, exchangeRates, primaryCurrency) => {
+  const convertedTotals = { ...totals };
+
+  // If totals have been recorded in different currencies, convert them to the primary currency
+  Object.keys(exchangeRates).forEach((currencyCode) => {
+    if (currencyCode !== primaryCurrency) {
+      const rate = exchangeRates[currencyCode];
+      convertedTotals.totalWinnings += totals.totalWinnings / rate;
+      convertedTotals.totalStake += totals.totalStake / rate;
+      convertedTotals.profit += totals.profit / rate;
+      convertedTotals.jackpot1Payout += totals.jackpot1Payout / rate;
+      convertedTotals.jackpot2Payout += totals.jackpot2Payout / rate;
+      convertedTotals.jackpot3Payout += totals.jackpot3Payout / rate;
+      convertedTotals.jackpot1Contributions += totals.jackpot1Contributions / rate;
+      convertedTotals.jackpot2Contributions += totals.jackpot2Contributions / rate;
+      convertedTotals.jackpot3Contributions += totals.jackpot3Contributions / rate;
+      convertedTotals.totalClosedPayout += totals.totalClosedPayout / rate;
+      convertedTotals.totalOpenPayout += totals.totalOpenPayout / rate;
+    }
+  });
+
+  return convertedTotals;
+};
+
 const getFinancialReports = catchAsync(async (req, res) => {
   try {
     const { startDate, endDate, betType, agentId, gameType } = req.query;
     const options = pick(req.query, ['sortBy', 'limit', 'page']);
-
     let initialAgents;
     const pagination = {};
     let paginationCheck = false;
@@ -431,9 +573,12 @@ const getFinancialReports = catchAsync(async (req, res) => {
         : await userService.queryUsers({ _id: agentId, agentId: req.user._id, role: 'admin' }, options);
     }
 
+    // Optimized method to get user hierarchy
     const getUserHierarchy = async (parentId) => {
-      const agents = await userService.queryUsers({ agentId: parentId, role: 'admin' }, options);
+      const agents = await userService.queryUsers({ agentId: parentId, role: 'admin' }, { projection: { name: 1, _id: 1 } });
       const hierarchy = {};
+
+      // Only update pagination once
       if (!(req.user.role === 'super') && !paginationCheck) {
         pagination.page = agents.page;
         pagination.limit = agents.limit;
@@ -442,267 +587,124 @@ const getFinancialReports = catchAsync(async (req, res) => {
         paginationCheck = true;
       }
 
-      for (const agent of agents.results) {
-        hierarchy[agent.name] = {
-          // eslint-disable-next-line no-use-before-define
-          cashiers: await getCashiers(agent._id),
-          agents: await getUserHierarchy(agent._id),
-          totals: {},
-        };
-      }
+      await Promise.all(
+        agents.results.map(async (agent) => {
+          hierarchy[agent.name] = {
+            cashiers: await getCashiers(agent._id),
+            agents: await getUserHierarchy(agent._id), // Recurse to get nested agents
+            totals: {},
+          };
+        })
+      );
 
       return hierarchy;
     };
 
     // eslint-disable-next-line no-shadow
     const getCashiers = async (agentId) => {
-      const cashiers = await userService.queryUsers({ agentId, role: 'cashier' }, options);
+      const cashiers = await userService.queryUsers({ agentId, role: 'cashier' }, { projection: { name: 1, _id: 1 } });
       const cashierReports = {};
 
-      for (const cashier of cashiers.results) {
-        const cashierBets = await betsService.getBetHistory(
-          { cashierId: cashier._id, ...(betType && { betType }), ...(gameType && { gameType }) },
-          startDate,
-          endDate
-        );
+      await Promise.all(
+        cashiers.results.map(async (cashier) => {
+          const [cashierBets, cashierJackpotWinners, userWallets] = await Promise.all([
+            betsService.getBetHistory(
+              { cashierId: cashier._id, ...(betType && { betType }), ...(gameType && { gameType }) },
+              startDate,
+              endDate
+            ),
+            jackpotService.getJackpotHistory({ cashierId: cashier._id, ...(gameType && { gameType }) }, startDate, endDate),
+            Wallets.find({ userId: cashier._id }).populate('currencyId', 'currencyCode country'),
+          ]);
 
-        const cashierJackpotWinners = await jackpotService.getJackpotHistory(
-          { cashierId: cashier._id, ...(gameType && { gameType }) },
-          startDate,
-          endDate
-        );
+          for (const wallet of userWallets) {
+            // eslint-disable-next-line no-continue
+            if (!wallet.currencyId) continue; // Skip wallets without currency
 
-        const userWallets = await Wallets.find({ userId: cashier._id }).populate('currencyId');
-
-        for (const wallet of userWallets) {
-          if (!wallet.currencyId) return;
-          const { currencyCode } = wallet.currencyId.country[0];
-
-          if (!cashierReports[cashier.name]) {
-            cashierReports[cashier.name] = {};
-          }
-
-          if (!cashierReports[cashier.name][currencyCode]) {
-            cashierReports[cashier.name][currencyCode] = {
-              totalWinnings: 0,
-              totalStake: 0,
-              numberOfBets: 0,
-              profit: 0,
-              jackpot1Payout: 0,
-              jackpot2Payout: 0,
-              jackpot3Payout: 0,
-              jackpot1Contributions: 0,
-              jackpot2Contributions: 0,
-              jackpot3Contributions: 0,
-              totalClosedPayout: 0,
-              totalOpenPayout: 0,
-            };
-          }
-
-          const currencyReport = cashierReports[cashier.name][currencyCode];
-
-          cashierJackpotWinners.forEach((jackpot) => {
-            if (jackpot.jackpotType === 'Bronze') {
-              currencyReport.jackpot1Payout += jackpot.jackpotAmount;
-              currencyReport.jackpot1Contributions += jackpot.jackpotContributions;
-            } else if (jackpot.jackpotType === 'Silver') {
-              currencyReport.jackpot2Payout += jackpot.jackpotAmount;
-              currencyReport.jackpot2Contributions += jackpot.jackpotContributions;
-            } else if (jackpot.jackpotType === 'Gold') {
-              currencyReport.jackpot3Payout += jackpot.jackpotAmount;
-              currencyReport.jackpot3Contributions += jackpot.jackpotContributions;
+            const { currencyCode } = wallet.currencyId.country[0];
+            if (!cashierReports[cashier.name]) {
+              cashierReports[cashier.name] = {};
             }
-          });
 
-          cashierBets.forEach((bet) => {
-            currencyReport.totalWinnings += bet.winnings;
-            currencyReport.totalStake += bet.stake;
-            currencyReport.numberOfBets += 1;
-            currencyReport.totalClosedPayout += bet.payout ? bet.winnings : 0;
-            currencyReport.totalOpenPayout += !bet.payout ? bet.winnings : 0;
-            currencyReport.profit =
-              currencyReport.totalStake -
-              currencyReport.totalWinnings -
-              currencyReport.jackpot1Payout -
-              currencyReport.jackpot2Payout -
-              currencyReport.jackpot3Payout;
-          });
-        }
-      }
+            if (!cashierReports[cashier.name][currencyCode]) {
+              cashierReports[cashier.name][currencyCode] = initializeCurrencyReport();
+            }
+
+            const currencyReport = cashierReports[cashier.name][currencyCode];
+            updateCurrencyReport(currencyReport, cashierBets, cashierJackpotWinners);
+          }
+        })
+      );
 
       return cashierReports;
     };
 
-    const aggregateTotals = (report) => {
-      const totals = {};
+    // Helper to initialize currency report object
+    const initializeCurrencyReport = () => ({
+      totalWinnings: 0,
+      totalStake: 0,
+      numberOfBets: 0,
+      profit: 0,
+      jackpot1Payout: 0,
+      jackpot2Payout: 0,
+      jackpot3Payout: 0,
+      jackpot1Contributions: 0,
+      jackpot2Contributions: 0,
+      jackpot3Contributions: 0,
+      totalClosedPayout: 0,
+      totalOpenPayout: 0,
+    });
 
-      if (report.cashiers) {
-        for (const cashier of Object.values(report.cashiers)) {
-          for (const [currency, currencyReport] of Object.entries(cashier)) {
-            if (!totals[currency]) {
-              totals[currency] = {
-                totalWinnings: 0,
-                totalStake: 0,
-                numberOfBets: 0,
-                profit: 0,
-                jackpot1Payout: 0,
-                jackpot2Payout: 0,
-                jackpot3Payout: 0,
-                jackpot1Contributions: 0,
-                jackpot2Contributions: 0,
-                jackpot3Contributions: 0,
-                totalClosedPayout: 0,
-                totalOpenPayout: 0,
-              };
-            }
-
-            totals[currency].totalWinnings += currencyReport.totalWinnings;
-            totals[currency].totalStake += currencyReport.totalStake;
-            totals[currency].numberOfBets += currencyReport.numberOfBets;
-            totals[currency].totalClosedPayout += currencyReport.totalClosedPayout;
-            totals[currency].totalOpenPayout += currencyReport.totalOpenPayout;
-            totals[currency].jackpot1Payout += currencyReport.jackpot1Payout;
-            totals[currency].jackpot1Contributions += currencyReport.jackpot1Contributions;
-            totals[currency].jackpot2Payout += currencyReport.jackpot2Payout;
-            totals[currency].jackpot2Contributions += currencyReport.jackpot2Contributions;
-            totals[currency].jackpot3Payout += currencyReport.jackpot3Payout;
-            totals[currency].jackpot3Contributions += currencyReport.jackpot3Contributions;
-            totals[currency].profit =
-              totals[currency].totalStake -
-              totals[currency].totalWinnings -
-              totals[currency].jackpot1Payout -
-              totals[currency].jackpot2Payout -
-              totals[currency].jackpot3Payout;
-          }
+    // Helper to update currency report with bets and jackpot data
+    const updateCurrencyReport = (currencyReport, cashierBets, cashierJackpotWinners) => {
+      cashierJackpotWinners.forEach((jackpot) => {
+        if (jackpot.jackpotType === 'Bronze') {
+          currencyReport.jackpot1Payout += jackpot.jackpotAmount;
+          currencyReport.jackpot1Contributions += jackpot.jackpotContributions;
+        } else if (jackpot.jackpotType === 'Silver') {
+          currencyReport.jackpot2Payout += jackpot.jackpotAmount;
+          currencyReport.jackpot2Contributions += jackpot.jackpotContributions;
+        } else if (jackpot.jackpotType === 'Gold') {
+          currencyReport.jackpot3Payout += jackpot.jackpotAmount;
+          currencyReport.jackpot3Contributions += jackpot.jackpotContributions;
         }
-      }
+      });
 
-      if (report.agents) {
-        for (const agent of Object.values(report.agents)) {
-          const agentTotals = aggregateTotals(agent);
-          for (const [currency, currencyReport] of Object.entries(agentTotals)) {
-            if (!totals[currency]) {
-              totals[currency] = {
-                totalWinnings: 0,
-                totalStake: 0,
-                numberOfBets: 0,
-                profit: 0,
-                jackpot1Payout: 0,
-                jackpot2Payout: 0,
-                jackpot3Payout: 0,
-                jackpot1Contributions: 0,
-                jackpot2Contributions: 0,
-                jackpot3Contributions: 0,
-                totalClosedPayout: 0,
-                totalOpenPayout: 0,
-              };
-            }
-
-            totals[currency].totalWinnings += currencyReport.totalWinnings;
-            totals[currency].totalStake += currencyReport.totalStake;
-            totals[currency].numberOfBets += currencyReport.numberOfBets;
-            totals[currency].totalClosedPayout += currencyReport.totalClosedPayout;
-            totals[currency].totalOpenPayout += currencyReport.totalOpenPayout;
-            totals[currency].jackpot1Payout += currencyReport.jackpot1Payout;
-            totals[currency].jackpot1Contributions += currencyReport.jackpot1Contributions;
-            totals[currency].jackpot2Payout += currencyReport.jackpot2Payout;
-            totals[currency].jackpot1Contributions += currencyReport.jackpot1Contributions;
-            totals[currency].jackpot3Payout += currencyReport.jackpot3Payout;
-            totals[currency].jackpot1Contributions += currencyReport.jackpot1Contributions;
-            totals[currency].profit =
-              totals[currency].totalStake -
-              totals[currency].totalWinnings -
-              totals[currency].jackpot1Payout -
-              totals[currency].jackpot2Payout -
-              totals[currency].jackpot3Payout;
-          }
-        }
-      }
-
-      return totals;
-    };
-
-    const convertToPrimaryCurrency = (totals, exchangeRates, primaryCurrency) => {
-      const convertedTotals = {
-        [primaryCurrency]: {
-          totalWinnings: 0,
-          totalStake: 0,
-          numberOfBets: 0,
-          profit: 0,
-          jackpot1Payout: 0,
-          jackpot2Payout: 0,
-          jackpot3Payout: 0,
-          jackpot1Contributions: 0,
-          jackpot2Contributions: 0,
-          jackpot3Contributions: 0,
-          totalClosedPayout: 0,
-          totalOpenPayout: 0,
-        },
-      };
-
-      for (const [currency, currencyReport] of Object.entries(totals)) {
-        const exchangeRate = exchangeRates[currency];
-        const conversionRate = exchangeRates[primaryCurrency] / exchangeRate;
-
-        convertedTotals[primaryCurrency].totalWinnings += currencyReport.totalWinnings * conversionRate;
-        convertedTotals[primaryCurrency].totalStake += currencyReport.totalStake * conversionRate;
-        // convertedTotals[primaryCurrency].numberOfBets += currencyReport.numberOfBets;
-        // convertedTotals[primaryCurrency].totalClosedPayout += currencyReport.totalClosedPayout * conversionRate;
-        // convertedTotals[primaryCurrency].totalOpenPayout += currencyReport.totalOpenPayout * conversionRate;
-        convertedTotals[primaryCurrency].jackpot1Payout += currencyReport.jackpot1Payout * conversionRate;
-        convertedTotals[primaryCurrency].jackpot1Contributions += currencyReport.jackpot1Contributions * conversionRate;
-        convertedTotals[primaryCurrency].jackpot2Payout += currencyReport.jackpot2Payout * conversionRate;
-        convertedTotals[primaryCurrency].jackpot2Contributions += currencyReport.jackpot2Contributions * conversionRate;
-        convertedTotals[primaryCurrency].jackpot3Payout += currencyReport.jackpot3Payout * conversionRate;
-        convertedTotals[primaryCurrency].jackpot3Contributions += currencyReport.jackpot3Contributions * conversionRate;
-        convertedTotals[primaryCurrency].profit =
-          convertedTotals[primaryCurrency].totalStake -
-          convertedTotals[primaryCurrency].totalWinnings -
-          convertedTotals[primaryCurrency].jackpot1Payout -
-          convertedTotals[primaryCurrency].jackpot2Payout -
-          convertedTotals[primaryCurrency].jackpot3Payout;
-      }
-
-      // Format numbers to two decimal places
-      for (const key in convertedTotals[primaryCurrency]) {
-        if (typeof convertedTotals[primaryCurrency][key] === 'number') {
-          convertedTotals[primaryCurrency][key] = convertedTotals[primaryCurrency][key].toFixed(2);
-        }
-      }
-
-      return convertedTotals;
+      cashierBets.forEach((bet) => {
+        currencyReport.totalWinnings += bet.winnings;
+        currencyReport.totalStake += bet.stake;
+        currencyReport.numberOfBets += 1;
+        currencyReport.totalClosedPayout += bet.payout ? bet.winnings : 0;
+        currencyReport.totalOpenPayout += !bet.payout ? bet.winnings : 0;
+        currencyReport.profit =
+          currencyReport.totalStake -
+          currencyReport.totalWinnings -
+          currencyReport.jackpot1Payout -
+          currencyReport.jackpot2Payout -
+          currencyReport.jackpot3Payout;
+      });
     };
 
     const hierarchy = {};
-    for (const agent of initialAgents.results) {
-      const exchangeRates = {};
-      const currencies = await currencyService.getCurrencies();
-      // Fetch all relevant exchange rates for the agent's wallets
-      for (const currency of currencies) {
-        if (currency) {
-          const { exchangeRate } = currency;
-          const { currencyCode } = currency.country[0];
-          exchangeRates[currencyCode] = exchangeRate;
-        }
-      }
+    await Promise.all(
+      initialAgents.results.map(async (agent) => {
+        const exchangeRates = await fetchExchangeRates();
+        const primaryCurrency = await fetchPrimaryCurrency();
 
-      const house = await userService.getUserByRole('super');
-      const primaryWallet = await walletService.findWallet(null, house[0].id, true);
-      let primaryCurrency = await currencyService.getCurrencyById(primaryWallet[0].currencyId);
-      primaryCurrency = primaryCurrency.country[0].currencyCode; // Assuming the first primary wallet's currency as primary
+        hierarchy[agent.name] = {
+          cashiers: await getCashiers(agent._id),
+          agents: await getUserHierarchy(agent._id),
+          totals: {},
+        };
 
-      hierarchy[agent.name] = {
-        cashiers: await getCashiers(agent._id),
-        agents: await getUserHierarchy(agent._id),
-        totals: {},
-      };
-      hierarchy[agent.name].totals = aggregateTotals(hierarchy[agent.name]);
-      hierarchy[agent.name].totalsInPrimaryCurrency = convertToPrimaryCurrency(
-        hierarchy[agent.name].totals,
-        exchangeRates,
-        primaryCurrency
-      );
-    }
+        hierarchy[agent.name].totals = aggregateTotals(hierarchy[agent.name]);
+        hierarchy[agent.name].totalsInPrimaryCurrency = convertToPrimaryCurrency(
+          hierarchy[agent.name].totals,
+          exchangeRates,
+          primaryCurrency
+        );
+      })
+    );
 
     return res.status(httpStatus.CREATED).send({ hierarchy, pagination });
   } catch (error) {
