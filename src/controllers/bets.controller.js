@@ -547,10 +547,9 @@ const convertToPrimaryCurrency = (totals, exchangeRates, primaryCurrency) => {
       convertedTotals.totalOpenPayout += totals.totalOpenPayout / rate;
     }
   });
-
-  for (const key in convertedTotals[primaryCurrency]) {
-    if (typeof convertedTotals[primaryCurrency][key] === 'number') {
-      convertedTotals[primaryCurrency][key] = convertedTotals[primaryCurrency][key].toFixed(2);
+  for (const key in convertedTotals) {
+    if (typeof convertedTotals[key] === 'number') {
+      convertedTotals[key] = convertedTotals[key].toFixed(2);
     }
   }
 
