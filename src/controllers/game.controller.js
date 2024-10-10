@@ -59,7 +59,14 @@ const updateGameData = catchAsync(async (req, res) => {
 const getAgentJackpots = catchAsync(async (req, res) => {
   const { agentId, gameType } = req.body;
   const jackpot = await jackpotService.getAgentJackpots(agentId, gameType);
-  res.send(jackpot);
+  // rearrange list to have bronze first, silver, then gold.
+
+  const order = ['Bronze', 'Silver', 'Gold'];
+
+  const sortedGames = jackpot.sort((a, b) => {
+    return order.indexOf(a.jackpotName) - order.indexOf(b.jackpotName);
+  });
+  res.send(sortedGames);
 });
 
 const updateAgentJackpot = catchAsync(async (req, res) => {
