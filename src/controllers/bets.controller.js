@@ -548,6 +548,12 @@ const convertToPrimaryCurrency = (totals, exchangeRates, primaryCurrency) => {
     }
   });
 
+  for (const key in convertedTotals[primaryCurrency]) {
+    if (typeof convertedTotals[primaryCurrency][key] === 'number') {
+      convertedTotals[primaryCurrency][key] = convertedTotals[primaryCurrency][key].toFixed(2);
+    }
+  }
+
   return convertedTotals;
 };
 
