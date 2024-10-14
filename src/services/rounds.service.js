@@ -112,7 +112,7 @@ const startGame = async (superAgentId, gameType) => {
 
     // If there are already 3 running rounds, don't create any new ones
     if (runningRounds.length === 3) {
-      console.log('There are already 3 active rounds. No new rounds will be created.');
+      // console.log('There are already 3 active rounds. No new rounds will be created.');
       return runningRounds.map((round) => round.roundId);
     }
 
