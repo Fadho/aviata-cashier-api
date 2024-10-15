@@ -639,8 +639,9 @@ const getFinancialReports = catchAsync(async (req, res) => {
 
       for (const [currency, currencyReport] of Object.entries(totals)) {
         const rate = exchangeRates[currency] || 1;
+        const conversionRate = exchangeRates[primaryCurrency] / rate;
         convertedTotals[primaryCurrency].numberOfBets += currencyReport.numberOfBets;
-        convertedTotals[primaryCurrency].profit += currencyReport.profit * rate;
+        convertedTotals[primaryCurrency].profit += currencyReport.profit * conversionRate;
       }
 
       return convertedTotals;
