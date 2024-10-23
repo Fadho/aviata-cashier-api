@@ -10,9 +10,7 @@ const ApiError = require('../utils/ApiError');
 const pick = require('../utils/pick');
 const { betsService, userService, walletService, currencyService, jackpotService } = require('../services');
 const { Wallets, Player, User } = require('../models');
-const logger = require('../config/logger');
 const GameConfig = require('../models/gameConfig.model');
-// const JackpotWinners = require('../models/jackpotWinners.model');
 
 const createBetPlaced = catchAsync(async (req, res) => {
   const { result, selections, cashierId, potentialWinnings, roundId, gameType, playerId, deviceId } = req.body;
@@ -87,8 +85,6 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     }
 
     // Place the bet
-    // const betPlaced;
-    // if (gameType === 'shootout') {
     const betPlaced = await betsService.createBetPlacedForPlayer(
       stake,
       gameType,
@@ -98,7 +94,6 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       deviceId,
       session
     );
-    // }
 
     // Get jackpot contributions
     const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType, session);
@@ -123,7 +118,6 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     await session.commitTransaction();
 
     // Log jackpot contributions and respond with the bet
-    // console.log(jackpotContributions);
     res.status(httpStatus.CREATED).send(betPlaced);
   } catch (error) {
     // Roll back transaction if any error occurs
@@ -457,7 +451,6 @@ const getFinancialReports = catchAsync(async (req, res) => {
     const pagination = {};
     let paginationCheck = false;
 
-    // Fetch agents at the top level (with no parent agent)
     if (req.user.role === 'super') {
       initialAgents = await userService.queryUsers({ agentId: agentId || { $exists: false }, role: 'admin' }, options);
       pagination.page = initialAgents.page;
@@ -465,14 +458,27 @@ const getFinancialReports = catchAsync(async (req, res) => {
       pagination.totalPages = initialAgents.totalPages;
       pagination.totalResults = initialAgents.totalResults;
     } else {
-      // Use req.user as the initial agent if their role is not 'super'
       initialAgents = !agentId
         ? { results: [req.user] }
         : await userService.queryUsers({ _id: agentId, agentId: req.user._id, role: 'admin' }, options);
     }
 
-    // Batch fetching users and cache the hierarchy to reduce redundant database calls
     const cache = { agents: {}, cashiers: {} };
+
+    const currencies = await currencyService.getCurrencies();
+    const exchangeRates = {};
+    for (const currency of currencies) {
+      if (currency) {
+        const { exchangeRate } = currency;
+        const { currencyCode } = currency.country[0];
+        exchangeRates[currencyCode] = exchangeRate;
+      }
+    }
+
+    const house = await userService.getUserByRole('super');
+    const primaryWallet = await walletService.findWallet(null, house[0].id, true);
+    let primaryCurrency = await currencyService.getCurrencyById(primaryWallet[0].currencyId);
+    primaryCurrency = primaryCurrency.country[0].currencyCode;
 
     const getUserHierarchy = async (parentId) => {
       if (cache.agents[parentId]) return cache.agents[parentId];
@@ -554,8 +560,6 @@ const getFinancialReports = catchAsync(async (req, res) => {
             currencyReport.totalWinnings += bet.winnings;
             currencyReport.totalStake += bet.stake;
             currencyReport.numberOfBets += 1;
-            currencyReport.totalClosedPayout += bet.payout ? bet.winnings : 0;
-            currencyReport.totalOpenPayout += !bet.payout ? bet.winnings : 0;
             currencyReport.profit =
               currencyReport.totalStake -
               currencyReport.totalWinnings -
@@ -571,7 +575,7 @@ const getFinancialReports = catchAsync(async (req, res) => {
       return cashierReports;
     };
 
-    const aggregateTotals = (report) => {
+    const aggregateTotals = async (report) => {
       const totals = {};
 
       if (report.cashiers) {
@@ -582,14 +586,9 @@ const getFinancialReports = catchAsync(async (req, res) => {
               totals[currency].totalWinnings += currencyReport.totalWinnings;
               totals[currency].totalStake += currencyReport.totalStake;
               totals[currency].numberOfBets += currencyReport.numberOfBets;
-              totals[currency].totalClosedPayout += currencyReport.totalClosedPayout;
-              totals[currency].totalOpenPayout += currencyReport.totalOpenPayout;
               totals[currency].jackpot1Payout += currencyReport.jackpot1Payout;
-              totals[currency].jackpot1Contributions += currencyReport.jackpot1Contributions;
               totals[currency].jackpot2Payout += currencyReport.jackpot2Payout;
-              totals[currency].jackpot2Contributions += currencyReport.jackpot2Contributions;
               totals[currency].jackpot3Payout += currencyReport.jackpot3Payout;
-              totals[currency].jackpot3Contributions += currencyReport.jackpot3Contributions;
               totals[currency].profit =
                 totals[currency].totalStake -
                 totals[currency].totalWinnings -
@@ -603,15 +602,14 @@ const getFinancialReports = catchAsync(async (req, res) => {
 
       if (report.agents) {
         for (const agent of Object.values(report.agents)) {
-          const agentTotals = aggregateTotals(agent);
+          console.log(agent);
+          const agentTotals = await aggregateTotals(agent);
           for (const [currency, currencyReport] of Object.entries(agentTotals)) {
             if (!totals[currency]) totals[currency] = { ...currencyReport };
             else {
               totals[currency].totalWinnings += currencyReport.totalWinnings;
               totals[currency].totalStake += currencyReport.totalStake;
               totals[currency].numberOfBets += currencyReport.numberOfBets;
-              totals[currency].totalClosedPayout += currencyReport.totalClosedPayout;
-              totals[currency].totalOpenPayout += currencyReport.totalOpenPayout;
               totals[currency].jackpot1Payout += currencyReport.jackpot1Payout;
               totals[currency].jackpot2Payout += currencyReport.jackpot2Payout;
               totals[currency].jackpot3Payout += currencyReport.jackpot3Payout;
@@ -647,7 +645,6 @@ const getFinancialReports = catchAsync(async (req, res) => {
       return convertedTotals;
     };
 
-    // const exchangeRates = await getCurrencyRates();
     const hierarchyReports = {};
     for (const agent of initialAgents.results) {
       hierarchyReports[agent.name] = {
@@ -655,34 +652,19 @@ const getFinancialReports = catchAsync(async (req, res) => {
         cashiers: await getCashiers(agent._id),
         totals: {},
       };
-      const exchangeRates = {};
-      const currencies = await currencyService.getCurrencies();
-      // Fetch all relevant exchange rates for the agent's wallets
-      for (const currency of currencies) {
-        if (currency) {
-          const { exchangeRate } = currency;
-          const { currencyCode } = currency.country[0];
-          exchangeRates[currencyCode] = exchangeRate;
-        }
-      }
+      console.log(hierarchyReports[agent.name]);
 
-      const house = await userService.getUserByRole('super');
-      const primaryWallet = await walletService.findWallet(null, house[0].id, true);
-      let primaryCurrency = await currencyService.getCurrencyById(primaryWallet[0].currencyId);
-      primaryCurrency = primaryCurrency.country[0].currencyCode; // Assuming the first primary wallet's currency as primary
-
-      hierarchyReports[agent.name].totals = aggregateTotals(hierarchyReports[agent.name]);
-
+      hierarchyReports[agent.name].totals = await aggregateTotals(hierarchyReports[agent.name]);
       hierarchyReports[agent.name].totalsInPrimaryCurrency = convertToPrimaryCurrency(
         hierarchyReports[agent.name].totals,
         exchangeRates,
-        primaryCurrency // Convert to primary currency (USD)
+        primaryCurrency
       );
     }
 
-    res.status(200).send({ agents: hierarchyReports, pagination });
+    res.json({ hierarchy: hierarchyReports, pagination });
   } catch (error) {
-    res.status(500).send({ error: error.message });
+    res.status(500).send({ error: 'Error generating financial report' });
   }
 });
 

@@ -1,7 +1,5 @@
-// const httpStatus = require('http-status');
 const userService = require('./user.service');
-// const ApiError = require('../utils/ApiError');
-const { GameConfig, Game, Jackpot } = require('../models');
+const { GameConfig, Game } = require('../models');
 
 /**
  * Authenticate Game
