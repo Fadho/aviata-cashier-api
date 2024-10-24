@@ -31,7 +31,8 @@ const allRoles = {
     'fundWallet',
     'convertWallet',
     'ticketReports',
-    'getJackpot'
+    'getJackpot',
+    'updateJackpot',
   ],
   cashier: ['placeBet', 'fetchBets'],
 };

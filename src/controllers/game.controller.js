@@ -2,7 +2,7 @@ const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { gameService, tokenService, jackpotService } = require('../services');
-const { Jackpot } = require('../models');
+const { Jackpot, User } = require('../models');
 
 const authenticateGame = catchAsync(async (req, res) => {
   const user = await gameService.authenticateGame(req.params.id);
@@ -47,13 +47,19 @@ const getGameSettings = catchAsync(async (req, res) => {
 });
 
 const updateGameConfig = catchAsync(async (req, res) => {
-  const user = await gameService.updateGameConfig(req.params.agentId, req.params.gameType, req.body);
-  res.send(user);
+  let isSuper = false;
+  const user = await User.findOne({ _id: req.params.agentId }).select('role');
+  if (user.role === 'admin' && !user.agentId) isSuper = true;
+  const game = await gameService.updateGameConfig(req.params.agentId, req.params.gameType, req.body, isSuper);
+  res.send(game);
 });
 
 const updateGameData = catchAsync(async (req, res) => {
-  const user = await gameService.updateGameData(req.params.agentId, req.params.gameType, req.body);
-  res.send(user);
+  let isSuper = false;
+  const user = await User.findOne({ _id: req.params.agentId }).select('role');
+  if (user.role === 'admin' && !user.agentId) isSuper = true;
+  const game = await gameService.updateGameData(req.params.agentId, req.params.gameType, req.body, isSuper);
+  res.send(game);
 });
 
 const getAgentJackpots = catchAsync(async (req, res) => {
@@ -72,7 +78,17 @@ const getAgentJackpots = catchAsync(async (req, res) => {
 const updateAgentJackpot = catchAsync(async (req, res) => {
   const { jackpotId } = req.body;
   delete req.body.jackpotId;
+  let isSuper = false;
   const jackpot = await Jackpot.findOneAndUpdate({ _id: jackpotId }, req.body, { new: true });
+  const userCheck = await User.findOne({ _id: jackpot.agentId }).select('role');
+  if (userCheck.role === 'admin' && !userCheck.agentId) isSuper = true;
+  const subAgentIds = isSuper
+    ? await User.find({ superAgentId: jackpot.agentId, role: 'admin' }).select('_id')
+    : await User.find({ agentId: jackpot.agentId, role: 'admin' }).select('_id');
+  if (subAgentIds)
+    subAgentIds.forEach(async (el) => {
+      await Jackpot.findOneAndUpdate({ agentId: el._id, jackpotName: jackpot.jackpotName }, req.body, { new: true });
+    });
   res.send(jackpot);
 });
 

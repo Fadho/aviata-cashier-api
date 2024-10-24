@@ -2,7 +2,7 @@
 
 const axios = require('axios');
 const mongoose = require('mongoose');
-const { JackpotWinners, Jackpot, Player } = require('../models');
+const { JackpotWinners, Jackpot, Player, User } = require('../models');
 const config = require('../config/config');
 
 /**
@@ -138,8 +138,21 @@ const findJackpot = async ({ agentId, gameType }) => {
  * @param {Object} body
  * @returns {Promise<JackpotWinners>}
  */
-const updateAgentJackpot = async (id, body) => {
-  return Jackpot.findOneAndUpdate(id, body, { new: true });
+const updateAgentJackpot = async (id, body, isSuper) => {
+  const updateJackpot = await Jackpot.findOneAndUpdate(id, body, { new: true });
+  const subAgentIds = isSuper
+    ? await User.find({ superAgentId: updateJackpot.agentId })
+        .select('_id')
+        .lean()
+        .map((user) => user._id)
+    : await User.find({ agentId: updateJackpot.agentId })
+        .select('_id')
+        .lean()
+        .map((user) => user._id);
+  subAgentIds.forEach((el) => {
+    Jackpot.findOneAndUpdate({ agentId: el }, body, { new: true });
+  });
+  return updateJackpot;
 };
 
 const getJackpotHistory = async (filter, startDate, endDate) => {

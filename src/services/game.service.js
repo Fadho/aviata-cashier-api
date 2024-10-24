@@ -1,5 +1,5 @@
 const userService = require('./user.service');
-const { GameConfig, Game } = require('../models');
+const { GameConfig, Game, User } = require('../models');
 
 /**
  * Authenticate Game
@@ -60,13 +60,29 @@ const getGameConfig = async (body) => {
   return { data, message: 'Fetched Game Data successfully.' };
 };
 
-const updateGameConfig = async (id, gameType, body) => {
+const updateGameConfig = async (id, gameType, body, isSuper) => {
   const gameConfig = await GameConfig.findOneAndUpdate({ agentId: id, gameType }, body, { new: true });
+
+  const subAgentIds = isSuper
+    ? await User.find({ superAgentId: id, role: 'admin' }).select('_id')
+    : await User.find({ agentId: id, role: 'admin' }).select('_id');
+
+  if (subAgentIds)
+    subAgentIds.forEach(async (el) => {
+      await GameConfig.findOneAndUpdate({ agentId: el._id, gameType }, body, { new: true });
+    });
   return { data: gameConfig, message: 'Game Config updated successfully.' };
 };
 
-const updateGameData = async (id, gameType, body) => {
+const updateGameData = async (id, gameType, body, isSuper) => {
   const game = await Game.findOneAndUpdate({ agentId: id, gameType }, body, { new: true });
+  const subAgentIds = isSuper
+    ? await User.find({ superAgentId: id, role: 'admin' }).select('_id')
+    : await User.find({ agentId: id, role: 'admin' }).select('_id');
+  if (subAgentIds)
+    subAgentIds.forEach(async (el) => {
+      await Game.findOneAndUpdate({ agentId: el._id, gameType }, body, { new: true });
+    });
   return { data: game, message: 'Game Data updated successfully.' };
 };
 
