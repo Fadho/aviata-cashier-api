@@ -20,8 +20,13 @@ const transferHistorySchema = mongoose.Schema(
     },
     playerId: {
       type: mongoose.SchemaTypes.Number,
-      ref: 'Player',
-      // required: true,
+      // ref: 'Player',
+      required: true,
+    },
+    deviceId: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'GameDevice',
+      required: true,
     },
     currency: {
       type: mongoose.SchemaTypes.ObjectId,
