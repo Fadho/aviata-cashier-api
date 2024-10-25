@@ -649,7 +649,6 @@ const getFinancialReports = catchAsync(async (req, res) => {
       hierarchyReports[agent.name] = {
         agents: await getUserHierarchy(agent._id),
         cashiers: await getCashiers(agent._id),
-        totals: {},
       };
 
       // hierarchyReports[agent.name].totals = await aggregateTotals(hierarchyReports[agent.name]);
