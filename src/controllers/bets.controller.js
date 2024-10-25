@@ -602,48 +602,47 @@ const getFinancialReports = catchAsync(async (req, res) => {
 
       if (report.agents) {
         for (const agent of Object.values(report.agents)) {
-          console.log(agent);
-          const agentTotals = await aggregateTotals(agent);
-          for (const [currency, currencyReport] of Object.entries(agentTotals)) {
-            if (!totals[currency]) totals[currency] = { ...currencyReport };
-            else {
-              totals[currency].totalWinnings += currencyReport.totalWinnings;
-              totals[currency].totalStake += currencyReport.totalStake;
-              totals[currency].numberOfBets += currencyReport.numberOfBets;
-              totals[currency].jackpot1Payout += currencyReport.jackpot1Payout;
-              totals[currency].jackpot2Payout += currencyReport.jackpot2Payout;
-              totals[currency].jackpot3Payout += currencyReport.jackpot3Payout;
-              totals[currency].profit =
-                totals[currency].totalStake -
-                totals[currency].totalWinnings -
-                totals[currency].jackpot1Payout -
-                totals[currency].jackpot2Payout -
-                totals[currency].jackpot3Payout;
-            }
-          }
+          await aggregateTotals(agent);
+          // for (const [currency, currencyReport] of Object.entries(agentTotals)) {
+          //   if (!totals[currency]) totals[currency] = { ...currencyReport };
+          //   else {
+          //     totals[currency].totalWinnings += currencyReport.totalWinnings;
+          //     totals[currency].totalStake += currencyReport.totalStake;
+          //     totals[currency].numberOfBets += currencyReport.numberOfBets;
+          //     totals[currency].jackpot1Payout += currencyReport.jackpot1Payout;
+          //     totals[currency].jackpot2Payout += currencyReport.jackpot2Payout;
+          //     totals[currency].jackpot3Payout += currencyReport.jackpot3Payout;
+          //     totals[currency].profit =
+          //       totals[currency].totalStake -
+          //       totals[currency].totalWinnings -
+          //       totals[currency].jackpot1Payout -
+          //       totals[currency].jackpot2Payout -
+          //       totals[currency].jackpot3Payout;
+          //   }
+          // }
         }
       }
 
       return totals;
     };
 
-    const convertToPrimaryCurrency = (totals, exchangeRates, primaryCurrency) => {
-      const convertedTotals = {
-        [primaryCurrency]: {
-          numberOfBets: 0,
-          profit: 0,
-        },
-      };
+    // const convertToPrimaryCurrency = (totals, exchangeRates, primaryCurrency) => {
+    //   const convertedTotals = {
+    //     [primaryCurrency]: {
+    //       numberOfBets: 0,
+    //       profit: 0,
+    //     },
+    //   };
 
-      for (const [currency, currencyReport] of Object.entries(totals)) {
-        const rate = exchangeRates[currency] || 1;
-        const conversionRate = exchangeRates[primaryCurrency] / rate;
-        convertedTotals[primaryCurrency].numberOfBets += currencyReport.numberOfBets;
-        convertedTotals[primaryCurrency].profit += Number((currencyReport.profit * conversionRate).toFixed(2));
-      }
+    //   for (const [currency, currencyReport] of Object.entries(totals)) {
+    //     const rate = exchangeRates[currency] || 1;
+    //     const conversionRate = exchangeRates[primaryCurrency] / rate;
+    //     convertedTotals[primaryCurrency].numberOfBets += currencyReport.numberOfBets;
+    //     convertedTotals[primaryCurrency].profit += Number((currencyReport.profit * conversionRate).toFixed(2));
+    //   }
 
-      return convertedTotals;
-    };
+    //   return convertedTotals;
+    // };
 
     const hierarchyReports = {};
     for (const agent of initialAgents.results) {
@@ -654,12 +653,12 @@ const getFinancialReports = catchAsync(async (req, res) => {
       };
       console.log(hierarchyReports[agent.name]);
 
-      hierarchyReports[agent.name].totals = await aggregateTotals(hierarchyReports[agent.name]);
-      hierarchyReports[agent.name].totalsInPrimaryCurrency = convertToPrimaryCurrency(
-        hierarchyReports[agent.name].totals,
-        exchangeRates,
-        primaryCurrency
-      );
+      // hierarchyReports[agent.name].totals = await aggregateTotals(hierarchyReports[agent.name]);
+      // hierarchyReports[agent.name].totalsInPrimaryCurrency = convertToPrimaryCurrency(
+      //   hierarchyReports[agent.name].totals,
+      //   exchangeRates,
+      //   primaryCurrency
+      // );
     }
 
     res.json({ hierarchy: hierarchyReports, pagination });
