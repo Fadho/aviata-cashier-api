@@ -475,10 +475,10 @@ const getFinancialReports = catchAsync(async (req, res) => {
       }
     }
 
-    const house = await userService.getUserByRole('super');
-    const primaryWallet = await walletService.findWallet(null, house[0].id, true);
-    let primaryCurrency = await currencyService.getCurrencyById(primaryWallet[0].currencyId);
-    primaryCurrency = primaryCurrency.country[0].currencyCode;
+    // const house = await userService.getUserByRole('super');
+    // const primaryWallet = await walletService.findWallet(null, house[0].id, true);
+    // let primaryCurrency = await currencyService.getCurrencyById(primaryWallet[0].currencyId);
+    // primaryCurrency = primaryCurrency.country[0].currencyCode;
 
     const getUserHierarchy = async (parentId) => {
       if (cache.agents[parentId]) return cache.agents[parentId];
