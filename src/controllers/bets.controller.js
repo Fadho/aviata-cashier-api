@@ -475,10 +475,10 @@ const getFinancialReports = catchAsync(async (req, res) => {
       }
     }
 
-    // const house = await userService.getUserByRole('super');
-    // const primaryWallet = await walletService.findWallet(null, house[0].id, true);
-    // let primaryCurrency = await currencyService.getCurrencyById(primaryWallet[0].currencyId);
-    // primaryCurrency = primaryCurrency.country[0].currencyCode;
+    const house = await userService.getUserByRole('super');
+    const primaryWallet = await walletService.findWallet(null, house[0].id, true);
+    let primaryCurrency = await currencyService.getCurrencyById(primaryWallet[0].currencyId);
+    primaryCurrency = primaryCurrency.country[0].currencyCode;
 
     const getUserHierarchy = async (parentId) => {
       if (cache.agents[parentId]) return cache.agents[parentId];
@@ -519,7 +519,7 @@ const getFinancialReports = catchAsync(async (req, res) => {
             startDate,
             endDate
           ),
-          jackpotService.getJackpotHistory({ cashierId: cashier._id, ...(gameType && { gameType }) }, startDate, endDate),
+          jackpotService.getJackpotHistory({ cashierId: cashier._id, ...(gameType && { gameType }) }),
           Wallets.find({ userId: cashier._id }).populate('currencyId'),
         ]);
 
@@ -541,21 +541,24 @@ const getFinancialReports = catchAsync(async (req, res) => {
               jackpot3Contributions: 0,
               totalClosedPayout: 0,
               totalOpenPayout: 0,
+              profitPrimary: 0,
             };
           }
           const currencyReport = cashierReports[cashier.name][currencyCode];
           cashierJackpotWinners.forEach((jackpot) => {
             if (jackpot.jackpotType === 'Bronze') {
-              currencyReport.jackpot1Payout += jackpot.jackpotAmount;
+              currencyReport.jackpot1Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
               currencyReport.jackpot1Contributions += jackpot.jackpotContributions;
             } else if (jackpot.jackpotType === 'Silver') {
-              currencyReport.jackpot2Payout += jackpot.jackpotAmount;
+              currencyReport.jackpot2Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
               currencyReport.jackpot2Contributions += jackpot.jackpotContributions;
             } else if (jackpot.jackpotType === 'Gold') {
-              currencyReport.jackpot3Payout += jackpot.jackpotAmount;
+              currencyReport.jackpot3Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
               currencyReport.jackpot3Contributions += jackpot.jackpotContributions;
             }
           });
+          const rate = exchangeRates[currencyCode] || 1;
+          const conversionRate = exchangeRates[primaryCurrency] / rate;
           cashierBets.forEach((bet) => {
             currencyReport.totalWinnings += bet.winnings;
             currencyReport.totalStake += bet.stake;
@@ -566,6 +569,13 @@ const getFinancialReports = catchAsync(async (req, res) => {
               currencyReport.jackpot1Payout -
               currencyReport.jackpot2Payout -
               currencyReport.jackpot3Payout;
+            currencyReport.profitPrimary =
+              (currencyReport.totalStake -
+                currencyReport.totalWinnings -
+                currencyReport.jackpot1Payout -
+                currencyReport.jackpot2Payout -
+                currencyReport.jackpot3Payout) *
+              conversionRate;
           });
         }
       });
@@ -583,18 +593,30 @@ const getFinancialReports = catchAsync(async (req, res) => {
           for (const [currency, currencyReport] of Object.entries(cashier)) {
             if (!totals[currency]) totals[currency] = { ...currencyReport };
             else {
+              const rate = exchangeRates[currency] || 1;
+              const conversionRate = exchangeRates[primaryCurrency] / rate;
               totals[currency].totalWinnings += currencyReport.totalWinnings;
               totals[currency].totalStake += currencyReport.totalStake;
               totals[currency].numberOfBets += currencyReport.numberOfBets;
               totals[currency].jackpot1Payout += currencyReport.jackpot1Payout;
               totals[currency].jackpot2Payout += currencyReport.jackpot2Payout;
               totals[currency].jackpot3Payout += currencyReport.jackpot3Payout;
+              totals[currency].jackpot1Contributions += currencyReport.jackpot1Contributions;
+              totals[currency].jackpot2Contributions += currencyReport.jackpot2Contributions;
+              totals[currency].jackpot3Contributions += currencyReport.jackpot3Contributions;
               totals[currency].profit =
                 totals[currency].totalStake -
                 totals[currency].totalWinnings -
                 totals[currency].jackpot1Payout -
                 totals[currency].jackpot2Payout -
                 totals[currency].jackpot3Payout;
+              totals[currency].profitPrimary =
+                (totals[currency].totalStake -
+                  totals[currency].totalWinnings -
+                  totals[currency].jackpot1Payout -
+                  totals[currency].jackpot2Payout -
+                  totals[currency].jackpot3Payout) *
+                conversionRate;
             }
           }
         }
