@@ -2,7 +2,7 @@
 
 const axios = require('axios');
 const mongoose = require('mongoose');
-const { JackpotWinners, Jackpot, Player, User } = require('../models');
+const { JackpotWinners, Jackpot, Player, User, GameDevice } = require('../models');
 const config = require('../config/config');
 
 /**
@@ -181,7 +181,7 @@ const getJackpotHistory = async (filter, startDate, endDate) => {
   return tickets;
 };
 
-const getUpdatedJackpotHistory = async (filter, startDate, endDate) => {
+const getUpdatedJackpotHistory = async (filter, cashierId, startDate, endDate) => {
   const startDateWithoutTime = new Date(startDate);
   startDateWithoutTime.setHours(0, 0, 0, 0);
   const endDateWithoutTime = new Date(endDate);
@@ -203,8 +203,14 @@ const getUpdatedJackpotHistory = async (filter, startDate, endDate) => {
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
   }
-  const jackpotWinners = await JackpotWinners.find(filter);
-  console.log(jackpotWinners)
+  const jackpotWinners = await JackpotWinners.find(filter)
+    .populate({
+      path: 'deviceId',
+      match: { cashierId: mongoose.Types.ObjectId(cashierId) },
+      select: '_id cashierId',
+    })
+    .then((docs) => docs.filter((doc) => doc.deviceId !== null));
+  console.log(jackpotWinners, startDate, endDate, filter);
   return jackpotWinners;
 };
 

@@ -7,10 +7,10 @@ const { transferHistoryService, jackpotService } = require('../services');
 const gettransferHistory = catchAsync(async (req, res) => {
   const filter = pick(req.query, ['target', 'currency', 'agent', 'transactionType', 'gameType']);
   const options = pick(req.query, ['sortBy', 'limit', 'page', 'populate', 'startDate', 'endDate']);
-  const result = await transferHistoryService.queryTransferHistorys(filter, options);
-  const { agent, gameType } = filter;
   const { startDate, endDate } = options;
-  const jackpotWinners = await jackpotService.getUpdatedJackpotHistory({ cashierId: agent, gameType }, startDate, endDate);
+  const { agent, gameType } = filter;
+  const result = await transferHistoryService.queryTransferHistorys(filter, options, startDate, endDate);
+  const jackpotWinners = await jackpotService.getUpdatedJackpotHistory({ gameType }, agent, startDate, endDate);
   res.send({ result, jackpotWinners });
 });
 

@@ -519,11 +519,7 @@ const getFinancialReports = catchAsync(async (req, res) => {
             startDate,
             endDate
           ),
-          jackpotService.getUpdatedJackpotHistory(
-            { cashierId: cashier._id, ...(gameType && { gameType }) },
-            startDate,
-            endDate
-          ),
+          jackpotService.getUpdatedJackpotHistory({ ...(gameType && { gameType }) }, cashier._id, startDate, endDate),
           Wallets.find({ userId: cashier._id }).populate('currencyId'),
         ]);
 
@@ -645,6 +641,7 @@ const getFinancialReports = catchAsync(async (req, res) => {
 
     res.json({ hierarchy: hierarchyReports, pagination });
   } catch (error) {
+    console.log(error)
     res.status(500).send({ error: 'Error generating financial report' });
   }
 });

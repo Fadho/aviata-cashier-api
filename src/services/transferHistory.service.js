@@ -13,7 +13,28 @@ const createTransferHistory = async (transferHistoryBody) => {
  * @param {number} [options.page] - Current page (default = 1)
  * @returns {Promise<QueryResult>}
  */
-const queryTransferHistorys = async (filter, options) => {
+const queryTransferHistorys = async (filter, options,  startDate, endDate) => {
+  const startDateWithoutTime = new Date(startDate);
+  startDateWithoutTime.setHours(0, 0, 0, 0);
+  const endDateWithoutTime = new Date(endDate);
+  endDateWithoutTime.setHours(0, 0, 0, 0);
+  endDateWithoutTime.setDate(endDateWithoutTime.getDate() + 1);
+
+  let dateFilter = {};
+  if (startDate && endDate) {
+    dateFilter = {
+      ...(startDate &&
+        endDate && {
+          updatedAt: {
+            $gte: startDateWithoutTime,
+            $lte: endDateWithoutTime,
+          },
+        }),
+      ...filter,
+    };
+    // eslint-disable-next-line no-param-reassign
+    filter = dateFilter;
+  }
   const transferHistorys = await TransferHistory.paginate(filter, options);
   return transferHistorys;
 };
