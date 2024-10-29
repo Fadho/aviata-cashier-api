@@ -181,6 +181,33 @@ const getJackpotHistory = async (filter, startDate, endDate) => {
   return tickets;
 };
 
+const getUpdatedJackpotHistory = async (filter, startDate, endDate) => {
+  const startDateWithoutTime = new Date(startDate);
+  startDateWithoutTime.setHours(0, 0, 0, 0);
+  const endDateWithoutTime = new Date(endDate);
+  endDateWithoutTime.setHours(0, 0, 0, 0);
+  endDateWithoutTime.setDate(endDateWithoutTime.getDate() + 1);
+
+  let dateFilter = {};
+  if (startDate && endDate) {
+    dateFilter = {
+      ...(startDate &&
+        endDate && {
+          updatedAt: {
+            $gte: startDateWithoutTime,
+            $lte: endDateWithoutTime,
+          },
+        }),
+      ...filter,
+    };
+    // eslint-disable-next-line no-param-reassign
+    filter = dateFilter;
+  }
+  const jackpotWinners = await JackpotWinners.find(filter);
+  console.log(jackpotWinners)
+  return jackpotWinners;
+};
+
 const getAgentJackpots = async (agentId, gameType) => {
   return Jackpot.find({ agentId, gameType });
 };
@@ -295,4 +322,5 @@ module.exports = {
   getAgentJackpots,
   updateJackpotContributions,
   getAgentJackpotContributions,
+  getUpdatedJackpotHistory,
 };
