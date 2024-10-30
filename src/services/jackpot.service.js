@@ -15,6 +15,7 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
   session.startTransaction(); // Begin a transaction
 
   try {
+    console.log(id, deviceId, playerId, jackpotAmount)
     // Find the player
     const player = await Player.findOne({ playerId, deviceId }).session(session);
     if (!player) throw new Error('Player not found');
@@ -94,7 +95,7 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
   } catch (error) {
     // Rollback the transaction in case of any errors
     await session.abortTransaction();
-    console.log(`Error in dropJackpot: ${error.message}`);
+    console.log(`Error in dropJackpot: ${error}`);
     throw new Error('Error processing jackpot drop');
   } finally {
     // End the session to free up resources
