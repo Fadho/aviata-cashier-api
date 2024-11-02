@@ -2,7 +2,7 @@
 
 const axios = require('axios');
 const mongoose = require('mongoose');
-const { JackpotWinners, Jackpot, Player, User, GameDevice } = require('../models');
+const { JackpotWinners, Jackpot, Player, User } = require('../models');
 const config = require('../config/config');
 
 /**
@@ -15,7 +15,6 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
   session.startTransaction(); // Begin a transaction
 
   try {
-    console.log(id, deviceId, playerId, jackpotAmount)
     // Find the player
     const player = await Player.findOne({ playerId, deviceId }).session(session);
     if (!player) throw new Error('Player not found');
@@ -33,7 +32,7 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
     }).session(session);
     if (!jackpotWinners || jackpotWinners.jackpotContributions < jackpotAmount)
       throw new Error('No active jackpot winner found');
-    console.log(jackpotWinners, player, jackpot)
+
     // Time validation
     const today = new Date();
     const extractTime = (date) => ({
@@ -42,22 +41,22 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
       seconds: date.getSeconds(),
     });
 
-    if (jackpot.startTime instanceof Date && jackpot.endTime instanceof Date) {
-      const startTime = extractTime(jackpot.startTime);
-      const endTime = extractTime(jackpot.endTime);
-      const currentTime = extractTime(today);
+    // if (jackpot.startTime instanceof Date && jackpot.endTime instanceof Date) {
+    //   const startTime = extractTime(jackpot.startTime);
+    //   const endTime = extractTime(jackpot.endTime);
+    //   const currentTime = extractTime(today);
 
-      const isTimeValid = (start, current, end) => {
-        return (
-          (start.hours < current.hours || (start.hours === current.hours && start.minutes <= current.minutes)) &&
-          (current.hours < end.hours || (current.hours === end.hours && current.minutes <= end.minutes))
-        );
-      };
+    //   const isTimeValid = (start, current, end) => {
+    //     return (
+    //       (start.hours < current.hours || (start.hours === current.hours && start.minutes <= current.minutes)) &&
+    //       (current.hours < end.hours || (current.hours === end.hours && current.minutes <= end.minutes))
+    //     );
+    //   };
 
-      if (!isTimeValid(startTime, currentTime, endTime)) {
-        throw new Error('Current time is not within jackpot time range');
-      }
-    }
+    //   if (!isTimeValid(startTime, currentTime, endTime)) {
+    //     throw new Error('Current time is not within jackpot time range');
+    //   }
+    // }
 
     // Update player's wallet
     player.wallet += Number(jackpotAmount);
@@ -95,7 +94,7 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
   } catch (error) {
     // Rollback the transaction in case of any errors
     await session.abortTransaction();
-    console.log(`Error in dropJackpot: ${error}`);
+    console.log(`Error in dropJackpot: ${error.message}`);
     throw new Error('Error processing jackpot drop');
   } finally {
     // End the session to free up resources
