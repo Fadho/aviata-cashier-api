@@ -24,6 +24,10 @@ router
   .get(auth(), validate(betsValidation.getAccountingReports), betsController.getFinancialReports);
 
 router
+  .route('/transaction-reports')
+  .get(auth(), validate(betsValidation.getAccountingReports), betsController.getTransactionReports);
+
+router
   .route('/ticket-reports')
   .get(auth('ticketReports'), validate(betsValidation.getAccountingReports), betsController.getAccountingReports);
 

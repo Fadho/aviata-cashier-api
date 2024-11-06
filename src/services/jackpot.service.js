@@ -41,22 +41,22 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
       seconds: date.getSeconds(),
     });
 
-    // if (jackpot.startTime instanceof Date && jackpot.endTime instanceof Date) {
-    //   const startTime = extractTime(jackpot.startTime);
-    //   const endTime = extractTime(jackpot.endTime);
-    //   const currentTime = extractTime(today);
+    if (jackpot.startTime instanceof Date && jackpot.endTime instanceof Date) {
+      const startTime = extractTime(jackpot.startTime);
+      const endTime = extractTime(jackpot.endTime);
+      const currentTime = extractTime(today);
 
-    //   const isTimeValid = (start, current, end) => {
-    //     return (
-    //       (start.hours < current.hours || (start.hours === current.hours && start.minutes <= current.minutes)) &&
-    //       (current.hours < end.hours || (current.hours === end.hours && current.minutes <= end.minutes))
-    //     );
-    //   };
+      const isTimeValid = (start, current, end) => {
+        return (
+          (start.hours < current.hours || (start.hours === current.hours && start.minutes <= current.minutes)) &&
+          (current.hours < end.hours || (current.hours === end.hours && current.minutes <= end.minutes))
+        );
+      };
 
-    //   if (!isTimeValid(startTime, currentTime, endTime)) {
-    //     throw new Error('Current time is not within jackpot time range');
-    //   }
-    // }
+      if (!isTimeValid(startTime, currentTime, endTime)) {
+        throw new Error('Current time is not within jackpot time range');
+      }
+    }
 
     // Update player's wallet
     player.wallet += Number(jackpotAmount);
@@ -88,13 +88,13 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
     await session.commitTransaction();
 
     // Log the winner for debugging
-    console.log('winner: ', winner);
+    // console.log('winner: ', winner);
 
     return winner;
   } catch (error) {
     // Rollback the transaction in case of any errors
     await session.abortTransaction();
-    console.log(`Error in dropJackpot: ${error.message}`);
+    // console.log(`Error in dropJackpot: ${error.message}`);
     throw new Error('Error processing jackpot drop');
   } finally {
     // End the session to free up resources

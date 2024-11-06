@@ -13,7 +13,7 @@ const createTransferHistory = async (transferHistoryBody) => {
  * @param {number} [options.page] - Current page (default = 1)
  * @returns {Promise<QueryResult>}
  */
-const queryTransferHistorys = async (filter, options,  startDate, endDate) => {
+const queryTransferHistorys = async (filter, options, startDate, endDate) => {
   const startDateWithoutTime = new Date(startDate);
   startDateWithoutTime.setHours(0, 0, 0, 0);
   const endDateWithoutTime = new Date(endDate);

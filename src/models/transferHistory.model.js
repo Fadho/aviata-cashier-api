@@ -18,6 +18,11 @@ const transferHistorySchema = mongoose.Schema(
       ref: 'User',
       // required: true,
     },
+    superAgentId: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'User',
+      // required: true,
+    },
     playerId: {
       type: mongoose.SchemaTypes.Number,
       // ref: 'Player',
