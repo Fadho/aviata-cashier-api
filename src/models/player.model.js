@@ -37,6 +37,10 @@ const playerSchema = mongoose.Schema(
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'User',
     },
+    bonus: {
+      type: mongoose.SchemaTypes.Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
