@@ -760,7 +760,7 @@ const getTransactionReports = catchAsync(async (req, res) => {
               currencyReport.totalWithdrawal += bet.withdrawal;
               currencyReport.numberTransactions += 1;
               currencyReport.profit =
-                currencyReport.totalDeposit - currencyReport.totalWithdrawal - currencyReport.jackpotPayout;
+                currencyReport.totalDeposit + currencyReport.totalWithdrawal - currencyReport.jackpotPayout;
               currencyReport.profitPrimary = parseFloat((currencyReport.profit * conversionRate).toFixed(3));
             });
           }
