@@ -97,7 +97,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
 
     // Update wallet balance
 
-    await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance }, { session });
+    await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance, bonus }, { session });
 
     // Fetch cashier by cashierId
     const cashier = await User.findById(cashierId).session(session);
