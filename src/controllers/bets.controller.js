@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 /* eslint-disable no-use-before-define */
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-restricted-syntax */
@@ -74,15 +75,28 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
 
     // Validate balance and stake
     let balance = Number(player.wallet);
+    let bonus = Number(player.bonus);
+    // let useBalanceBonus = false;
+    let useBonus = false;
     stake = Number(stake);
 
-    // eslint-disable-next-line no-restricted-globals
     if (isNaN(balance) || isNaN(stake) || balance < stake) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount');
+      useBonus = true;
+      if (isNaN(bonus + balance) || isNaN(stake) || bonus + balance < stake)
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount');
+    }
+
+    if (useBonus) {
+      let setStake = stake;
+      setStake -= balance;
+      balance = 0;
+      bonus -= setStake;
+    } else {
+      balance -= stake;
     }
 
     // Update wallet balance
-    balance -= stake;
+
     await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance }, { session });
 
     // Fetch cashier by cashierId
