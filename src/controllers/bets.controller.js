@@ -535,7 +535,7 @@ const getFinancialReports = catchAsync(async (req, res) => {
 
       const cashiersPromises = cashiers.results.map(async (cashier) => {
         const [cashierBets, cashierJackpotWinners, userWallets] = await Promise.all([
-          betsService.getBetHistory(
+          betsService.getBetHistory1(
             { cashierId: cashier._id, ...(betType && { betType }), ...(gameType && { gameType }) },
             startDate,
             endDate

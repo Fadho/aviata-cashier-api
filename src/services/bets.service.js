@@ -203,10 +203,37 @@ const getBetHistory = async (filter, startDate, endDate) => {
     filter = dateFilter;
   }
   const tickets = await Tickets.find(filter);
+  // const ticketsArchive = await TicketsArchive.find(filter);
+  return tickets;
+};
+
+const getBetHistory1 = async (filter, startDate, endDate) => {
+  const startDateWithoutTime = new Date(startDate);
+  startDateWithoutTime.setHours(0, 0, 0, 0);
+  const endDateWithoutTime = new Date(endDate);
+  endDateWithoutTime.setHours(0, 0, 0, 0);
+  endDateWithoutTime.setDate(endDateWithoutTime.getDate() + 1);
+
+  let dateFilter = {};
+  if (startDate && endDate) {
+    dateFilter = {
+      ...(startDate &&
+        endDate && {
+          createdAt: {
+            $gte: startDateWithoutTime,
+            $lte: endDateWithoutTime,
+          },
+        }),
+      ...filter,
+    };
+    // eslint-disable-next-line no-param-reassign
+    filter = dateFilter;
+  }
+  const tickets = await Tickets.find(filter);
   const ticketsArchive = await TicketsArchive.find(filter);
-  console.log([...tickets, ...ticketsArchive]);
   return [...tickets, ...ticketsArchive];
 };
+
 
 /**
  * calculate outcome for each bet
@@ -491,6 +518,7 @@ module.exports = {
   fetchBetPlaced,
   getBetPlacedById,
   getBetHistory,
+  getBetHistory1,
   getBetHistoryReport,
   cancelTicket,
   payoutTicket,
