@@ -1,0 +1,107 @@
+const mongoose = require('mongoose');
+const { toJSON, paginate } = require('./plugins');
+
+const ticketsArchiveSchema = mongoose.Schema(
+  {
+    roundId: {
+      type: String,
+      required: true,
+    },
+    cashierId: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    ticketId: {
+      type: mongoose.SchemaTypes.String,
+      unique: true,
+    },
+    playerId: {
+      type: mongoose.SchemaTypes.String,
+      ref: 'Player',
+      required: true,
+    },
+    betType: {
+      type: String,
+      lowercase: true,
+      enum: ['single', 'multiple'],
+      required: true,
+    },
+    selections: [
+      {
+        odd: {
+          type: Number,
+          required: true,
+        },
+        stake: {
+          type: Number,
+          required: true,
+        },
+        winnings: {
+          type: Number,
+        },
+      },
+    ],
+    stake: {
+      type: Number,
+      required: true,
+    },
+    winnings: {
+      type: Number,
+      default: 0,
+      required: true,
+    },
+    potentialWinnings: {
+      type: Number,
+      default: 0,
+      required: true,
+    },
+    deviceId: {
+      type: mongoose.SchemaTypes.ObjectId,
+      // required: true,
+    },
+    gameType: {
+      type: String,
+      // required: true,
+    },
+    result: {
+      type: String,
+      enum: ['win', 'loss'],
+    },
+    roundHasEnded: {
+      type: Boolean,
+      default: false,
+      required: true,
+    },
+    gameOutcome: {
+      type: String,
+    },
+    payout: {
+      type: Boolean,
+      default: false,
+      required: true,
+    },
+    payoutDate: {
+      type: Date,
+    },
+    cancelled: {
+      type: Boolean,
+      default: false,
+      required: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// add plugin that converts mongoose to json
+ticketsArchiveSchema.plugin(toJSON);
+ticketsArchiveSchema.plugin(paginate);
+
+/**
+ * @typedef TicketsArchive
+ */
+const TicketsArchive = mongoose.model('TicketsArchive', ticketsArchiveSchema);
+
+module.exports = TicketsArchive;

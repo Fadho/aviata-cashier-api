@@ -3,7 +3,7 @@
 /* eslint-disable no-restricted-syntax */
 const mongoose = require('mongoose');
 const { differenceInHours } = require('date-fns');
-const { Tickets, GameConfig, Rounds, Player } = require('../models');
+const { Tickets, GameConfig, Rounds, Player, TicketsArchive } = require('../models');
 const walletService = require('./wallet.service');
 const logger = require('../config/logger');
 const { userService } = require('.');
@@ -203,7 +203,9 @@ const getBetHistory = async (filter, startDate, endDate) => {
     filter = dateFilter;
   }
   const tickets = await Tickets.find(filter);
-  return tickets;
+  const ticketsArchive = await TicketsArchive.find(filter);
+  console.log([...tickets, ...ticketsArchive]);
+  return [...tickets, ...ticketsArchive];
 };
 
 /**
