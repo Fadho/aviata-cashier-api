@@ -234,7 +234,6 @@ const getBetHistory1 = async (filter, startDate, endDate) => {
   return [...tickets, ...ticketsArchive];
 };
 
-
 /**
  * calculate outcome for each bet
  * @param {String} roundId

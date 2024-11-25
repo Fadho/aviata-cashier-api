@@ -584,19 +584,8 @@ const getFinancialReports = catchAsync(async (req, res) => {
             currencyReport.totalWinnings += bet.winnings;
             currencyReport.totalStake += bet.stake;
             currencyReport.numberOfBets += 1;
-            currencyReport.profit =
-              currencyReport.totalStake -
-              currencyReport.totalWinnings -
-              currencyReport.jackpot1Payout -
-              currencyReport.jackpot2Payout -
-              currencyReport.jackpot3Payout;
-            currencyReport.profitPrimary =
-              (currencyReport.totalStake -
-                currencyReport.totalWinnings -
-                currencyReport.jackpot1Payout -
-                currencyReport.jackpot2Payout -
-                currencyReport.jackpot3Payout) *
-              conversionRate;
+            currencyReport.profit = currencyReport.totalStake - currencyReport.totalWinnings;
+            currencyReport.profitPrimary = (currencyReport.totalStake - currencyReport.totalWinnings) * conversionRate;
           });
         }
       });
@@ -625,19 +614,9 @@ const getFinancialReports = catchAsync(async (req, res) => {
               totals[currency].jackpot1Contributions += currencyReport.jackpot1Contributions;
               totals[currency].jackpot2Contributions += currencyReport.jackpot2Contributions;
               totals[currency].jackpot3Contributions += currencyReport.jackpot3Contributions;
-              totals[currency].profit =
-                totals[currency].totalStake -
-                totals[currency].totalWinnings -
-                totals[currency].jackpot1Payout -
-                totals[currency].jackpot2Payout -
-                totals[currency].jackpot3Payout;
+              totals[currency].profit = totals[currency].totalStake - totals[currency].totalWinnings;
               totals[currency].profitPrimary =
-                (totals[currency].totalStake -
-                  totals[currency].totalWinnings -
-                  totals[currency].jackpot1Payout -
-                  totals[currency].jackpot2Payout -
-                  totals[currency].jackpot3Payout) *
-                conversionRate;
+                (totals[currency].totalStake - totals[currency].totalWinnings) * conversionRate;
             }
           }
         }
@@ -756,25 +735,20 @@ const getTransactionReports = catchAsync(async (req, res) => {
             cashierJackpotWinners.forEach((jackpot) => {
               if (jackpot.jackpotType === 'Bronze') {
                 currencyReport.jackpotPayout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
-                // currencyReport.jackpot1Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
               } else if (jackpot.jackpotType === 'Silver') {
                 currencyReport.jackpotPayout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
-                // currencyReport.jackpot2Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
               } else if (jackpot.jackpotType === 'Gold') {
                 currencyReport.jackpotPayout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
-                // currencyReport.jackpot3Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
               }
             });
 
             const rate = exchangeRates[currencyCode] || 1;
             const conversionRate = exchangeRates[primaryCurrency] / rate;
             cashierTransactions.results.forEach((bet) => {
-              // const currencyReport = cashierReports[cashier.name][currencyCode];
               currencyReport.totalDeposit += bet.deposit;
               currencyReport.totalWithdrawal += bet.withdrawal;
               currencyReport.numberTransactions += 1;
-              currencyReport.profit =
-                currencyReport.totalDeposit + currencyReport.totalWithdrawal - currencyReport.jackpotPayout;
+              currencyReport.profit = currencyReport.totalDeposit + currencyReport.totalWithdrawal;
               currencyReport.profitPrimary = parseFloat((currencyReport.profit * conversionRate).toFixed(3));
             });
           }
