@@ -26,7 +26,7 @@ const fundWallet = catchAsync(async (req, res) => {
 
     const currency = await currencyService.getCurrencyById(currencyId);
 
-    let newBalance = parseFloat(wallet[0].balance);
+    let newBalance = Number(wallet[0].balance);
     newBalance -= amount;
     // if all tests pass, update wallet
     await walletService.updateWallet(wallet[0].id, newBalance.toFixed(currency.decimals));
@@ -41,7 +41,7 @@ const fundWallet = catchAsync(async (req, res) => {
 
     if (!iswallet.length) throw new ApiError(httpStatus.NOT_FOUND, 'Primary wallet does not exist');
 
-    let newBalance = parseFloat(iswallet[0].balance);
+    let newBalance = Number(iswallet[0].balance);
     newBalance += amount;
     // if all tests pass, create wallet
     const wallet = await walletService.updateWallet(iswallet[0].id, newBalance);
@@ -84,7 +84,7 @@ const fundWallet = catchAsync(async (req, res) => {
     return res.status(httpStatus.CREATED).send(fundUserWallet);
   }
 
-  let newBalance = parseFloat(iswallet[0].balance);
+  let newBalance = Number(iswallet[0].balance);
   newBalance += amount;
 
   if (newBalance < 0) throw new ApiError(httpStatus.NOT_FOUND, 'Insufficient funds!');
@@ -142,16 +142,15 @@ const convertWallet = catchAsync(async (req, res) => {
 
   let fromWalletBalance = isFromwallet[0].balance;
 
-  fromWalletBalance -= parseFloat(amount);
+  fromWalletBalance -= Number(amount);
 
   if (fromWalletBalance < 0) throw new ApiError(httpStatus.NOT_FOUND, 'insufficient funds');
 
   await walletService.updateWallet(isFromwallet[0].id, Number(fromWalletBalance).toFixed(isFromCurrency.decimals));
 
-  const newAmount = (
-    parseFloat(amount) *
-    (parseFloat(isToCurrency.exchangeRate) / parseFloat(isFromCurrency.exchangeRate))
-  ).toFixed(isToCurrency.decimals);
+  const newAmount = (Number(amount) * (Number(isToCurrency.exchangeRate) / Number(isFromCurrency.exchangeRate))).toFixed(
+    isToCurrency.decimals
+  );
 
   const iswallet = await walletService.findWallet(toCurrencyId, isUser.id);
 
