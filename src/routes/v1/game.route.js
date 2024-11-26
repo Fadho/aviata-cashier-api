@@ -49,5 +49,5 @@ router
 router
   .route('/jackpot/agentContribution')
   .post(validate(gameValidation.getAgentContribution), gameController.getAgentJackpotContribution);
-router.route('/gameDevice/:deviceId').delete(validate(gameValidation.deleteGameDevice), gameController.deleteGameDevice);
+// router.route('/gameDevice/:deviceId').delete(validate(gameValidation.deleteGameDevice), gameController.deleteGameDevice);
 module.exports = router;

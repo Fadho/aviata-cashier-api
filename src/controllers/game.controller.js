@@ -131,12 +131,12 @@ const getAgentJackpotContribution = catchAsync(async (req, res) => {
   res.send(jackpot);
 });
 
-const deleteGameDevice = catchAsync(async (req, res) => {
-  const { deviceId } = req.params;
+// const deleteGameDevice = catchAsync(async (req, res) => {
+//   const { deviceId } = req.params;
 
-  const jackpot = await GameDevice.deleteOne({_id: });
-  res.send(jackpot);
-});
+//   const jackpot = await GameDevice.deleteOne({_id: });
+//   res.send(jackpot);
+// });
 
 module.exports = {
   createGameConfig,
