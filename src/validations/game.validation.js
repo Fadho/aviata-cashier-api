@@ -111,6 +111,12 @@ const updateGameConfig = {
     .min(1),
 };
 
+const deleteGameDevice = {
+  params: Joi.object().keys({
+    deviceId: Joi.required().custom(objectId).required(),
+  }),
+};
+
 module.exports = {
   createGameConfig,
   createGameData,
@@ -121,5 +127,6 @@ module.exports = {
   getAgentJackpots,
   dropJackpot,
   updateAgentContribution,
-  getAgentContribution
+  getAgentContribution,
+  deleteGameDevice,
 };

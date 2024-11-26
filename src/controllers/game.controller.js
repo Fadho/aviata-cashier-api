@@ -3,6 +3,7 @@ const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { gameService, tokenService, jackpotService } = require('../services');
 const { Jackpot, User } = require('../models');
+const GameDevice = require('../models/gameDevice.model');
 
 const authenticateGame = catchAsync(async (req, res) => {
   const user = await gameService.authenticateGame(req.params.id);
@@ -127,6 +128,13 @@ const getAgentJackpotContribution = catchAsync(async (req, res) => {
   const { deviceId, gameType } = req.body;
 
   const jackpot = await jackpotService.getAgentJackpotContributions(deviceId, gameType);
+  res.send(jackpot);
+});
+
+const deleteGameDevice = catchAsync(async (req, res) => {
+  const { deviceId } = req.params;
+
+  const jackpot = await GameDevice.deleteOne({_id: });
   res.send(jackpot);
 });
 

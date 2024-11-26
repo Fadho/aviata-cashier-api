@@ -7,7 +7,7 @@ const fundWallet = catchAsync(async (req, res) => {
   // destructuring parameters
   // eslint-disable-next-line prefer-const
   let { amount, currencyId, userId } = req.body;
-  amount = parseFloat(amount);
+  amount = Number(amount);
 
   if (!Number(amount)) throw new ApiError(httpStatus.NOT_FOUND, 'Provide valid amount e.g 500 or -500');
 
