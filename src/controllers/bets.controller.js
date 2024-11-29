@@ -718,7 +718,7 @@ const getTransactionReports = catchAsync(async (req, res) => {
           const [cashierTransactions, cashierJackpotWinners, userWallets, cashierPlayers] = await Promise.all([
             transferHistoryService.queryTransferHistorys(
               { agent: cashier._id, ...(betType && { betType }), ...(gameType && { gameType }) },
-              {},
+              { limit: 1000000 },
               startDate,
               endDate
             ),
@@ -730,46 +730,50 @@ const getTransactionReports = catchAsync(async (req, res) => {
           // for (const wallet of userWallets) {
           // cashiers can only have 1 wallet
           const wallet = userWallets[0];
-          if (!wallet.currencyId) return;
-          const { currencyCode } = wallet.currencyId.country[0];
-          if (!cashierReports[cashier.name]) cashierReports[cashier.name] = {};
-          if (!cashierReports[cashier.name][currencyCode]) {
-            cashierReports[cashier.name][currencyCode] = {
-              totalDeposit: 0,
-              totalWithdrawal: 0,
-              numberTransactions: 0,
-              profit: 0,
-              jackpotPayout: 0,
-              profitPrimary: 0,
-              playersWallet: 0,
-            };
-          }
-
-          let currencyReport = cashierReports[cashier.name][currencyCode];
-          cashierJackpotWinners.forEach((jackpot) => {
-            if (jackpot.jackpotType === 'Bronze') {
-              currencyReport.jackpotPayout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
-            } else if (jackpot.jackpotType === 'Silver') {
-              currencyReport.jackpotPayout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
-            } else if (jackpot.jackpotType === 'Gold') {
-              currencyReport.jackpotPayout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
+          // eslint-disable-next-line no-continue
+          if (wallet.currencyId) {
+            const { currencyCode } = wallet.currencyId.country[0];
+            if (!cashierReports[cashier.name]) cashierReports[cashier.name] = {};
+            if (!cashierReports[cashier.name][currencyCode]) {
+              cashierReports[cashier.name][currencyCode] = {
+                totalDeposit: 0,
+                totalWithdrawal: 0,
+                totalBonus: 0,
+                numberTransactions: 0,
+                profit: 0,
+                jackpotPayout: 0,
+                profitPrimary: 0,
+                playersWallet: 0,
+              };
             }
-          });
 
-          const rate = exchangeRates[currencyCode] || 1;
-          const conversionRate = exchangeRates[primaryCurrency] / rate;
-          cashierTransactions.results.forEach((bet) => {
-            currencyReport.totalDeposit += bet.deposit;
-            currencyReport.totalWithdrawal += bet.withdrawal;
-            currencyReport.numberTransactions += 1;
-            currencyReport.profit = currencyReport.totalDeposit + currencyReport.totalWithdrawal;
-            currencyReport.profitPrimary = parseFloat((currencyReport.profit * conversionRate).toFixed(3));
-          });
-          // }
-          for (const player of cashierPlayers) {
-            currencyReport = cashierReports[cashier.name][currencyCode];
-            currencyReport.playersWallet += player.wallet;
+            let currencyReport = cashierReports[cashier.name][currencyCode];
+            cashierJackpotWinners.forEach((jackpot) => {
+              if (jackpot.jackpotType === 'Bronze') {
+                currencyReport.jackpotPayout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
+              } else if (jackpot.jackpotType === 'Silver') {
+                currencyReport.jackpotPayout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
+              } else if (jackpot.jackpotType === 'Gold') {
+                currencyReport.jackpotPayout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
+              }
+            });
+
+            const rate = exchangeRates[currencyCode] || 1;
+            const conversionRate = exchangeRates[primaryCurrency] / rate;
+            cashierTransactions.results.forEach((bet) => {
+              currencyReport.totalDeposit += bet.deposit;
+              currencyReport.totalWithdrawal += bet.withdrawal;
+              currencyReport.numberTransactions += 1;
+              currencyReport.totalBonus += bet.bonus;
+              currencyReport.profit = currencyReport.totalDeposit + currencyReport.totalWithdrawal;
+              currencyReport.profitPrimary = parseFloat((currencyReport.profit * conversionRate).toFixed(3));
+            });
+            for (const player of cashierPlayers) {
+              currencyReport = cashierReports[cashier.name][currencyCode];
+              currencyReport.playersWallet += player.wallet;
+            }
           }
+          // }
         })
       );
       cache.cashiers[agentId] = cashierReports;

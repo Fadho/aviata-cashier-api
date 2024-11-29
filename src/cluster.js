@@ -10,7 +10,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 const cluster1 = __importDefault(require('cluster'));
 const os1 = __importDefault(require('os'));
 
-const numCpu = os1.default.cpus().length / 2;
+const numCpu = os1.default.cpus().length;
 if (cluster1.default.isPrimary) {
   // for on each cpu thread
   // eslint-disable-next-line no-plusplus
