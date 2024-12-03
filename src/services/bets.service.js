@@ -353,7 +353,7 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
 
     // Update the bet details
     await Tickets.findOneAndUpdate(
-      { _id: ticketId },
+      { _id: ticketId, ticketId: bet.ticketId },
       {
         winnings: bet.stake * odd,
         roundHasEnded: true,

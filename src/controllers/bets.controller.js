@@ -331,9 +331,10 @@ const cashierReport = catchAsync(async (req, res) => {
     const { startDate, endDate, betType, gameType } = req.query;
     const cashierId = req.user.id;
     // let betHistory = [];
-    const [user, betHistory] = await Promise.all([
+    const [user, betHistory, players] = await Promise.all([
       userService.getUserById(cashierId),
-      betsService.getBetHistory({ cashierId, ...(betType && { betType }) }, startDate, endDate),
+      betsService.getBetHistory1({ cashierId, ...(betType && { betType }) }, startDate, endDate),
+      Player.find({ cashierId }),
     ]);
 
     if (!user) {
@@ -347,12 +348,14 @@ const cashierReport = catchAsync(async (req, res) => {
 
     const totalStake = betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
     const totalWinnings = betHistory.reduce((count, bet) => count + bet.winnings, 0);
-    const totalClosedPayout = betHistory.reduce((count, bet) => {
-      return bet.payout ? count + bet.winnings : count + 0;
-    }, 0);
-    const totalOpenPayout = betHistory.reduce((count, bet) => {
-      return bet.payout ? count + 0 : count + bet.winnings;
-    }, 0);
+    // const totalClosedPayout = betHistory.reduce((count, bet) => {
+    //   return bet.payout ? count + bet.winnings : count + 0;
+    // }, 0);
+    // const totalOpenPayout = betHistory.reduce((count, bet) => {
+    //   return bet.payout ? count + 0 : count + bet.winnings;
+    // }, 0);
+    const totalPlayersWallets = players.reduce((accumulator, obj) => accumulator + obj.wallet, 0);
+    const totalPlayersBonus = players.reduce((accumulator, obj) => accumulator + obj.bonus, 0);
 
     let jackpot1Payout = 0;
     let jackpot1Contributions = 0;
@@ -381,12 +384,14 @@ const cashierReport = catchAsync(async (req, res) => {
       name: user.name,
       profit:
         Number(totalStake) -
-        Number(totalWinnings) -
-        Number(jackpot1Payout) -
-        Number(jackpot2Payout) -
+        Number(totalPlayersWallets) -
+        Number(totalPlayersBonus) -
+        Number(totalWinnings) +
+        Number(jackpot1Payout) +
+        Number(jackpot2Payout) +
         Number(jackpot3Payout),
-      totalClosedPayout,
-      totalOpenPayout,
+      totalPlayersWallets,
+      totalPlayersBonus,
       availableBalance: user.wallets[0].balance,
       jackpot1Payout,
       jackpot2Payout,
@@ -772,6 +777,7 @@ const getTransactionReports = catchAsync(async (req, res) => {
                 jackpotPayout: 0,
                 profitPrimary: 0,
                 playersWallet: 0,
+                totalPlayerBonus: 0,
               };
             }
 
