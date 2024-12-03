@@ -102,7 +102,7 @@ const fundWallet = catchAsync(async (req, res) => {
       await walletService.createWallet(iswallet[0].currencyId, req.user.id, Number(amount) * -1);
     }
 
-    const agentBalance = wallet[0].balance + amount * -1;
+    const agentBalance = wallet[0].balance + Number(amount) * -1;
 
     walletService.updateWallet(wallet[0].id, agentBalance);
   }
