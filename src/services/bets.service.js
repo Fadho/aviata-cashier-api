@@ -6,7 +6,7 @@ const { differenceInHours } = require('date-fns');
 const { Tickets, GameConfig, Rounds, Player, TicketsArchive } = require('../models');
 const walletService = require('./wallet.service');
 const logger = require('../config/logger');
-const { userService } = require('.');
+const { userService, financialReportService } = require('.');
 
 /**
  * create a new ticket
@@ -350,12 +350,13 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
 
     // Find the player associated with the bet
     const player = await Player.findOne({ playerId: bet.playerId, deviceId: bet.deviceId }).session(session);
+    const winnings = bet.stake * odd;
 
     // Update the bet details
     await Tickets.findOneAndUpdate(
       { _id: ticketId, ticketId: bet.ticketId },
       {
-        winnings: bet.stake * odd,
+        winnings,
         roundHasEnded: true,
         selections: [{ odd, stake: bet.stake }],
         gameOutcome: odd,
@@ -366,9 +367,11 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
     // Update the player's wallet with the winnings
     const updatedPlayer = await Player.findOneAndUpdate(
       { _id: player.id },
-      { wallet: player.wallet + bet.stake * odd },
+      { wallet: player.wallet + winnings },
       { new: true, session } // Include session in the update
     );
+
+    await financialReportService.getAndUpdatePlayerWallets(player.cashierId, winnings);
 
     // Commit the transaction
     await session.commitTransaction();
