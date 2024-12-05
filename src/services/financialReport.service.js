@@ -2,6 +2,7 @@ const httpStatus = require('http-status');
 const { FinancialReport, Player, Tickets, TicketsArchive } = require('../models');
 const ApiError = require('../utils/ApiError');
 const transferHistoryService = require('./transferHistory.service');
+const jackpotService = require('./jackpot.service');
 // const { getBetHistory1 } = require('./bets.service');
 
 const getBetHistory1 = async (filter, startDate, endDate) => {
@@ -44,8 +45,18 @@ const getAndUpdateStake = async (cashierId) => {
   let totalStake = 0;
   let totalPlayerBonus = 0;
   let totalPlayerWallets = 0;
+  let jackpot1Payout = 0;
+  let jackpot2Payout = 0;
+  let jackpot3Payout = 0;
+  let jackpot1Contributions = 0;
+  let jackpot2Contributions = 0;
+  let jackpot3Contributions = 0;
 
-  const [players, tickets] = await Promise.all([Player.find({ cashierId }), getBetHistory1({ cashierId }, today, today)]);
+  const [players, tickets, cashierJackpotWinners] = await Promise.all([
+    Player.find({ cashierId }),
+    getBetHistory1({ cashierId }, today, today),
+    jackpotService.getUpdatedJackpotHistory({}, cashierId, today, today),
+  ]);
   players.forEach((player) => {
     totalPlayerWallets += Number(player.wallet);
     totalPlayerBonus += Number(player.bonus);
@@ -54,6 +65,19 @@ const getAndUpdateStake = async (cashierId) => {
     totalStake += Number(ticket.stake ? ticket.stake : 0);
     totalWinnings += Number(ticket.winnings ? ticket.winnings : 0);
     numberOfBets += 1;
+  });
+
+  cashierJackpotWinners.forEach((jackpot) => {
+    if (jackpot.jackpotType === 'Bronze') {
+      jackpot1Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
+      jackpot1Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
+    } else if (jackpot.jackpotType === 'Silver') {
+      jackpot2Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
+      jackpot2Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
+    } else if (jackpot.jackpotType === 'Gold') {
+      jackpot3Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
+      jackpot3Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
+    }
   });
 
   const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
@@ -65,6 +89,12 @@ const getAndUpdateStake = async (cashierId) => {
       totalStake,
       totalPlayerWallets,
       totalPlayerBonus,
+      jackpot1Payout,
+      jackpot2Payout,
+      jackpot3Payout,
+      jackpot1Contributions,
+      jackpot2Contributions,
+      jackpot3Contributions,
     });
   }
   return FinancialReport.findByIdAndUpdate(
@@ -75,6 +105,12 @@ const getAndUpdateStake = async (cashierId) => {
       totalStake,
       totalPlayerWallets,
       totalPlayerBonus,
+      jackpot1Payout,
+      jackpot2Payout,
+      jackpot3Payout,
+      jackpot1Contributions,
+      jackpot2Contributions,
+      jackpot3Contributions,
     },
     { new: true }
   );

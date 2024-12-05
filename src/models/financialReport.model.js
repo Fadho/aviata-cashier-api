@@ -40,6 +40,36 @@ const financialReportSchema = mongoose.Schema(
       default: 0,
       // required: true,
     },
+    jackpot1Payout: {
+      type: mongoose.SchemaTypes.Number,
+      default: 0,
+      // required: true,
+    },
+    jackpot2Payout: {
+      type: mongoose.SchemaTypes.Number,
+      default: 0,
+      // required: true,
+    },
+    jackpot3Payout: {
+      type: mongoose.SchemaTypes.Number,
+      default: 0,
+      // required: true,
+    },
+    jackpot1Contributions: {
+      type: mongoose.SchemaTypes.Number,
+      default: 0,
+      // required: true,
+    },
+    jackpot2Contributions: {
+      type: mongoose.SchemaTypes.Number,
+      default: 0,
+      // required: true,
+    },
+    jackpot3Contributions: {
+      type: mongoose.SchemaTypes.Number,
+      default: 0,
+      // required: true,
+    },
     currency: {
       type: mongoose.SchemaTypes.String,
       // required: true,

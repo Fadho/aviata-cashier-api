@@ -575,7 +575,6 @@ const getFinancialReports = catchAsync(async (req, res) => {
         ]);
 
         for (const wallet of userWallets) {
-          // eslint-disable-next-line no-continue
           if (!wallet.currencyId) continue;
           const { currencyCode } = wallet.currencyId.country[0];
           if (!cashierReports[cashier.name]) cashierReports[cashier.name] = {};
@@ -616,8 +615,8 @@ const getFinancialReports = catchAsync(async (req, res) => {
           const conversionRate = exchangeRates[primaryCurrency] / rate;
 
           players.forEach((player) => {
-            currencyReport.totalPlayerWallets += player.wallet;
-            currencyReport.totalPlayerBonus += player.bonus;
+            currencyReport.totalPlayerWallets = player.wallet;
+            currencyReport.totalPlayerBonus = player.bonus;
           });
 
           transactions.results.forEach((transaction) => {
