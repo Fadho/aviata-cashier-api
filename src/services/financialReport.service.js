@@ -26,7 +26,7 @@ const getAndUpdateStake = async (id, cashierId) => {
     totalPlayerWallets += Number(player.wallet);
     totalPlayerBonus += Number(player.bonus);
   });
-  tickets.results.forEach((ticket) => {
+  tickets.forEach((ticket) => {
     totalStake += Number(ticket.stake ? ticket.stake : 0);
     totalWinnings += Number(ticket.winnings ? ticket.winnings : 0);
     numberOfBets += 1;
