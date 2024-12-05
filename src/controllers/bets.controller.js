@@ -138,17 +138,19 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     );
 
     // record financial activity
-    if (useBonus) {
-      let setStake = stake;
-      setStake -= Number(player.wallet);
-      bonus -= setStake;
-      if (Number(player.wallet) > 0) {
-        await financialReportService.getAndUpdatePlayerWallets(cashierId, -Number(player.wallet));
-        await financialReportService.getAndUpdateBonus(cashierId, -Number(setStake));
-      }
-    } else {
-      await financialReportService.getAndUpdatePlayerWallets(cashierId, -stake);
-    }
+    // if (useBonus) {
+    //   let setStake = stake;
+    //   setStake -= Number(player.wallet);
+    //   bonus -= setStake;
+    //   if (Number(player.wallet) > 0) {
+    //     await financialReportService.getAndUpdatePlayerWallets(cashierId);
+    //     await financialReportService.getAndUpdateBonus(cashierId, -Number(setStake));
+    //   }
+    // } else {
+    //   await financialReportService.getAndUpdatePlayerWallets(cashierId, -stake);
+    // }
+
+    financialReportService.getAndUpdatePlayerWallets(cashierId);
 
     // Commit the transaction
     await session.commitTransaction();
@@ -572,6 +574,7 @@ const getFinancialReports = catchAsync(async (req, res) => {
         ]);
 
         for (const wallet of userWallets) {
+          // eslint-disable-next-line no-continue
           if (!wallet.currencyId) continue;
           const { currencyCode } = wallet.currencyId.country[0];
           if (!cashierReports[cashier.name]) cashierReports[cashier.name] = {};
@@ -612,8 +615,8 @@ const getFinancialReports = catchAsync(async (req, res) => {
           const conversionRate = exchangeRates[primaryCurrency] / rate;
 
           players.forEach((player) => {
-            currencyReport.totalPlayerWallets = player.wallet;
-            currencyReport.totalPlayerBonus = player.bonus;
+            currencyReport.totalPlayerWallets += player.wallet;
+            currencyReport.totalPlayerBonus += player.bonus;
           });
 
           transactions.forEach((transaction) => {

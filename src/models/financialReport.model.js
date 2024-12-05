@@ -70,8 +70,8 @@ financialReportSchema.plugin(toJSON);
 financialReportSchema.plugin(paginate);
 
 /**
- * @typedef financialReport
+ * @typedef FinancialReport
  */
-const financialReport = mongoose.model('financialReport', financialReportSchema);
+const FinancialReport = mongoose.model('FinancialReport', financialReportSchema);
 
-module.exports = financialReport;
+module.exports = FinancialReport;

@@ -1,28 +1,50 @@
 const httpStatus = require('http-status');
-const { FinancialReport } = require('../models');
+const { FinancialReport, Player } = require('../models');
 const ApiError = require('../utils/ApiError');
+const transferHistoryService = require('./transferHistory.service');
+const { betsService } = require('.');
 
 /**
  * Get and update financial report - stake
  * @param {Object} financialReportBody
  * @returns {Promise<FinancialReport>}
  */
-const getAndUpdateStake = async (id, cashierId, stake) => {
+const getAndUpdateStake = async (id, cashierId) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
+  let numberOfBets = 0;
+  let totalWinnings = 0;
+  let totalStake = 0;
 
-  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { gte: today } });
+  const [players, tickets] = await Promise.all([
+    Player.find({ cashierId }),
+    betsService.getBetHistory1({ cashierId }, today, today),
+  ]);
+  players.forEach((player) => {
+    totalPlayerWallets += Number(player.wallet);
+    totalPlayerBonus += Number(player.bonus);
+  });
+  tickets.results.forEach((ticket) => {
+    totalStake += Number(ticket.stake ? ticket.stake : 0);
+    totalWinnings += Number(ticket.winnings ? ticket.winnings : 0);
+    numberOfBets += 1;
+  });
+
+  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
   if (!financialReport) {
     return FinancialReport.create({
       cashierId,
-      totalStake: stake,
+      numberOfBets,
+      totalWinnings,
+      totalStake,
     });
   }
   return FinancialReport.findByIdAndUpdate(
     financialReport._id,
     {
-      totalStake: financialReport.totalStake + stake,
-      numberOfBets: financialReport.numberOfBets + 1,
+      numberOfBets,
+      totalWinnings,
+      totalStake,
     },
     { new: true }
   );
@@ -37,7 +59,7 @@ const getAndUpdateBonusAwarded = async (cashierId, bonus) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
 
-  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { gte: today } });
+  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
 
   if (!financialReport) {
     return FinancialReport.create({
@@ -63,7 +85,7 @@ const getAndUpdateBonus = async (cashierId, bonus) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
 
-  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { gte: today } });
+  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
 
   if (!financialReport) {
     return FinancialReport.create({
@@ -89,7 +111,7 @@ const getAndUpdateWinnings = async (cashierId, winnings) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
 
-  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { gte: today } });
+  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
   if (!financialReport) {
     return FinancialReport.create({
       cashierId,
@@ -110,21 +132,40 @@ const getAndUpdateWinnings = async (cashierId, winnings) => {
  * @param {Object} financialReportBody
  * @returns {Promise<FinancialReport>}
  */
-const getAndUpdatePlayerWallets = async (cashierId, balance) => {
+const getAndUpdatePlayerWallets = async (cashierId) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
+  let totalPlayerWallets = 0;
+  let totalPlayerBonus = 0;
+  let totalBonusAwarded = 0;
 
-  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { gte: today } });
+  const [players, transactions] = await Promise.all([
+    Player.find({ cashierId }),
+    transferHistoryService.queryTransferHistorys({ agent: cashierId }, { limit: 1000000 }, today, today),
+  ]);
+  players.forEach((player) => {
+    totalPlayerWallets += Number(player.wallet);
+    totalPlayerBonus += Number(player.bonus);
+  });
+  transactions.results.forEach((transaction) => {
+    totalBonusAwarded += Number(transaction.bonus ? transaction.bonus : 0);
+  });
+
+  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
   if (!financialReport) {
     return FinancialReport.create({
       cashierId,
-      totalPlayerWallets: balance,
+      totalPlayerWallets,
+      totalPlayerBonus,
+      totalBonusAwarded,
     });
   }
   return FinancialReport.findByIdAndUpdate(
     financialReport._id,
     {
-      totalPlayerWallets: financialReport.totalPlayerWallets + balance,
+      totalPlayerWallets,
+      totalPlayerBonus,
+      totalBonusAwarded,
     },
     { new: true }
   );

@@ -6,7 +6,8 @@ const { differenceInHours } = require('date-fns');
 const { Tickets, GameConfig, Rounds, Player, TicketsArchive } = require('../models');
 const walletService = require('./wallet.service');
 const logger = require('../config/logger');
-const { userService, financialReportService } = require('.');
+const { userService } = require('.');
+const financialReportService = require('./financialReport.service');
 
 /**
  * create a new ticket

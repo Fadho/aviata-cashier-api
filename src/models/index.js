@@ -12,4 +12,4 @@ module.exports.Player = require('./player.model');
 module.exports.JackpotWinners = require('./jackpotWinners.model');
 module.exports.Jackpot = require('./jackpot.model');
 module.exports.GameDevice = require('./gameDevice.model');
-module.exports.financialReport = require('./financialReport.model');
+module.exports.FinancialReport = require('./financialReport.model');
