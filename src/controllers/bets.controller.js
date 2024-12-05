@@ -150,7 +150,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     //   await financialReportService.getAndUpdatePlayerWallets(cashierId, -stake);
     // }
 
-    financialReportService.getAndUpdatePlayerWallets(cashierId);
+    financialReportService.getAndUpdateStake(cashierId);
 
     // Commit the transaction
     await session.commitTransaction();
