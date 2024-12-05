@@ -22,6 +22,7 @@ const getAndUpdateStake = async (id, cashierId) => {
     Player.find({ cashierId }),
     betsService.getBetHistory1({ cashierId }, today, today),
   ]);
+  console.log(tickets)
   players.forEach((player) => {
     totalPlayerWallets += Number(player.wallet);
     totalPlayerBonus += Number(player.bonus);
