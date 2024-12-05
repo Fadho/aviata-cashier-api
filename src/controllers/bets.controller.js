@@ -602,12 +602,12 @@ const getFinancialReports = catchAsync(async (req, res) => {
           const conversionRate = exchangeRates[primaryCurrency] / rate;
 
           players.forEach((player) => {
-            currencyReport.totalPlayerWallets = player.wallet;
-            currencyReport.totalPlayerBonus = player.bonus;
+            currencyReport.totalPlayerWallets += player.wallet;
+            currencyReport.totalPlayerBonus += player.bonus;
           });
 
           transactions.results.forEach((transaction) => {
-            currencyReport.totalBonusAwarded += transaction.bonus;
+            currencyReport.totalBonusAwarded += Number(transaction.bonus ? transaction.bonus : 0);
           });
 
           cashierBets.forEach((bet) => {
