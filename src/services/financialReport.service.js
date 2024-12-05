@@ -1,8 +1,35 @@
 const httpStatus = require('http-status');
-const { FinancialReport, Player } = require('../models');
+const { FinancialReport, Player, Tickets, TicketsArchive } = require('../models');
 const ApiError = require('../utils/ApiError');
 const transferHistoryService = require('./transferHistory.service');
-const betsService = require('./bets.service');
+// const { getBetHistory1 } = require('./bets.service');
+
+const getBetHistory1 = async (filter, startDate, endDate) => {
+  const startDateWithoutTime = new Date(startDate);
+  startDateWithoutTime.setHours(0, 0, 0, 0);
+  const endDateWithoutTime = new Date(endDate);
+  endDateWithoutTime.setHours(0, 0, 0, 0);
+  endDateWithoutTime.setDate(endDateWithoutTime.getDate() + 1);
+
+  let dateFilter = {};
+  if (startDate && endDate) {
+    dateFilter = {
+      ...(startDate &&
+        endDate && {
+          createdAt: {
+            $gte: startDateWithoutTime,
+            $lte: endDateWithoutTime,
+          },
+        }),
+      ...filter,
+    };
+    // eslint-disable-next-line no-param-reassign
+    filter = dateFilter;
+  }
+  const tickets = await Tickets.find(filter);
+  const ticketsArchive = await TicketsArchive.find(filter);
+  return [...tickets, ...ticketsArchive];
+};
 
 /**
  * Get and update financial report - stake
@@ -18,11 +45,8 @@ const getAndUpdateStake = async (id, cashierId) => {
   let totalPlayerBonus = 0;
   let totalPlayerWallets = 0;
 
-  const [players, tickets] = await Promise.all([
-    Player.find({ cashierId }),
-    betsService.getBetHistory1({ cashierId }, today, today),
-  ]);
-  console.log('tickets: ', tickets)
+  const [players, tickets] = await Promise.all([Player.find({ cashierId }), getBetHistory1({ cashierId }, today, today)]);
+  console.log('tickets: ', tickets);
   players.forEach((player) => {
     totalPlayerWallets += Number(player.wallet);
     totalPlayerBonus += Number(player.bonus);
@@ -32,9 +56,7 @@ const getAndUpdateStake = async (id, cashierId) => {
     totalWinnings += Number(ticket.winnings ? ticket.winnings : 0);
     numberOfBets += 1;
   });
-
-    totalWinnings += Number(ticket.winnings ? ticket.winnings : 0);
-    console.log('tickets: ', totalStake, )
+  console.log('tickets: ', totalStake);
 
   const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
   if (!financialReport) {
