@@ -2,7 +2,7 @@ const httpStatus = require('http-status');
 const { FinancialReport, Player } = require('../models');
 const ApiError = require('../utils/ApiError');
 const transferHistoryService = require('./transferHistory.service');
-const { betsService } = require('.');
+const betsService = require('./bets.service');
 
 /**
  * Get and update financial report - stake
@@ -15,6 +15,8 @@ const getAndUpdateStake = async (id, cashierId) => {
   let numberOfBets = 0;
   let totalWinnings = 0;
   let totalStake = 0;
+  let totalPlayerBonus = 0;
+  let totalPlayerWallets = 0;
 
   const [players, tickets] = await Promise.all([
     Player.find({ cashierId }),
@@ -37,6 +39,8 @@ const getAndUpdateStake = async (id, cashierId) => {
       numberOfBets,
       totalWinnings,
       totalStake,
+      totalPlayerWallets,
+      totalPlayerBonus,
     });
   }
   return FinancialReport.findByIdAndUpdate(
@@ -45,6 +49,8 @@ const getAndUpdateStake = async (id, cashierId) => {
       numberOfBets,
       totalWinnings,
       totalStake,
+      totalPlayerWallets,
+      totalPlayerBonus,
     },
     { new: true }
   );
