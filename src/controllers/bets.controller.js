@@ -617,8 +617,7 @@ const getFinancialReports = catchAsync(async (req, res) => {
             currencyReport.profit =
               currencyReport.totalStake -
               currencyReport.totalWinnings -
-              currencyReport.totalPlayerWallets -
-              (currencyReport.totalBonusAwarded - currencyReport.totalPlayerBonus) -
+              (currencyReport.totalPlayerWallets + (currencyReport.totalBonusAwarded - currencyReport.totalPlayerBonus)) -
               currencyReport.jackpot1Payout -
               currencyReport.jackpot2Payout -
               currencyReport.jackpot3Payout;
@@ -626,7 +625,7 @@ const getFinancialReports = catchAsync(async (req, res) => {
               (currencyReport.totalStake -
                 currencyReport.totalWinnings -
                 currencyReport.totalPlayerWallets -
-                (currencyReport.totalBonusAwarded - currencyReport.totalPlayerBonus) -
+                (currencyReport.totalPlayerWallets + (currencyReport.totalBonusAwarded - currencyReport.totalPlayerBonus)) -
                 currencyReport.jackpot1Payout -
                 currencyReport.jackpot2Payout -
                 currencyReport.jackpot3Payout) *
@@ -702,7 +701,7 @@ const getFinancialReports = catchAsync(async (req, res) => {
 
     res.json({ hierarchy: hierarchyReports, pagination });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(500).send({ error: 'Error generating financial report' });
   }
 });
