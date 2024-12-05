@@ -36,7 +36,7 @@ const getBetHistory1 = async (filter, startDate, endDate) => {
  * @param {Object} financialReportBody
  * @returns {Promise<FinancialReport>}
  */
-const getAndUpdateStake = async (id, cashierId) => {
+const getAndUpdateStake = async (cashierId) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
   let numberOfBets = 0;
@@ -46,7 +46,6 @@ const getAndUpdateStake = async (id, cashierId) => {
   let totalPlayerWallets = 0;
 
   const [players, tickets] = await Promise.all([Player.find({ cashierId }), getBetHistory1({ cashierId }, today, today)]);
-  console.log('tickets: ', tickets);
   players.forEach((player) => {
     totalPlayerWallets += Number(player.wallet);
     totalPlayerBonus += Number(player.bonus);
@@ -56,7 +55,6 @@ const getAndUpdateStake = async (id, cashierId) => {
     totalWinnings += Number(ticket.winnings ? ticket.winnings : 0);
     numberOfBets += 1;
   });
-  console.log('tickets: ', totalStake);
 
   const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
   if (!financialReport) {
