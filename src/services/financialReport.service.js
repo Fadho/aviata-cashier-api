@@ -39,7 +39,7 @@ const getBetHistory1 = async (filter, startDate, endDate) => {
  */
 const getAndUpdateStake = async (cashierId) => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0); // Set the time to midnight
+  //   today.setHours(0, 0, 0, 0); // Set the time to midnight
   let numberOfBets = 0;
   let totalWinnings = 0;
   let totalStake = 0;

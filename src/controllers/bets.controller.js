@@ -138,19 +138,6 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       session
     );
 
-    // record financial activity
-    // if (useBonus) {
-    //   let setStake = stake;
-    //   setStake -= Number(player.wallet);
-    //   bonus -= setStake;
-    //   if (Number(player.wallet) > 0) {
-    //     await financialReportService.getAndUpdatePlayerWallets(cashierId);
-    //     await financialReportService.getAndUpdateBonus(cashierId, -Number(setStake));
-    //   }
-    // } else {
-    //   await financialReportService.getAndUpdatePlayerWallets(cashierId, -stake);
-    // }
-
     financialReportService.getAndUpdateStake(cashierId);
 
     // Commit the transaction
