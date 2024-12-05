@@ -620,7 +620,7 @@ const getFinancialReports = catchAsync(async (req, res) => {
             currencyReport.totalPlayerBonus += player.bonus;
           });
 
-          transactions.forEach((transaction) => {
+          transactions.results.forEach((transaction) => {
             currencyReport.totalBonusAwarded += transaction.bonus;
           });
 
