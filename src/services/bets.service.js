@@ -372,7 +372,7 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
       { new: true, session } // Include session in the update
     );
 
-    await financialReportService.getAndUpdatePlayerWallets(player.cashierId, winnings);
+    financialReportService.getAndUpdatePlayerWallets(player.cashierId);
 
     // Commit the transaction
     await session.commitTransaction();
