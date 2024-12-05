@@ -17,8 +17,9 @@ const {
   currencyService,
   jackpotService,
   transferHistoryService,
-  financialReportService,
+  // financialReportService,
 } = require('../services');
+const financialReportService = require('../services/financialReport.service');
 const { Wallets, Player, User } = require('../models');
 const GameConfig = require('../models/gameConfig.model');
 

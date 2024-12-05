@@ -22,7 +22,7 @@ const getAndUpdateStake = async (id, cashierId) => {
     Player.find({ cashierId }),
     betsService.getBetHistory1({ cashierId }, today, today),
   ]);
-  console.log(tickets)
+  console.log('tickets: ', tickets)
   players.forEach((player) => {
     totalPlayerWallets += Number(player.wallet);
     totalPlayerBonus += Number(player.bonus);
@@ -32,6 +32,9 @@ const getAndUpdateStake = async (id, cashierId) => {
     totalWinnings += Number(ticket.winnings ? ticket.winnings : 0);
     numberOfBets += 1;
   });
+
+    totalWinnings += Number(ticket.winnings ? ticket.winnings : 0);
+    console.log('tickets: ', totalStake, )
 
   const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
   if (!financialReport) {
