@@ -1,6 +1,4 @@
-const httpStatus = require('http-status');
 const { FinancialReport, Player, Tickets, TicketsArchive } = require('../models');
-const ApiError = require('../utils/ApiError');
 const transferHistoryService = require('./transferHistory.service');
 const jackpotService = require('./jackpot.service');
 // const { getBetHistory1 } = require('./bets.service');
@@ -117,83 +115,6 @@ const getAndUpdateStake = async (cashierId) => {
 };
 
 /**
- * Get and update financial report - bonus
- * @param {Object} financialReportBody
- * @returns {Promise<FinancialReport>}
- */
-const getAndUpdateBonusAwarded = async (cashierId, bonus) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Set the time to midnight
-
-  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
-
-  if (!financialReport) {
-    return FinancialReport.create({
-      cashierId,
-      totalBonusAwarded: bonus,
-    });
-  }
-  return FinancialReport.findByIdAndUpdate(
-    financialReport._id,
-    {
-      totalBonusAwarded: financialReport.totalBonusAwarded + bonus,
-    },
-    { new: true }
-  );
-};
-
-/**
- * Get and update financial report - bonus
- * @param {Object} financialReportBody
- * @returns {Promise<FinancialReport>}
- */
-const getAndUpdateBonus = async (cashierId, bonus) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Set the time to midnight
-
-  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
-
-  if (!financialReport) {
-    return FinancialReport.create({
-      cashierId,
-      totalPlayerBonus: bonus,
-    });
-  }
-  return FinancialReport.findByIdAndUpdate(
-    financialReport._id,
-    {
-      totalPlayerBonus: financialReport.totalPlayerBonus + bonus,
-    },
-    { new: true }
-  );
-};
-
-/**
- * Get and update financial report - stake
- * @param {Object} financialReportBody
- * @returns {Promise<FinancialReport>}
- */
-const getAndUpdateWinnings = async (cashierId, winnings) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Set the time to midnight
-
-  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
-  if (!financialReport) {
-    return FinancialReport.create({
-      cashierId,
-      totalWinnings: winnings,
-    });
-  }
-  return FinancialReport.findByIdAndUpdate(
-    financialReport._id,
-    {
-      totalWinnings: financialReport.totalWinnings + winnings,
-    },
-    { new: true }
-  );
-};
-
-/**
  * Get and update financial report - player wallets
  * @param {Object} financialReportBody
  * @returns {Promise<FinancialReport>}
@@ -238,15 +159,48 @@ const getAndUpdatePlayerWallets = async (cashierId) => {
 };
 
 /**
- * Create a financialReport
+ * Get and update transactions report - totalDeposits, totalWithdrawals, totalBonusAwarded
  * @param {Object} financialReportBody
  * @returns {Promise<FinancialReport>}
  */
-const createFinancialReport = async (financialReportBody) => {
-  if (await FinancialReport.isEmailTaken(financialReportBody.email)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
+const getAndUpdateTotalTransactions = async (cashierId) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Set the time to midnight
+  let totalDeposits = 0;
+  let totalWithdrawals = 0;
+  let totalBonusAwarded = 0;
+
+  const transactions = await transferHistoryService.queryTransferHistorys(
+    { agent: cashierId },
+    { limit: 1000000 },
+    today,
+    today
+  );
+
+  transactions.results.forEach((transaction) => {
+    totalDeposits += Number(transaction.deposit ? transaction.deposit : 0);
+    totalWithdrawals += Number(transaction.withdrawal ? transaction.withdrawal : 0);
+    totalBonusAwarded += Number(transaction.bonus ? transaction.bonus : 0);
+  });
+
+  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
+  if (!financialReport) {
+    return FinancialReport.create({
+      cashierId,
+      totalDeposits,
+      totalWithdrawals,
+      totalBonusAwarded,
+    });
   }
-  return FinancialReport.create(financialReportBody);
+  return FinancialReport.findByIdAndUpdate(
+    financialReport._id,
+    {
+      totalDeposits,
+      totalWithdrawals,
+      totalBonusAwarded,
+    },
+    { new: true }
+  );
 };
 
 /**
@@ -269,12 +223,9 @@ const getFinancialReports = async (filter, options) => {
 };
 
 module.exports = {
-  createFinancialReport,
   queryFinancialReports,
-  getAndUpdateBonus,
   getAndUpdateStake,
   getFinancialReports,
-  getAndUpdateBonusAwarded,
   getAndUpdatePlayerWallets,
-  getAndUpdateWinnings,
+  getAndUpdateTotalTransactions,
 };

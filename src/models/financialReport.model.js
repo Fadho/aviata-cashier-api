@@ -15,6 +15,18 @@ const financialReportSchema = mongoose.Schema(
       // required: true,
     },
 
+    totalDeposit: {
+      type: mongoose.SchemaTypes.Number,
+      default: 0,
+      // required: true,
+    },
+
+    totalWithdrawal: {
+      type: mongoose.SchemaTypes.Number,
+      default: 0,
+      // required: true,
+    },
+
     numberOfBets: {
       type: mongoose.SchemaTypes.Number,
       default: 0,
@@ -98,10 +110,11 @@ const financialReportSchema = mongoose.Schema(
 // Pre-save middleware to calculate profit
 financialReportSchema.pre('save', function (next) {
   // Profit calculation logic
-  const totalJackpotPayout = this.jackpot1Payout + this.jackpot2Payout + this.jackpot3Payout;
+  //   const totalJackpotPayout = this.jackpot1Payout + this.jackpot2Payout + this.jackpot3Payout;
   //   const totalJackpotContributions = this.jackpot1Contributions + this.jackpot2Contributions + this.jackpot3Contributions;
 
-  this.profit = this.totalStake - this.totalWinnings - totalJackpotPayout + (this.totalBonusAwarded - this.totalPlayerBonus);
+  this.profit = this.totalDeposit - this.totalWithdrawal;
+  this.profitInUSD = this.profit / 1500;
 
   next(); // Proceed with saving the document
 });
