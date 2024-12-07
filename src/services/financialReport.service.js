@@ -217,8 +217,29 @@ const queryFinancialReports = async (filter, options) => {
   return financialReports;
 };
 
-const getFinancialReports = async (filter, options) => {
-  const financialReports = await FinancialReport.find(filter, options);
+const getFinancialReports = async (filter, startDate, endDate) => {
+    const startDateWithoutTime = new Date(startDate);
+  startDateWithoutTime.setHours(0, 0, 0, 0);
+  const endDateWithoutTime = new Date(endDate);
+  endDateWithoutTime.setHours(0, 0, 0, 0);
+  endDateWithoutTime.setDate(endDateWithoutTime.getDate() + 1);
+
+  let dateFilter = {};
+  if (startDate && endDate) {
+    dateFilter = {
+      ...(startDate &&
+        endDate && {
+          createdAt: {
+            $gte: startDateWithoutTime,
+            $lte: endDateWithoutTime,
+          },
+        }),
+      ...filter,
+    };
+    // eslint-disable-next-line no-param-reassign
+    filter = dateFilter;
+  }
+  const financialReports = await FinancialReport.find(filter);
   return financialReports;
 };
 

@@ -994,6 +994,143 @@ const getTransactionReports = catchAsync(async (req, res) => {
     const getCashiers = async (agentId) => {
       if (cache.cashiers[agentId]) return cache.cashiers[agentId];
 
+      const cashiers = await userService.queryUsersReturnIds({ agentId, role: 'cashier' });
+      const cashierReports = {};
+
+      // console.log('cashiers: ',cashiers)
+
+      await Promise.all(
+        cashiers.map(async (cashier) => {
+          const [financialReport, userWallets] = await Promise.all([
+            financialReportService.getFinancialReports(
+              { cashierId: cashier._id, ...(gameType && { gameType }) },
+              startDate,
+              endDate
+            ),
+            Wallets.find({ userId: cashier._id }).populate('currencyId'),
+          ]);
+
+          console.log('financialReport: ',financialReport)
+
+          // for (const wallet of userWallets) {
+          // cashiers can only have 1 wallet
+          const wallet = userWallets[0];
+          // eslint-disable-next-line no-continue
+          if (wallet.currencyId) {
+            const { currencyCode } = wallet.currencyId.country[0];
+            if (!cashierReports[cashier.name]) cashierReports[cashier.name] = {};
+            if (!cashierReports[cashier.name][currencyCode]) {
+              cashierReports[cashier.name][currencyCode] = {
+                totalDeposit: 0,
+                totalWithdrawal: 0,
+                totalStake: 0,
+                totalBonus: 0,
+                numberOfBets: 0,
+                profit: 0,
+                jackpot1Payout: 0,
+                jackpot2Payout: 0,
+                jackpot3Payout: 0,
+                profitPrimary: 0,
+                playersWallet: 0,
+              };
+            }
+
+            const currencyReport = cashierReports[cashier.name][currencyCode];
+            const rate = exchangeRates[currencyCode] || 1;
+            const conversionRate = exchangeRates[primaryCurrency] / rate;
+            financialReport.forEach((report) => {
+              currencyReport.totalDeposit += report.totalDeposit;
+              currencyReport.totalWithdrawal += report.totalWithdrawal;
+              currencyReport.totalStake += report.totalStake;
+              currencyReport.numberOfBets += report.numberOfBets;
+              currencyReport.totalBonus += report.totalPlayerBonus;
+              currencyReport.profit = currencyReport.totalDeposit + currencyReport.totalWithdrawal;
+              currencyReport.profitPrimary = parseFloat((currencyReport.profit * conversionRate).toFixed(3));
+              currencyReport.playersWallet += report.totalPlayerWallets;
+              currencyReport.jackpot1Payout += report.jackpot1Payout ? report.jackpot1Payout : 0;
+              currencyReport.jackpot2Payout += report.jackpot2Payout ? report.jackpot2Payout : 0;
+              currencyReport.jackpot3Payout += report.jackpot3Payout ? report.jackpot3Payout : 0;
+            });
+          }
+          // }
+        })
+      );
+      cache.cashiers[agentId] = cashierReports;
+      return cashierReports;
+    };
+
+    const hierarchyReports = {};
+    await Promise.all(
+      initialAgents.results.map(async (agent) => {
+        hierarchyReports[agent.name] = {
+          agents: await getUserHierarchy(agent._id),
+          cashiers: await getCashiers(agent._id),
+        };
+      })
+    );
+
+    res.json({ hierarchy: hierarchyReports, pagination });
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({ error: 'Error generating transaction report' });
+  }
+});
+
+const getTransactionReports1 = catchAsync(async (req, res) => {
+  try {
+    const { startDate, endDate, betType, agentId, gameType } = req.query;
+    const options = pick(req.query, ['sortBy', 'limit', 'page']);
+
+    let initialAgents;
+    const pagination = {};
+    const cache = { agents: {}, cashiers: {} };
+
+    // Fetch initial agents based on user role
+    if (req.user.role === 'super') {
+      initialAgents = await userService.queryUsers({ agentId: agentId || { $exists: false }, role: 'admin' }, options);
+      Object.assign(pagination, pick(initialAgents, ['page', 'limit', 'totalPages', 'totalResults']));
+    } else {
+      initialAgents = !agentId
+        ? { results: [req.user] }
+        : await userService.queryUsers({ _id: agentId, agentId: req.user._id, role: 'admin' }, options);
+    }
+
+    // Exchange Rates and Primary Currency Setup
+    const exchangeRates = {};
+    for (const currency of await currencyService.getCurrencies()) {
+      if (currency) exchangeRates[currency.country[0].currencyCode] = currency.exchangeRate;
+    }
+
+    const primaryCurrency = (
+      await currencyService.getCurrencyById(
+        (
+          await walletService.findWallet(null, (await userService.getUserByRole('super'))[0].id, true)
+        )[0].currencyId
+      )
+    ).country[0].currencyCode;
+
+    // Helper functions
+    const getUserHierarchy = async (parentId) => {
+      if (cache.agents[parentId]) return cache.agents[parentId];
+      const agents = await userService.queryUsers({ agentId: parentId, role: 'admin' }, options);
+      const hierarchy = {};
+
+      await Promise.all(
+        agents.results.map(async (agent) => {
+          hierarchy[agent.name] = {
+            cashiers: await getCashiers(agent._id),
+            agents: await getUserHierarchy(agent._id),
+            totals: {},
+          };
+        })
+      );
+      cache.agents[parentId] = hierarchy;
+      return hierarchy;
+    };
+
+    const getCashiers = async (agentId) => {
+      if (cache.cashiers[agentId]) return cache.cashiers[agentId];
+
       const cashiers = await userService.queryUsers({ agentId, role: 'cashier' }, options);
       const cashierReports = {};
 

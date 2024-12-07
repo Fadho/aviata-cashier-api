@@ -15,6 +15,12 @@ const financialReportSchema = mongoose.Schema(
       // required: true,
     },
 
+    numberOfTransactions: {
+      type: mongoose.SchemaTypes.Number,
+      default: 0,
+      // required: true,
+    },
+
     totalDeposit: {
       type: mongoose.SchemaTypes.Number,
       default: 0,

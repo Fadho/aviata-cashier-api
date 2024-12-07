@@ -43,6 +43,11 @@ const queryUsers = async (filter, options) => {
   return users;
 };
 
+const queryUsersReturnIds = async (filter) => {
+  const users = await User.find(filter, { _id: 1, name: 1, currencyId: 1 });
+  return users;
+};
+
 const getUsers = async (filter, options) => {
   const users = await User.find(filter, options);
   return users;
@@ -153,4 +158,5 @@ module.exports = {
   getUserByRole,
   getAndUpdateWallet,
   getUsers,
+  queryUsersReturnIds,
 };
