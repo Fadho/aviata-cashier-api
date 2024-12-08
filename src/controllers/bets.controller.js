@@ -1010,7 +1010,7 @@ const getTransactionReports = catchAsync(async (req, res) => {
             Wallets.find({ userId: cashier._id }).populate('currencyId'),
           ]);
 
-          console.log('financialReport: ',financialReport)
+          console.log('financialReport: ', financialReport);
 
           // for (const wallet of userWallets) {
           // cashiers can only have 1 wallet
@@ -1071,7 +1071,7 @@ const getTransactionReports = catchAsync(async (req, res) => {
 
     res.json({ hierarchy: hierarchyReports, pagination });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(500).send({ error: 'Error generating transaction report' });
   }
 });
@@ -1299,6 +1299,40 @@ const getCurrentGameState = catchAsync(async (req, res) => {
   return res.status(httpStatus.OK).send({ gameState: rtp });
 });
 
+const populateFinancialReports = catchAsync(async (req, res) => {
+  // record existing reports
+  async function iterateDateRange(startDate, endDate) {
+    // Ensure the dates are in Date format
+    const currentDate = new Date(startDate);
+    const stopDate = new Date(endDate);
+    const cashiers = await userService.queryUsersReturnIds({ role: 'cashier' });
+    // Loop through the range
+    while (currentDate <= stopDate) {
+      cashiers.forEach(async (cashier) => {
+        // try {
+        // console.log(currentDate, cashier, currentDate <= stopDate);
+        await financialReportService.getAndUpdateStakeByDay(cashier._id, currentDate, currentDate);
+        await financialReportService.getAndUpdateTotalTransactionsByDay(cashier._id, currentDate, currentDate);
+        // } catch (error) {
+        //   console.log(error);
+        // }
+      });
+      // Run the callback function with the current date
+      // callback(new Date(currentDate));
+
+      // Increment the day
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+  }
+
+  // Example usage
+  const startDate = '2024-10-01';
+  const endDate = '2024-12-05';
+  console.log('start iterateDateRange');
+  await iterateDateRange(startDate, endDate);
+  console.log('end iterateDateRange');
+});
+
 module.exports = {
   createBetPlaced,
   fetchBetPlaced,
@@ -1316,4 +1350,5 @@ module.exports = {
   getCurrentGameState,
   cashoutPlayerBet,
   createBetPlacedForPlayer,
+  populateFinancialReports,
 };
