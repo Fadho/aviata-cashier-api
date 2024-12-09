@@ -109,12 +109,12 @@ const financialReportSchema = mongoose.Schema(
     },
 
     createdAt: {
-        type: mongoose.SchemaTypes.Date,
+      type: mongoose.SchemaTypes.Date,
     },
   },
-  {
-    timestamps: true,
-  }
+  // {
+    // timestamps: true,
+  // }
 );
 
 // Pre-save middleware to calculate profit

@@ -1025,6 +1025,7 @@ const getTransactionReports = catchAsync(async (req, res) => {
                 totalWithdrawal: 0,
                 totalStake: 0,
                 totalBonus: 0,
+                numberOfTransactions: 0,
                 numberOfBets: 0,
                 profit: 0,
                 jackpot1Payout: 0,
@@ -1042,6 +1043,7 @@ const getTransactionReports = catchAsync(async (req, res) => {
               currencyReport.totalDeposit += report.totalDeposit;
               currencyReport.totalWithdrawal += report.totalWithdrawal;
               currencyReport.totalStake += report.totalStake;
+              currencyReport.numberOfTransactions += report.numberOfTransactions;
               currencyReport.numberOfBets += report.numberOfBets;
               currencyReport.totalBonus += report.totalPlayerBonus;
               currencyReport.profit = currencyReport.totalDeposit + currencyReport.totalWithdrawal;
@@ -1341,7 +1343,7 @@ const populateFinancialReports = catchAsync(async (req, res) => {
 
   // Example usage
   const startDate = '2024-11-01';
-  const endDate = '2024-12-05';
+  const endDate = '2024-11-30';
 
   console.log('Start iterateDateRange');
   await iterateDateRange(startDate, endDate);

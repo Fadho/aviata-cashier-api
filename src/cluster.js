@@ -23,6 +23,6 @@ if (cluster1.default.isPrimary) {
   });
 } else {
   // eslint-disable-next-line global-require
-  require('./index'); 
+  require('./index');
 }
 // # sourceMappingURL=cluster.js.map
