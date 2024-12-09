@@ -23,8 +23,6 @@ if (cluster1.default.isPrimary) {
   });
 } else {
   // eslint-disable-next-line global-require
-  // require('./index');
-  require('child_process').execSync(`node --max-old-space-size=8192 ./src/index.js`, { stdio: 'inherit' });
-
+  require('./index'); 
 }
 // # sourceMappingURL=cluster.js.map
