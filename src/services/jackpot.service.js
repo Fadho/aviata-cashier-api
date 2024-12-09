@@ -210,6 +210,7 @@ const getUpdatedJackpotHistory = async (filter, cashierId, startDate, endDate) =
       select: '_id cashierId',
     })
     .then((docs) => docs.filter((doc) => doc.deviceId !== null));
+  console.log(jackpotWinners)
   return jackpotWinners;
 };
 

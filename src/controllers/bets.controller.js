@@ -1300,37 +1300,54 @@ const getCurrentGameState = catchAsync(async (req, res) => {
 });
 
 const populateFinancialReports = catchAsync(async (req, res) => {
-  // record existing reports
   async function iterateDateRange(startDate, endDate) {
-    // Ensure the dates are in Date format
-    const currentDate = new Date(startDate);
-    const stopDate = new Date(endDate);
-    const cashiers = await userService.queryUsersReturnIds({ role: 'cashier' });
-    // Loop through the range
-    while (currentDate <= stopDate) {
-      cashiers.forEach(async (cashier) => {
-        // try {
-        // console.log(currentDate, cashier, currentDate <= stopDate);
-        await financialReportService.getAndUpdateStakeByDay(cashier._id, currentDate, currentDate);
-        await financialReportService.getAndUpdateTotalTransactionsByDay(cashier._id, currentDate, currentDate);
-        // } catch (error) {
-        //   console.log(error);
-        // }
-      });
-      // Run the callback function with the current date
-      // callback(new Date(currentDate));
+    // Convert start and end dates to Date objects
+    const start = new Date(startDate);
+    const stop = new Date(endDate);
 
-      // Increment the day
-      currentDate.setDate(currentDate.getDate() + 1);
+    // Fetch all cashiers at once
+    const cashiers = await userService.queryUsersReturnIds({ role: 'cashier' });
+
+    if (!cashiers.length) {
+      console.log('No cashiers found.');
+      return;
+    }
+
+    // Generate the date range
+    const dates = [];
+    for (let d = new Date(start); d <= stop; d.setDate(d.getDate() + 1)) {
+      dates.push(new Date(d)); // Store a copy of the date
+    }
+
+    // Process in batches to avoid overwhelming resources
+    const batchPromises = [];
+    dates.forEach((date) => {
+      cashiers.forEach((cashier) => {
+        batchPromises.push(
+          financialReportService
+            .getAndUpdateStakeByDay(cashier._id, date, date)
+            .then(() => financialReportService.getAndUpdateTotalTransactionsByDay(cashier._id, date, date))
+        );
+      });
+    });
+
+    // Run all promises in batches
+    const BATCH_SIZE = 100; // Adjust based on available resources
+    for (let i = 0; i < batchPromises.length; i += BATCH_SIZE) {
+      const batch = batchPromises.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch);
     }
   }
 
   // Example usage
-  const startDate = '2024-10-01';
+  const startDate = '2024-11-01';
   const endDate = '2024-12-05';
-  console.log('start iterateDateRange');
+
+  console.log('Start iterateDateRange');
   await iterateDateRange(startDate, endDate);
-  console.log('end iterateDateRange');
+  console.log('End iterateDateRange');
+
+  res.status(200).send({ message: 'Financial reports populated successfully.' });
 });
 
 module.exports = {

@@ -1,3 +1,4 @@
+/* eslint-disable no-param-reassign */
 const { FinancialReport, Player, Tickets, TicketsArchive } = require('../models');
 const transferHistoryService = require('./transferHistory.service');
 const jackpotService = require('./jackpot.service');
@@ -248,143 +249,98 @@ const getFinancialReports = async (filter, startDate, endDate) => {
 const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
   try {
     const startDateWithoutTime = new Date(startDate);
-    // startDateWithoutTime.setHours(0, 0, 0, 0);
     const endDateWithoutTime = new Date(endDate);
-    endDateWithoutTime.setHours(23, 59, 59, 999);
-    // endDateWithoutTime.setHours(0, 0, 0, 0);
-    // endDateWithoutTime.setDate(endDateWithoutTime.getDate() + 1);
-    let numberOfBets = 0;
-    let totalWinnings = 0;
-    let totalStake = 0;
-    //   let totalPlayerBonus = 0;
-    //   let totalPlayerWallets = 0;
-    let jackpot1Payout = 0;
-    let jackpot2Payout = 0;
-    let jackpot3Payout = 0;
-    let jackpot1Contributions = 0;
-    let jackpot2Contributions = 0;
-    let jackpot3Contributions = 0;
+    endDateWithoutTime.setHours(24, 59, 59, 999);
+    console.log(startDateWithoutTime, endDateWithoutTime)
 
-    console.log('running', cashierId, startDate, endDate, startDateWithoutTime, endDateWithoutTime);
+    const [tickets, cashierJackpotWinners] = await Promise.all([
+      getBetHistory1({ cashierId }, startDate, endDate),
+      jackpotService.getUpdatedJackpotHistory({}, cashierId, startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]),
+    ]);
 
-    const tickets = await getBetHistory1({ cashierId }, startDate, endDate);
-    const cashierJackpotWinners = await jackpotService.getUpdatedJackpotHistory({}, cashierId, startDate, endDate);
-
-    console.log('data: ', tickets.length, cashierJackpotWinners.length);
-
-    if (!tickets || !cashierJackpotWinners) {
-      console.log('no tickets');
-      return;
-    }
+    // Initialize aggregations
+    const aggregates = {
+      numberOfBets: 0,
+      totalWinnings: 0,
+      totalStake: 0,
+      jackpot1Payout: 0,
+      jackpot2Payout: 0,
+      jackpot3Payout: 0,
+      jackpot1Contributions: 0,
+      jackpot2Contributions: 0,
+      jackpot3Contributions: 0,
+    };
 
     tickets.forEach((ticket) => {
-      totalStake += Number(ticket.stake ? ticket.stake : 0);
-      totalWinnings += Number(ticket.winnings ? ticket.winnings : 0);
-      numberOfBets += 1;
+      aggregates.totalStake += Number(ticket.stake || 0);
+      aggregates.totalWinnings += Number(ticket.winnings || 0);
+      aggregates.numberOfBets += 1;
     });
 
+    console.log(aggregates)
+
     cashierJackpotWinners.forEach((jackpot) => {
-      if (jackpot.jackpotType === 'Bronze') {
-        jackpot1Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
-        jackpot1Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
-      } else if (jackpot.jackpotType === 'Silver') {
-        jackpot2Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
-        jackpot2Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
-      } else if (jackpot.jackpotType === 'Gold') {
-        jackpot3Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
-        jackpot3Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
+      const jackpotMapping = {
+        Bronze: { payout: 'jackpot1Payout', contributions: 'jackpot1Contributions' },
+        Silver: { payout: 'jackpot2Payout', contributions: 'jackpot2Contributions' },
+        Gold: { payout: 'jackpot3Payout', contributions: 'jackpot3Contributions' },
+      };
+
+      const type = jackpotMapping[jackpot.jackpotType];
+      if (type) {
+        aggregates[type.payout] += jackpot.jackpotAmount || 0;
+        aggregates[type.contributions] += jackpot.active ? jackpot.jackpotContributions || 0 : 0;
       }
     });
 
-    const financialReport = await FinancialReport.findOne({
-      cashierId,
-      createdAt: { $gte: startDateWithoutTime, $lt: endDateWithoutTime },
-    });
-    console.log('financialReport: ', financialReport);
-    if (!financialReport) {
-      return FinancialReport.create({
-        cashierId,
-        numberOfBets,
-        totalWinnings,
-        totalStake,
-        //   totalPlayerWallets,
-        //   totalPlayerBonus,
-        jackpot1Payout,
-        jackpot2Payout,
-        jackpot3Payout,
-        jackpot1Contributions,
-        jackpot2Contributions,
-        jackpot3Contributions,
-        createdAt: startDateWithoutTime,
-      });
-    }
-    return FinancialReport.findByIdAndUpdate(
-      financialReport._id,
-      {
-        numberOfBets,
-        totalWinnings,
-        totalStake,
-        //   totalPlayerBonus,
-        jackpot1Payout,
-        jackpot2Payout,
-        jackpot3Payout,
-        jackpot1Contributions,
-        jackpot2Contributions,
-        jackpot3Contributions,
-      },
-      { new: true }
+    const financialReport = await FinancialReport.findOneAndUpdate(
+      { cashierId, createdAt: { $gte: startDateWithoutTime, $lt: endDateWithoutTime } },
+      { ...aggregates, createdAt: startDateWithoutTime }, // Include createdAt for backdated reports
+      { upsert: true, new: true }
     );
+
+    return financialReport;
   } catch (error) {
-    console.log(error);
+    console.error('Error in getAndUpdateStakeByDay:', error);
   }
 };
 
 const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate) => {
-  console.log('trransactions');
-  const startDateWithoutTime = new Date(startDate);
-  startDateWithoutTime.setHours(0, 0, 0, 0);
-  const endDateWithoutTime = new Date(endDate);
-  endDateWithoutTime.setHours(0, 0, 0, 0);
-  endDateWithoutTime.setDate(endDateWithoutTime.getDate() + 1);
-  let totalDeposits = 0;
-  let totalWithdrawals = 0;
-  let totalBonusAwarded = 0;
+  try {
+    const startDateWithoutTime = new Date(startDate);
+    startDateWithoutTime.setHours(0, 0, 0, 0);
+    const endDateWithoutTime = new Date(endDate);
+    endDateWithoutTime.setHours(23, 59, 59, 999);
 
-  const transactions = await transferHistoryService.queryTransferHistorys(
-    { agent: cashierId },
-    { limit: 1000000 },
-    startDate,
-    endDateWithoutTime
-  );
+    const transactions = await transferHistoryService.queryTransferHistorys(
+      { agent: cashierId },
+      { limit: 1000000 },
+      startDate,
+      endDateWithoutTime
+    );
 
-  transactions.results.forEach((transaction) => {
-    totalDeposits += Number(transaction.deposit ? transaction.deposit : 0);
-    totalWithdrawals += Number(transaction.withdrawal ? transaction.withdrawal : 0);
-    totalBonusAwarded += Number(transaction.bonus ? transaction.bonus : 0);
-  });
+    // Aggregate totals
+    const aggregates = transactions.results.reduce(
+      (totals, transaction) => {
+        totals.totalDeposits += Number(transaction.deposit || 0);
+        totals.totalWithdrawals += Number(transaction.withdrawal || 0);
+        totals.totalBonusAwarded += Number(transaction.bonus || 0);
+        return totals;
+      },
+      { totalDeposits: 0, totalWithdrawals: 0, totalBonusAwarded: 0 }
+    );
+    console.log(aggregates)
 
-  const financialReport = await FinancialReport.findOne({
-    cashierId,
-    createdAt: { $gte: startDateWithoutTime, $lt: endDateWithoutTime },
-  });
-  if (!financialReport) {
-    return FinancialReport.create({
-      cashierId,
-      totalDeposits,
-      totalWithdrawals,
-      totalBonusAwarded,
-      createdAt: startDateWithoutTime,
-    });
+    const financialReport = await FinancialReport.findOneAndUpdate(
+      { cashierId, createdAt: { $gte: startDateWithoutTime, $lt: endDateWithoutTime } },
+      { ...aggregates, createdAt: startDateWithoutTime }, // Include createdAt for backdated reports
+      { upsert: true, new: true }
+    );
+
+    return financialReport;
+  } catch (error) {
+    console.error('Error in getAndUpdateTotalTransactionsByDay:', error);
   }
-  return FinancialReport.findByIdAndUpdate(
-    financialReport._id,
-    {
-      totalDeposits,
-      totalWithdrawals,
-      totalBonusAwarded,
-    },
-    { new: true }
-  );
 };
 
 module.exports = {
