@@ -1342,7 +1342,7 @@ const populateFinancialReports = catchAsync(async (req, res) => {
 
   // Example usage
   const startDate = '2024-12-01';
-  const endDate = '2024-12-07';
+  const endDate = '2024-12-09';
 
   console.log('Start iterateDateRange');
   await iterateDateRange(startDate, endDate);
