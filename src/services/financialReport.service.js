@@ -250,13 +250,19 @@ const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
   try {
     const startDateWithoutTime = new Date(startDate);
     const endDateWithoutTime = new Date(endDate);
-    endDateWithoutTime.setHours(24, 59, 59, 999);
-    console.log(startDateWithoutTime, endDateWithoutTime)
+    endDateWithoutTime.setHours(23, 59, 59, 999);
 
     const [tickets, cashierJackpotWinners] = await Promise.all([
       getBetHistory1({ cashierId }, startDate, endDate),
-      jackpotService.getUpdatedJackpotHistory({}, cashierId, startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]),
+      jackpotService.getUpdatedJackpotHistory(
+        {},
+        cashierId,
+        startDate.toISOString().split('T')[0],
+        endDate.toISOString().split('T')[0]
+      ),
     ]);
+
+    if (!tickets.length && !cashierJackpotWinners.length) return;
 
     // Initialize aggregations
     const aggregates = {
@@ -277,7 +283,7 @@ const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
       aggregates.numberOfBets += 1;
     });
 
-    console.log(aggregates)
+    // console.log(aggregates);
 
     cashierJackpotWinners.forEach((jackpot) => {
       const jackpotMapping = {
@@ -293,10 +299,18 @@ const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
       }
     });
 
-    const financialReport = await FinancialReport.findOneAndUpdate(
-      { cashierId, createdAt: { $gte: startDateWithoutTime, $lt: endDateWithoutTime } },
-      { ...aggregates, createdAt: startDateWithoutTime }, // Include createdAt for backdated reports
-      { upsert: true, new: true }
+    const financialReport = await FinancialReport.findOne({
+      cashierId,
+      createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime },
+    });
+    if (!financialReport)
+      return FinancialReport.create(
+        { cashierId, ...aggregates, createdAt: startDateWithoutTime } // Include createdAt for backdated reports
+      );
+
+    await FinancialReport.updateOne(
+      { cashierId, createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime } },
+      { ...aggregates }
     );
 
     return financialReport;
@@ -308,7 +322,7 @@ const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
 const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate) => {
   try {
     const startDateWithoutTime = new Date(startDate);
-    startDateWithoutTime.setHours(0, 0, 0, 0);
+    // startDateWithoutTime.setHours(0, 0, 0, 0);
     const endDateWithoutTime = new Date(endDate);
     endDateWithoutTime.setHours(23, 59, 59, 999);
 
@@ -318,23 +332,35 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
       startDate,
       endDateWithoutTime
     );
+    if (!transactions.length) return;
 
     // Aggregate totals
     const aggregates = transactions.results.reduce(
       (totals, transaction) => {
-        totals.totalDeposits += Number(transaction.deposit || 0);
-        totals.totalWithdrawals += Number(transaction.withdrawal || 0);
+        totals.totalDeposit += Number(transaction.deposit || 0);
+        totals.totalWithdrawal += Number(transaction.withdrawal || 0);
         totals.totalBonusAwarded += Number(transaction.bonus || 0);
         return totals;
       },
-      { totalDeposits: 0, totalWithdrawals: 0, totalBonusAwarded: 0 }
+      { totalDeposit: 0, totalWithdrawal: 0, totalBonusAwarded: 0 }
     );
-    console.log(aggregates)
+    // console.log(aggregates, cashierId, startDateWithoutTime);
 
-    const financialReport = await FinancialReport.findOneAndUpdate(
-      { cashierId, createdAt: { $gte: startDateWithoutTime, $lt: endDateWithoutTime } },
-      { ...aggregates, createdAt: startDateWithoutTime }, // Include createdAt for backdated reports
-      { upsert: true, new: true }
+    const financialReport = await FinancialReport.findOne({
+      cashierId,
+      createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime },
+    });
+
+    console.log('financialReport: ', financialReport);
+    // if (!(aggregates.totalDeposit + aggregates.totalWithdrawal + aggregates.totalBonusAwarded)) return;
+    if (!financialReport)
+      return FinancialReport.create(
+        { cashierId, ...aggregates, createdAt: startDateWithoutTime } // Include createdAt for backdated reports
+      );
+
+    await FinancialReport.findOneAndUpdate(
+      { cashierId, createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime } },
+      { ...aggregates }
     );
 
     return financialReport;

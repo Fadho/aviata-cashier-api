@@ -108,12 +108,11 @@ const financialReportSchema = mongoose.Schema(
       ref: 'User',
     },
 
-    createdAt: {
-      type: mongoose.SchemaTypes.Date,
-    },
-  },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
+  }
   // {
-    // timestamps: true,
+  //   timestamps: true,
   // }
 );
 
@@ -127,6 +126,10 @@ financialReportSchema.pre('save', function (next) {
   this.profitInUSD = this.profit / 1500;
 
   next(); // Proceed with saving the document
+});
+
+financialReportSchema.pre('update', () => {
+  this.updateOne({}, { $set: { updatedAt: new Date() } });
 });
 // add plugin that converts mongoose to json
 financialReportSchema.plugin(toJSON);
