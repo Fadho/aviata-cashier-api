@@ -1326,7 +1326,7 @@ const populateFinancialReports = catchAsync(async (req, res) => {
     dates.forEach((date) => {
       cashiers.forEach((cashier) => {
         // batchPromises.push(
-        // financialReportService.getAndUpdateStakeByDay(cashier._id, date, date);
+        financialReportService.getAndUpdateStakeByDay(cashier._id, date, date);
         financialReportService.getAndUpdateTotalTransactionsByDay(cashier._id, date, date);
         // );
       });
