@@ -1322,28 +1322,27 @@ const populateFinancialReports = catchAsync(async (req, res) => {
     }
 
     // Process in batches to avoid overwhelming resources
-    const batchPromises = [];
+    // const batchPromises = [];
     dates.forEach((date) => {
       cashiers.forEach((cashier) => {
         // batchPromises.push(
-        financialReportService
-          .getAndUpdateStakeByDay(cashier._id, date, date)
-          .then(() => financialReportService.getAndUpdateTotalTransactionsByDay(cashier._id, date, date));
+        // financialReportService.getAndUpdateStakeByDay(cashier._id, date, date);
+        financialReportService.getAndUpdateTotalTransactionsByDay(cashier._id, date, date);
         // );
       });
     });
 
     // Run all promises in batches
-    const BATCH_SIZE = 100; // Adjust based on available resources
-    for (let i = 0; i < batchPromises.length; i += BATCH_SIZE) {
-      const batch = batchPromises.slice(i, i + BATCH_SIZE);
-      await Promise.all(batch);
-    }
+    // const BATCH_SIZE = 100; // Adjust based on available resources
+    // for (let i = 0; i < batchPromises.length; i += BATCH_SIZE) {
+    //   const batch = batchPromises.slice(i, i + BATCH_SIZE);
+    //   await Promise.all(batch);
+    // }
   }
 
   // Example usage
   const startDate = '2024-12-01';
-  const endDate = '2024-12-03';
+  const endDate = '2024-12-07';
 
   console.log('Start iterateDateRange');
   await iterateDateRange(startDate, endDate);

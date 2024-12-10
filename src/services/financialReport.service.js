@@ -332,7 +332,7 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
       startDate,
       endDateWithoutTime
     );
-    if (!transactions.length) return;
+    if (!transactions.results.length) return;
 
     // Aggregate totals
     const aggregates = transactions.results.reduce(
@@ -340,9 +340,10 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
         totals.totalDeposit += Number(transaction.deposit || 0);
         totals.totalWithdrawal += Number(transaction.withdrawal || 0);
         totals.totalBonusAwarded += Number(transaction.bonus || 0);
+        totals.numberOfTransactions += 1;
         return totals;
       },
-      { totalDeposit: 0, totalWithdrawal: 0, totalBonusAwarded: 0 }
+      { totalDeposit: 0, totalWithdrawal: 0, totalBonusAwarded: 0, numberOfTransactions: 0 }
     );
     // console.log(aggregates, cashierId, startDateWithoutTime);
 
@@ -353,7 +354,7 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
 
     console.log('financialReport: ', financialReport);
     // if (!(aggregates.totalDeposit + aggregates.totalWithdrawal + aggregates.totalBonusAwarded)) return;
-    if (!financialReport)
+    if (!financialReport.length)
       return FinancialReport.create(
         { cashierId, ...aggregates, createdAt: startDateWithoutTime } // Include createdAt for backdated reports
       );
