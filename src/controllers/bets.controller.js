@@ -1308,7 +1308,7 @@ const populateFinancialReports = catchAsync(async (req, res) => {
     const stop = new Date(endDate);
 
     // Fetch all cashiers at once
-    const cashiers = await userService.queryUsersReturnIds({ role: 'cashier', createdAt: { $gte: startDate } });
+    const cashiers = await userService.queryUsersReturnIds({ role: 'cashier' });
 
     if (!cashiers.length) {
       console.log('No cashiers found.');
@@ -1321,32 +1321,21 @@ const populateFinancialReports = catchAsync(async (req, res) => {
       dates.push(new Date(d)); // Store a copy of the date
     }
 
-    // Process in batches to avoid overwhelming resources
-    // const batchPromises = [];
     dates.forEach((date) => {
       cashiers.forEach((cashier) => {
-        // batchPromises.push(
         financialReportService.getAndUpdateStakeByDay(cashier._id, date, date);
         financialReportService.getAndUpdateTotalTransactionsByDay(cashier._id, date, date);
-        // );
       });
     });
-
-    // Run all promises in batches
-    // const BATCH_SIZE = 100; // Adjust based on available resources
-    // for (let i = 0; i < batchPromises.length; i += BATCH_SIZE) {
-    //   const batch = batchPromises.slice(i, i + BATCH_SIZE);
-    //   await Promise.all(batch);
-    // }
   }
 
   // Example usage
-  const startDate = '2024-12-01';
-  const endDate = '2024-12-09';
+  const startDate = '2024-11-01';
+  const endDate = '2024-11-10';
 
-  console.log('Start iterateDateRange');
+  // console.log('Start iterateDateRange');
   await iterateDateRange(startDate, endDate);
-  console.log('End iterateDateRange');
+  // console.log('End iterateDateRange');
 
   res.status(200).send({ message: 'Financial reports populated successfully.' });
 });

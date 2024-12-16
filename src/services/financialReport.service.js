@@ -283,8 +283,6 @@ const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
       aggregates.numberOfBets += 1;
     });
 
-    // console.log(aggregates);
-
     cashierJackpotWinners.forEach((jackpot) => {
       const jackpotMapping = {
         Bronze: { payout: 'jackpot1Payout', contributions: 'jackpot1Contributions' },
@@ -308,12 +306,13 @@ const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
         { cashierId, ...aggregates, createdAt: startDateWithoutTime } // Include createdAt for backdated reports
       );
 
-    await FinancialReport.updateOne(
+    return FinancialReport.updateOne(
       { cashierId, createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime } },
-      { ...aggregates }
+      { ...aggregates },
+      { new: true }
     );
 
-    return financialReport;
+    // return financialReport;
   } catch (error) {
     console.error('Error in getAndUpdateStakeByDay:', error);
   }
@@ -352,19 +351,16 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
       createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime },
     });
 
-    console.log('financialReport: ', financialReport);
-    // if (!(aggregates.totalDeposit + aggregates.totalWithdrawal + aggregates.totalBonusAwarded)) return;
-    if (!financialReport.length)
+    if (!financialReport)
       return FinancialReport.create(
         { cashierId, ...aggregates, createdAt: startDateWithoutTime } // Include createdAt for backdated reports
       );
 
-    await FinancialReport.findOneAndUpdate(
+    return FinancialReport.findOneAndUpdate(
       { cashierId, createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime } },
-      { ...aggregates }
+      { ...aggregates },
+      { new: true }
     );
-
-    return financialReport;
   } catch (error) {
     console.error('Error in getAndUpdateTotalTransactionsByDay:', error);
   }

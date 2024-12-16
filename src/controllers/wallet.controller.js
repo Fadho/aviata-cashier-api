@@ -28,8 +28,9 @@ const fundWallet = catchAsync(async (req, res) => {
 
     let newBalance = Number(wallet[0].balance);
     newBalance -= amount;
+    if (newBalance < 0) throw new ApiError(httpStatus.NOT_FOUND, 'Insufficient funds!');
     // if all tests pass, update wallet
-    await walletService.updateWallet(wallet[0].id, newBalance.toFixed(currency.decimals));
+    await walletService.updateWallet(wallet[0].id, Number(newBalance.toFixed(currency.decimals)));
   }
 
   //  if no currencyId is provided, get user's primary wallet.

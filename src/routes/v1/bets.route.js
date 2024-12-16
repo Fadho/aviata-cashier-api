@@ -41,6 +41,6 @@ router.route('/payout/:id').post(auth(), validate(betsValidation.getBetPlacedByI
 
 router.route('/game-state').get(betsController.getCurrentGameState);
 
-router.route('/populate-reports').get(betsController.populateFinancialReports);
+// router.route('/populate-reports').get(betsController.populateFinancialReports);
 
 module.exports = router;
