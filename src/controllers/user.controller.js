@@ -4,6 +4,24 @@ const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { userService, walletService } = require('../services');
 
+const searchForUser = catchAsync(async (req, res) => {
+  try {
+    const { username } = req.query;
+
+    if (req.user.role === 'super') {
+      const users = await userService.queryUsers({ username: { $regex: username } }, {});
+      return res.status(httpStatus.OK).send(users);
+    }
+    let users = await userService.queryUsers({ agentId: req.user._id, username: { $regex: username } }, {});
+    if (!users) {
+      users = await userService.queryUsers({ superAgentId: req.user._id, username: { $regex: username } }, {});
+    }
+    res.status(httpStatus.OK).send(users);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+});
+
 const createUser = catchAsync(async (req, res) => {
   try {
     let user = await userService.createUser(req.body);
@@ -58,4 +76,5 @@ module.exports = {
   updateUser,
   deleteUser,
   getUsersWhere,
+  searchForUser,
 };

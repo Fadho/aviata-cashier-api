@@ -15,6 +15,15 @@ const createUser = {
   }),
 };
 
+const searchForUser = {
+  query: Joi.object().keys({
+    username: Joi.string().required(),
+    sortBy: Joi.string(),
+    limit: Joi.number().integer(),
+    page: Joi.number().integer(),
+  }),
+};
+
 const getUsers = {
   query: Joi.object().keys({
     name: Joi.string(),
@@ -62,4 +71,5 @@ module.exports = {
   updateUser,
   deleteUser,
   getUsersWhere,
+  searchForUser,
 };
