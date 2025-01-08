@@ -50,6 +50,15 @@ const updateJackpot = {
   }),
 };
 
+const updateFreebet = {
+  body: Joi.object().keys({
+    freebetId: Joi.string().custom(objectId).required(),
+    percentageContributions: Joi.number(),
+    dropAmount: Joi.number(),
+    minStakeToWin: Joi.number(),
+  }),
+};
+
 const dropJackpot = {
   body: Joi.object().keys({
     jackpotId: Joi.string().custom(objectId).required(),
@@ -129,4 +138,5 @@ module.exports = {
   updateAgentContribution,
   getAgentContribution,
   deleteGameDevice,
+  updateFreebet,
 };

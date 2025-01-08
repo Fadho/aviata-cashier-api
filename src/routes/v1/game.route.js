@@ -49,5 +49,13 @@ router
 router
   .route('/jackpot/agentContribution')
   .post(validate(gameValidation.getAgentContribution), gameController.getAgentJackpotContribution);
-// router.route('/gameDevice/:deviceId').delete(validate(gameValidation.deleteGameDevice), gameController.deleteGameDevice);
+
+router
+  .route('/freebet')
+  .post(validate(gameValidation.getAgentJackpots), gameController.getAgentFreebet)
+  .patch(auth('updateJackpot'), validate(gameValidation.updateFreebet), gameController.updateAgentFreebet);
+
+router
+  .route('/freebet/agentContribution')
+  .post(validate(gameValidation.getAgentContribution), gameController.getAgentFreebetContribution);
 module.exports = router;

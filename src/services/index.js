@@ -9,4 +9,5 @@ module.exports.walletService = require('./wallet.service');
 module.exports.transferHistoryService = require('./transferHistory.service');
 module.exports.roundsService = require('./rounds.service');
 module.exports.jackpotService = require('./jackpot.service');
+module.exports.freebetService = require('./freebet.service');
 module.exports.financialReportService = require('./financialReport.service');

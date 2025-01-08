@@ -1,8 +1,8 @@
 const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
-const { gameService, tokenService, jackpotService } = require('../services');
-const { Jackpot, User } = require('../models');
+const { gameService, tokenService, jackpotService, freebetService } = require('../services');
+const { Jackpot, User, Freebet } = require('../models');
 const GameDevice = require('../models/gameDevice.model');
 
 const authenticateGame = catchAsync(async (req, res) => {
@@ -131,12 +131,41 @@ const getAgentJackpotContribution = catchAsync(async (req, res) => {
   res.send(jackpot);
 });
 
-// const deleteGameDevice = catchAsync(async (req, res) => {
-//   const { deviceId } = req.params;
+const getAgentFreebet = catchAsync(async (req, res) => {
+  const { agentId, gameType } = req.body;
+  const freebet = await freebetService.getAgentFreebets(agentId, gameType);
+  res.send(freebet);
+});
 
-//   const jackpot = await GameDevice.deleteOne({_id: });
-//   res.send(jackpot);
-// });
+const updateAgentFreebet = catchAsync(async (req, res) => {
+  const { freebetId } = req.body;
+  delete req.body.freebetId;
+  let isSuper = false;
+  const freebet = await Freebet.findOneAndUpdate({ _id: freebetId }, req.body, { new: true });
+  const userCheck = await User.findOne({ _id: freebet.agentId }).select('role');
+  if (userCheck.role === 'admin' && !userCheck.agentId) isSuper = true;
+  const subAgentIds = isSuper
+    ? await User.find({ superAgentId: freebet.agentId, role: 'admin' }).select('_id')
+    : await User.find({ agentId: freebet.agentId, role: 'admin' }).select('_id');
+  if (subAgentIds)
+    subAgentIds.forEach(async (el) => {
+      await Freebet.findOneAndUpdate({ agentId: el._id, }, req.body, { new: true });
+    });
+  res.send(freebet);
+});
+
+const dropFreebet = catchAsync(async (req, res) => {
+  const { freebetId, deviceId, playerId, freebetAmount } = req.body;
+  const freebet = await freebetService.dropFreebet(freebetId, deviceId, playerId, freebetAmount);
+  res.send(freebet);
+});
+
+const getAgentFreebetContribution = catchAsync(async (req, res) => {
+  const { deviceId, gameType } = req.body;
+
+  const freebet = await freebetService.getAgentFreebetContributions(deviceId, gameType);
+  res.send(freebet);
+});
 
 module.exports = {
   createGameConfig,
@@ -152,4 +181,8 @@ module.exports = {
   updateAgentJackpot,
   updateAgentJackpotContribution,
   getAgentJackpotContribution,
+  getAgentFreebet,
+  updateAgentFreebet,
+  dropFreebet,
+  getAgentFreebetContribution,
 };

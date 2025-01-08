@@ -61,6 +61,7 @@ const allowedOrigins = [
   'https://next-backoffice-gamma.vercel.app',
   'http://localhost:3000',
   'http://localhost:5173',
+  'http://65.21.184.193',
   'https://websocket.shootout.sbegames.com',
   'https://websocket2.shootout.sbegames.com',
   'https://shootout.cashier.sbegames.com',

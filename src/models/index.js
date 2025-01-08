@@ -13,3 +13,5 @@ module.exports.JackpotWinners = require('./jackpotWinners.model');
 module.exports.Jackpot = require('./jackpot.model');
 module.exports.GameDevice = require('./gameDevice.model');
 module.exports.FinancialReport = require('./financialReport.model');
+module.exports.FreebetWinners = require('./freebetWinners.model');
+module.exports.Freebet = require('./freebet.model');

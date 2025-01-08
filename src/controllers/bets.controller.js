@@ -17,6 +17,7 @@ const {
   currencyService,
   jackpotService,
   transferHistoryService,
+  freebetService,
   // financialReportService,
 } = require('../services');
 const financialReportService = require('../services/financialReport.service');
@@ -133,6 +134,18 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       silverJackpot.percentageContributions * stake,
       goldJackpot._id,
       goldJackpot.percentageContributions * stake,
+      deviceId,
+      gameType,
+      session
+    );
+
+    // Get jackpot contributions
+    const freebetContributions = await freebetService.getAgentFreebets(cashier.agentId, gameType, session);
+
+    // Update jackpot contributions
+    freebetService.updateFreebetContributions(
+      freebetContributions._id,
+      freebetContributions.percentageContributions * stake,
       deviceId,
       gameType,
       session
