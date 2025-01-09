@@ -77,31 +77,35 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
     }
 
-    // Validate balance and stake
-    let balance = Number(player.wallet);
-    let bonus = Number(player.bonus);
-    // let useBalanceBonus = false;
-    let useBonus = false;
-    stake = Number(stake);
+    if (!player.freebet) {
+      // Validate balance and stake
+      let balance = Number(player.wallet);
+      let bonus = Number(player.bonus);
+      // let useBalanceBonus = false;
+      let useBonus = false;
+      stake = Number(stake);
 
-    if (isNaN(balance) || isNaN(stake) || balance < stake) {
-      useBonus = true;
-      if (isNaN(bonus + balance) || isNaN(stake) || bonus + balance < stake)
-        throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount');
-    }
+      if (isNaN(balance) || isNaN(stake) || balance < stake) {
+        useBonus = true;
+        if (isNaN(bonus + balance) || isNaN(stake) || bonus + balance < stake)
+          throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount');
+      }
 
-    if (useBonus) {
-      let setStake = stake;
-      setStake -= balance;
-      balance = 0;
-      bonus -= setStake;
+      if (useBonus) {
+        let setStake = stake;
+        setStake -= balance;
+        balance = 0;
+        bonus -= setStake;
+      } else {
+        balance -= stake;
+      }
+
+      // Update wallet balance
+
+      await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance, bonus }, { session });
     } else {
-      balance -= stake;
+      await Player.findOneAndUpdate({ _id: player.id }, { freebet: false }, { session });
     }
-
-    // Update wallet balance
-
-    await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance, bonus }, { session });
 
     // Fetch cashier by cashierId
     const cashier = await User.findById(cashierId).session(session);
@@ -112,6 +116,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     // Place the bet
     const betPlaced = await betsService.createBetPlacedForPlayer(
       stake,
+      player.freebet,
       gameType,
       roundId,
       cashierId,

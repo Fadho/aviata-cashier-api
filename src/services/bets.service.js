@@ -48,7 +48,7 @@ const createBetPlaced = async (result, stake, selections, cashierId, potentialWi
  * @param {ObjectId} deviceId
  * @returns {Promise<Tickets>}
  */
-const createBetPlacedForPlayer = async (stake, gameType, roundId, cashierId, playerId, deviceId) => {
+const createBetPlacedForPlayer = async (stake, freebet, gameType, roundId, cashierId, playerId, deviceId) => {
   const session = await mongoose.startSession(); // Start a Mongoose session
   session.startTransaction(); // Start a transaction
 
@@ -62,6 +62,7 @@ const createBetPlacedForPlayer = async (stake, gameType, roundId, cashierId, pla
       [
         {
           stake,
+          freebet,
           gameType,
           cashierId,
           ticketId,
@@ -351,7 +352,7 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
 
     // Find the player associated with the bet
     const player = await Player.findOne({ playerId: bet.playerId, deviceId: bet.deviceId }).session(session);
-    const winnings = bet.stake * odd;
+    const winnings = bet.freebet ? bet.stake * odd - bet.stake : bet.stake * odd;
 
     // Update the bet details
     await Tickets.findOneAndUpdate(

@@ -46,6 +46,10 @@ const ticketSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
+    freebet: {
+      type: Boolean,
+      default: false,
+    },
     winnings: {
       type: Number,
       default: 0,
