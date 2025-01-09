@@ -1023,8 +1023,6 @@ const getTransactionReports = catchAsync(async (req, res) => {
             Wallets.find({ userId: cashier._id }).populate('currencyId'),
           ]);
 
-          console.log('financialReport: ', financialReport);
-
           // for (const wallet of userWallets) {
           // cashiers can only have 1 wallet
           const wallet = userWallets[0];

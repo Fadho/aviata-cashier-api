@@ -41,6 +41,10 @@ const playerSchema = mongoose.Schema(
       type: mongoose.SchemaTypes.Number,
       default: 0,
     },
+    freebet: {
+      type: mongoose.SchemaTypes.Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

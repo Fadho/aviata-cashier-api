@@ -58,4 +58,7 @@ router
 router
   .route('/freebet/agentContribution')
   .post(validate(gameValidation.getAgentContribution), gameController.getAgentFreebetContribution);
+
+router.route('/freebet/dropFreebet').post(validate(gameValidation.dropFreebet), gameController.dropFreebet);
+
 module.exports = router;

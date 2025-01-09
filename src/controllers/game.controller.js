@@ -3,7 +3,6 @@ const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { gameService, tokenService, jackpotService, freebetService } = require('../services');
 const { Jackpot, User, Freebet } = require('../models');
-const GameDevice = require('../models/gameDevice.model');
 
 const authenticateGame = catchAsync(async (req, res) => {
   const user = await gameService.authenticateGame(req.params.id);

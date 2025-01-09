@@ -10,7 +10,7 @@ const config = require('../config/config');
  * @param {string} id
  * @returns {Promise<FreebetWinners>}
  */
-const dropFreebet = async (id, deviceId, playerId, freebetAmount) => {
+const dropFreebet = async (id, deviceId, playerId) => {
   const session = await mongoose.startSession(); // Start a MongoDB session
   session.startTransaction(); // Begin a transaction
 
@@ -23,24 +23,27 @@ const dropFreebet = async (id, deviceId, playerId, freebetAmount) => {
     const freebet = await Freebet.findById(id).session(session);
     if (!freebet) throw new Error('Freebet not found');
 
+    const freebetAmount = freebet.dropAmount;
+
     // Find active freebet winners
     const freebetWinners = await FreebetWinners.findOne({
       active: true,
       gameType: freebet.gameType,
       deviceId,
     }).session(session);
+
     if (!freebetWinners || freebetWinners.freebetContributions < freebetAmount)
       throw new Error('No active freebet winner found');
 
     // Update player's wallet
-    player.wallet += Number(freebetAmount);
+    player.freebet = true;
     await player.save({ session });
 
     // Update the freebet winner to mark as inactive and record details
     const winner = await FreebetWinners.findOneAndUpdate(
       { _id: freebetWinners._id, active: true },
       {
-        freebetAmount,
+        dropAmount: freebetAmount,
         playerId,
         cashierId: player.cashierId,
         active: false,
@@ -67,7 +70,7 @@ const dropFreebet = async (id, deviceId, playerId, freebetAmount) => {
   } catch (error) {
     // Rollback the transaction in case of any errors
     await session.abortTransaction();
-    // console.log(`Error in dropFreebet: ${error.message}`);
+    // console.log(`Error in dropFreebet: ${error}`);
     throw new Error('Error processing freebet drop');
   } finally {
     // End the session to free up resources
