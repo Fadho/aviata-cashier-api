@@ -185,11 +185,11 @@ const getUpdatedFreebetHistory = async (filter, cashierId, startDate, endDate) =
 
 const getAgentFreebets = async (agentId, gameType) => {
   let freebet = await Freebet.find({ agentId, gameType });
-  freebet = freebet[0];
   if (!freebet.length) {
     freebet = await createFreebet(agentId, gameType);
+    return freebet;
   }
-  return freebet;
+  return freebet[0];
 };
 
 const updateFreebetContributions = async (freebetId, freebetContributions, deviceId, gameType) => {
