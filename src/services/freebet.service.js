@@ -185,6 +185,7 @@ const getUpdatedFreebetHistory = async (filter, cashierId, startDate, endDate) =
 
 const getAgentFreebets = async (agentId, gameType) => {
   let freebet = await Freebet.find({ agentId, gameType });
+  freebet = freebet[0];
   if (!freebet.length) {
     freebet = await createFreebet(agentId, gameType);
   }
@@ -196,13 +197,12 @@ const updateFreebetContributions = async (freebetId, freebetContributions, devic
 
   let activeContribution;
 
-  console.log(freebetId, freebetContributions, deviceId, gameType)
+  console.log(freebetId, freebetContributions, deviceId, gameType);
 
   if (freebet) {
     activeContribution = await FreebetWinners.findOne({ active: true, gameType, deviceId });
 
-    console.log('found active freebetWinners', activeContribution)
-
+    console.log('found active freebetWinners', activeContribution);
 
     if (activeContribution) {
       activeContribution = await FreebetWinners.findOneAndUpdate(
