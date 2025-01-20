@@ -11,6 +11,21 @@ const lastManSchema = mongoose.Schema({
     required: true,
     default: 20,
   },
+  threePlayersPercentage: {
+    type: mongoose.SchemaTypes.Number,
+    required: true,
+    default: 0.3,
+  },
+  fivePlayersPercentage: {
+    type: mongoose.SchemaTypes.Number,
+    required: true,
+    default: 0.5,
+  },
+  eightPlayersPercentage: {
+    type: mongoose.SchemaTypes.Number,
+    required: true,
+    default: 1,
+  },
   agentId: {
     type: mongoose.SchemaTypes.ObjectId,
     ref: 'User',

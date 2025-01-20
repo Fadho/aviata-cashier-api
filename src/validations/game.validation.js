@@ -90,6 +90,9 @@ const updateLastMan = {
     lastmanId: Joi.string().custom(objectId).required(),
     dropAmount: Joi.number(),
     minStakeToWin: Joi.number(),
+    threePlayersPercentage: Joi.number(),
+    fivePlayersPercentage: Joi.number(),
+    eightPlayersPercentage: Joi.number(),
   }),
 };
 

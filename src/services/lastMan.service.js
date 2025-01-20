@@ -1,9 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 
-const axios = require('axios');
 const mongoose = require('mongoose');
 const { LastManWinners, LastMan, Player, User } = require('../models');
-const config = require('../config/config');
 
 /**
  * drop lastMan
@@ -27,18 +25,20 @@ const dropLastMan = async (id, deviceId, playerId, numberOfPlayers) => {
     let lastManPercentage = 0;
 
     if (numberOfPlayers >= 8) {
-      lastManPercentage = 1;
+      lastManPercentage = lastMan.eightPlayersPercentage;
       return;
     }
     if (numberOfPlayers >= 5) {
-      lastManAmount *= 0.5;
-      lastManPercentage = 0.5;
+      lastManAmount *= lastMan.fivePlayersPercentage;
+      lastManPercentage = lastMan.fivePlayersPercentage;
     } else if (numberOfPlayers >= 3) {
-      lastManAmount *= 0.3;
-      lastManPercentage = 0.3;
+      lastManAmount *= lastMan.threePlayersPercentage;
+      lastManPercentage = lastMan.threePlayersPercentage;
+      return;
     } else {
       lastManAmount *= 0;
       lastManPercentage = 0;
+      return;
     }
 
     // Update player's wallet
