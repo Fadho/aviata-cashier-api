@@ -61,4 +61,11 @@ router
 
 router.route('/freebet/dropFreebet').post(validate(gameValidation.dropFreebet), gameController.dropFreebet);
 
+router
+  .route('/lastman')
+  .post(validate(gameValidation.getAgentJackpots), gameController.getAgentLastMan)
+  .patch(auth('updateJackpot'), validate(gameValidation.updateLastMan), gameController.updateAgentLastMan);
+
+router.route('/lastman/dropLastMan').post(validate(gameValidation.dropLastMan), gameController.dropLastMan);
+
 module.exports = router;

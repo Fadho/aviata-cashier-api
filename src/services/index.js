@@ -11,3 +11,4 @@ module.exports.roundsService = require('./rounds.service');
 module.exports.jackpotService = require('./jackpot.service');
 module.exports.freebetService = require('./freebet.service');
 module.exports.financialReportService = require('./financialReport.service');
+module.exports.lastManService = require('./lastMan.service');

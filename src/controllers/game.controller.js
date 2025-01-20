@@ -1,8 +1,9 @@
 const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
-const { gameService, tokenService, jackpotService, freebetService } = require('../services');
+const { gameService, tokenService, jackpotService, freebetService, lastManService } = require('../services');
 const { Jackpot, User, Freebet } = require('../models');
+const LastMan = require('../models/lastMan.model');
 
 const authenticateGame = catchAsync(async (req, res) => {
   const user = await gameService.authenticateGame(req.params.id);
@@ -148,7 +149,7 @@ const updateAgentFreebet = catchAsync(async (req, res) => {
     : await User.find({ agentId: freebet.agentId, role: 'admin' }).select('_id');
   if (subAgentIds)
     subAgentIds.forEach(async (el) => {
-      await Freebet.findOneAndUpdate({ agentId: el._id, }, req.body, { new: true });
+      await Freebet.findOneAndUpdate({ agentId: el._id }, req.body, { new: true });
     });
   res.send(freebet);
 });
@@ -164,6 +165,36 @@ const getAgentFreebetContribution = catchAsync(async (req, res) => {
 
   const freebet = await freebetService.getAgentFreebetContributions(deviceId, gameType);
   res.send(freebet);
+});
+
+const getAgentLastMan = catchAsync(async (req, res) => {
+  const { agentId, gameType } = req.body;
+
+  const lastManSettings = await lastManService.getAgentLastMan(agentId, gameType);
+  res.send(lastManSettings);
+});
+
+const dropLastMan = catchAsync(async (req, res) => {
+  const { lastmanId, deviceId, playerId, numberOfPlayers } = req.body;
+  const lastMan = await lastManService.dropLastMan(lastmanId, deviceId, playerId, numberOfPlayers);
+  res.send(lastMan);
+});
+
+const updateAgentLastMan = catchAsync(async (req, res) => {
+  const { lastmanId } = req.body;
+  delete req.body.lastmanId;
+  let isSuper = false;
+  const lastman = await LastMan.findOneAndUpdate({ _id: lastmanId }, req.body, { new: true });
+  const userCheck = await User.findOne({ _id: lastman.agentId }).select('role');
+  if (userCheck.role === 'admin' && !userCheck.agentId) isSuper = true;
+  const subAgentIds = isSuper
+    ? await User.find({ superAgentId: lastman.agentId, role: 'admin' }).select('_id')
+    : await User.find({ agentId: lastman.agentId, role: 'admin' }).select('_id');
+  if (subAgentIds)
+    subAgentIds.forEach(async (el) => {
+      await LastMan.findOneAndUpdate({ agentId: el._id }, req.body, { new: true });
+    });
+  res.send(lastman);
 });
 
 module.exports = {
@@ -184,4 +215,7 @@ module.exports = {
   updateAgentFreebet,
   dropFreebet,
   getAgentFreebetContribution,
+  getAgentLastMan,
+  dropLastMan,
+  updateAgentLastMan,
 };

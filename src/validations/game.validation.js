@@ -76,6 +76,23 @@ const dropFreebet = {
   }),
 };
 
+const dropLastMan = {
+  body: Joi.object().keys({
+    lastmanId: Joi.string().custom(objectId).required(),
+    deviceId: Joi.string().custom(objectId).required(),
+    playerId: Joi.number().required(),
+    numberOfPlayers: Joi.number().required(),
+  }),
+};
+
+const updateLastMan = {
+  body: Joi.object().keys({
+    lastmanId: Joi.string().custom(objectId).required(),
+    dropAmount: Joi.number(),
+    minStakeToWin: Joi.number(),
+  }),
+};
+
 const updateAgentContribution = {
   body: Joi.object().keys({
     bronzeJackpotId: Joi.required().custom(objectId),
@@ -148,4 +165,6 @@ module.exports = {
   deleteGameDevice,
   updateFreebet,
   dropFreebet,
+  updateLastMan,
+  dropLastMan,
 };
