@@ -179,8 +179,9 @@ const getAgentLastMan = async (agentId, gameType) => {
   let lastMan = await LastMan.find({ agentId, gameType });
   if (!lastMan.length) {
     lastMan = await createLastMan(agentId, gameType);
+    return lastMan;
   }
-  return lastMan;
+  return lastMan[0];
 };
 
 const updateLastManContributions = async (lastManId, lastManContributions, deviceId, gameType) => {
