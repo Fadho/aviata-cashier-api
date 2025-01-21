@@ -3,7 +3,8 @@
 
 const axios = require('axios');
 const mongoose = require('mongoose');
-const { FreebetWinners, Freebet, Player, User } = require('../models');
+const { randomInt } = require('crypto');
+const { FreebetWinners, Freebet, Player, User, Tickets } = require('../models');
 const config = require('../config/config');
 
 /**
@@ -204,8 +205,13 @@ const getAgentFreebets = async (agentId, gameType) => {
   return freebet[0];
 };
 
-const updateFreebetContributions = async (freebetId, freebetContributions, deviceId, gameType) => {
-  const freebet = await Freebet.findOne({ _id: freebetId });
+const updateFreebetContributions = async (freebetId, freebetContributions, deviceId, gameType, roundId, session) => {
+  const freebet = await Freebet.findOne({ _id: freebetId }).session(session);
+  const roudBets = await Tickets.find({ roundId }).session(session);
+  const players = [];
+  roudBets.forEach((bet) => {
+    players.push(bet.playerId);
+  });
 
   let activeContribution;
 
@@ -226,6 +232,10 @@ const updateFreebetContributions = async (freebetId, freebetContributions, devic
         deviceId,
         gameType,
       });
+    }
+
+    if (activeContribution.freebetContributions >= freebet.dropAmount) {
+      await dropFreebet(freebetId, deviceId, players[players.length > 1 ? randomInt(players.length) : 0]);
     }
   }
 

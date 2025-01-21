@@ -147,7 +147,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     // Get jackpot contributions
     const freebet = await freebetService.getAgentFreebets(cashier.agentId, gameType, session);
 
-    console.log(freebet);
+    // console.log(freebet);
 
     // Update jackpot contributions
     freebetService.updateFreebetContributions(
@@ -155,6 +155,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       freebet.percentageContributions * stake,
       deviceId,
       gameType,
+      betPlaced.roundId,
       session
     );
 
