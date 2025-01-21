@@ -55,6 +55,7 @@ app.use(compression());
 // enable cors
 const allowedOrigins = [
   'https://bo.sbegames.com',
+  'https://bo.staging.sbegames.com',
   'https://cashier.sbegames.com',
   'https://websocket.aviata.sportsbookengine.com',
   'https://shoutout-cashier.staging.sbegames.com',
