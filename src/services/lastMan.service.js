@@ -26,19 +26,15 @@ const dropLastMan = async (id, deviceId, playerId, numberOfPlayers) => {
 
     if (numberOfPlayers >= 8) {
       lastManPercentage = lastMan.eightPlayersPercentage;
-      return;
-    }
-    if (numberOfPlayers >= 5) {
+    } else if (numberOfPlayers >= 5) {
       lastManAmount *= lastMan.fivePlayersPercentage;
       lastManPercentage = lastMan.fivePlayersPercentage;
     } else if (numberOfPlayers >= 3) {
       lastManAmount *= lastMan.threePlayersPercentage;
       lastManPercentage = lastMan.threePlayersPercentage;
-      return;
     } else {
       lastManAmount *= 0;
       lastManPercentage = 0;
-      return;
     }
 
     // Update player's wallet
