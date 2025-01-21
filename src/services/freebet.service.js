@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable no-restricted-syntax */
 
 const axios = require('axios');
@@ -32,12 +33,19 @@ const dropFreebet = async (id, deviceId, playerId) => {
       deviceId,
     }).session(session);
 
-    if (!freebetWinners || freebetWinners.freebetContributions < freebetAmount)
-      throw new Error('No active freebet winner found');
+    console.log(freebet, freebetWinners);
 
-    // Update player's wallet
-    player.freebet = true;
-    await player.save({ session });
+    if (!freebetWinners || freebetWinners.freebetContributions < freebetAmount)
+      throw new Error('No active freebet winner found / freebetContributions < freebetAmount');
+
+    // Update player freebet
+    await Player.findOneAndUpdate(
+      { _id: player._id },
+      {
+        freebet: true,
+      },
+      { new: true, session }
+    );
 
     // Update the freebet winner to mark as inactive and record details
     const winner = await FreebetWinners.findOneAndUpdate(
@@ -53,12 +61,16 @@ const dropFreebet = async (id, deviceId, playerId) => {
 
     if (!winner) throw new Error('Failed to update freebet winner');
 
-    // Notify the WebSocket server about the freebet drop
-    await axios.post(`${config.websocket_url}/drop-freebet`, {
-      playerId,
-      deviceId,
-      freebetAmount,
-    });
+    try {
+      await axios.post(`${config.websocket_url}/drop-freebet`, {
+        playerId,
+        deviceId,
+        freebetAmount,
+      });
+    } catch (axiosError) {
+      console.error(`WebSocket server call failed:`, axiosError);
+      throw new Error('Failed to notify WebSocket server');
+    }
 
     // Commit the transaction if everything is successful
     await session.commitTransaction();
@@ -70,7 +82,7 @@ const dropFreebet = async (id, deviceId, playerId) => {
   } catch (error) {
     // Rollback the transaction in case of any errors
     await session.abortTransaction();
-    // console.log(`Error in dropFreebet: ${error}`);
+    console.error(`Error in dropFreebet:`, error);
     throw new Error('Error processing freebet drop');
   } finally {
     // End the session to free up resources
@@ -199,7 +211,7 @@ const updateFreebetContributions = async (freebetId, freebetContributions, devic
 
   if (freebet) {
     activeContribution = await FreebetWinners.findOne({ active: true, gameType, deviceId });
-    console.log(activeContribution)
+    console.log(activeContribution);
 
     if (activeContribution) {
       activeContribution = await FreebetWinners.findOneAndUpdate(
@@ -217,7 +229,7 @@ const updateFreebetContributions = async (freebetId, freebetContributions, devic
     }
   }
 
-  console.log(activeContribution)
+  console.log(activeContribution);
 
   return activeContribution;
 };
