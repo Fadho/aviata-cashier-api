@@ -205,9 +205,9 @@ const getAgentFreebets = async (agentId, gameType) => {
   return freebet[0];
 };
 
-const updateFreebetContributions = async (freebetId, freebetContributions, deviceId, gameType, roundId, session) => {
-  const freebet = await Freebet.findOne({ _id: freebetId }).session(session);
-  const roudBets = await Tickets.find({ roundId }).session(session);
+const updateFreebetContributions = async (freebetId, freebetContributions, deviceId, gameType, roundId) => {
+  const freebet = await Freebet.findOne({ _id: freebetId });
+  const roudBets = await Tickets.find({ roundId });
   const players = [];
   roudBets.forEach((bet) => {
     players.push(bet.playerId);
