@@ -199,6 +199,7 @@ const updateFreebetContributions = async (freebetId, freebetContributions, devic
 
   if (freebet) {
     activeContribution = await FreebetWinners.findOne({ active: true, gameType, deviceId });
+    console.log(activeContribution)
 
     if (activeContribution) {
       activeContribution = await FreebetWinners.findOneAndUpdate(
@@ -215,6 +216,8 @@ const updateFreebetContributions = async (freebetId, freebetContributions, devic
       });
     }
   }
+
+  console.log(activeContribution)
 
   return activeContribution;
 };
