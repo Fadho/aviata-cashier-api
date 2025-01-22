@@ -76,7 +76,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     if (!player) {
       throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
     }
-
+    const freebet = player.freebet;
     if (!player.freebet) {
       // Validate balance and stake
       let balance = Number(player.wallet);
@@ -116,7 +116,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     // Place the bet
     const betPlaced = await betsService.createBetPlacedForPlayer(
       stake,
-      player.freebet,
+      freebet,
       gameType,
       roundId,
       cashierId,
