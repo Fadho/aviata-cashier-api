@@ -125,6 +125,8 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       session
     );
 
+    res.status(httpStatus.CREATED).send(betPlaced);
+
     // Get jackpot contributions
     const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType, session);
     const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
@@ -163,9 +165,6 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
 
     // Commit the transaction
     await session.commitTransaction();
-
-    // Log jackpot contributions and respond with the bet
-    res.status(httpStatus.CREATED).send(betPlaced);
   } catch (error) {
     // Roll back transaction if any error occurs
     await session.abortTransaction();
