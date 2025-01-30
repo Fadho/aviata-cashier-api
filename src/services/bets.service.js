@@ -231,6 +231,8 @@ const getBetHistory1 = async (filter, startDate, endDate) => {
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
   }
+
+  console.log(filter)
   const tickets = await Tickets.find(filter);
   const ticketsArchive = await TicketsArchive.find(filter);
   return [...tickets, ...ticketsArchive];

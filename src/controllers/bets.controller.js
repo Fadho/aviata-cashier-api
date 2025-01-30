@@ -152,7 +152,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     // console.log(freebet);
 
     // Update jackpot contributions
-    await freebetService.updateFreebetContributions(
+    freebetService.updateFreebetContributions(
       freebet._id,
       freebet.percentageContributions * stake,
       deviceId,
@@ -1091,7 +1091,6 @@ const getTransactionReports = catchAsync(async (req, res) => {
 
     res.json({ hierarchy: hierarchyReports, pagination });
   } catch (error) {
-    console.log(error);
     res.status(500).send({ error: 'Error generating transaction report' });
   }
 });
@@ -1293,22 +1292,19 @@ const getCurrentGameState = catchAsync(async (req, res) => {
 
   const startDate = new Date();
   const endDate = new Date();
-  // Set startDate to 6 days ago - cannot scale
-  // set startDate to yesterday
-  startDate.setDate(endDate.getDate() - 1);
+  startDate.setDate(startDate.getDate() - 2);
 
-  const users = await userService.getUsers({
+  const cashiers = await userService.getUsers({
     role: 'cashier',
-    superAgentId: agentId,
+    agentId,
   });
 
-  const cashiers = users;
   if (cashiers.length < 1) {
     throw new ApiError(httpStatus.NOT_FOUND, 'No associated cashiers');
   }
   // eslint-disable-next-line guard-for-in
   for (const cashier in cashiers) {
-    betHistory = await betsService.getBetHistory({ cashierId: cashiers[cashier]._id, gameType }, startDate, endDate);
+    betHistory = await betsService.getBetHistory1({ cashierId: cashiers[cashier]._id, gameType }, startDate, endDate);
 
     totalStake += betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
     totalWinnings += betHistory.reduce((count, bet) => count + bet.winnings, 0);

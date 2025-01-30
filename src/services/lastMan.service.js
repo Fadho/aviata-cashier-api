@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 
 const mongoose = require('mongoose');
-const { LastManWinners, LastMan, Player, User } = require('../models');
+const { LastManWinners, LastMan, Player, User, Tickets } = require('../models');
 
 /**
  * drop lastMan
@@ -17,11 +17,15 @@ const dropLastMan = async (id, deviceId, playerId, numberOfPlayers) => {
     const player = await Player.findOne({ playerId, deviceId }).session(session);
     if (!player) throw new Error('Player not found');
 
+    // Find the lastest player ticket
+    const lastTicket = await Tickets.findOne({ playerId, deviceId }).sort({ createdAt: -1 }).session(session);
+    if (!lastTicket && lastTicket.winnings) throw new Error('lastTicket not found');
+
     // Find the lastMan
     const lastMan = await LastMan.findById(id).session(session);
     if (!lastMan) throw new Error('LastMan not found');
 
-    let lastManAmount = lastMan.dropAmount;
+    let lastManAmount = lastTicket.winnings;
     let lastManPercentage = 0;
 
     if (numberOfPlayers >= 8) {
