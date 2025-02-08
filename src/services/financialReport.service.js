@@ -242,6 +242,7 @@ const getFinancialReports = async (filter, startDate, endDate) => {
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
   }
+  console.log(filter)
   const financialReports = await FinancialReport.find(filter);
   return financialReports;
 };

@@ -21,7 +21,7 @@ const {
   // financialReportService,
 } = require('../services');
 const financialReportService = require('../services/financialReport.service');
-const { Wallets, Player, User } = require('../models');
+const { Wallets, Player, User, FinancialReport } = require('../models');
 const GameConfig = require('../models/gameConfig.model');
 
 const createBetPlaced = catchAsync(async (req, res) => {
@@ -1289,8 +1289,9 @@ const payoutTicket = catchAsync(async (req, res) => {
 const getCurrentGameState = catchAsync(async (req, res) => {
   const { agentId, gameType } = req.query;
   let betHistory = [];
-  let totalStake = 0;
-  let totalWinnings = 0;
+  let totalDeposit = 0;
+  let totalWithdrawal = 0;
+  let totalPlayerWallets = 0;
 
   const startDate = new Date();
   const endDate = new Date();
@@ -1306,13 +1307,20 @@ const getCurrentGameState = catchAsync(async (req, res) => {
   }
   // eslint-disable-next-line guard-for-in
   for (const cashier in cashiers) {
-    betHistory = await betsService.getBetHistory1({ cashierId: cashiers[cashier]._id, gameType }, startDate, endDate);
+    betHistory = await financialReportService.getFinancialReports(
+      { cashierId: String(cashiers[cashier]._id) },
+      startDate,
+      endDate
+    );
 
-    totalStake += betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
-    totalWinnings += betHistory.reduce((count, bet) => count + bet.winnings, 0);
+    console.log(betHistory, startDate, endDate);
+
+    totalDeposit += betHistory.reduce((accumulator, obj) => accumulator + obj.totalDeposit, 0);
+    totalWithdrawal += betHistory.reduce((count, bet) => count + bet.totalWithdrawal, 0);
+    totalPlayerWallets += betHistory.reduce((count, bet) => count + bet.totalPlayerWallets, 0);
   }
 
-  const rtp = (totalWinnings / totalStake) * 100;
+  const rtp = (totalWithdrawal / totalDeposit) * 100;
 
   return res.status(httpStatus.OK).send({ gameState: rtp });
 });
