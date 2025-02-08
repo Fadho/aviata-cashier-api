@@ -151,15 +151,17 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
 
     // console.log(freebet);
 
-    // Update jackpot contributions
-    freebetService.updateFreebetContributions(
-      freebet._id,
-      freebet.percentageContributions * stake,
-      deviceId,
-      gameType,
-      betPlaced.roundId,
-      session
-    );
+    if (freebet.dropAmount > 1) {
+      // Update jackpot contributions
+      freebetService.updateFreebetContributions(
+        freebet._id,
+        freebet.percentageContributions * stake,
+        deviceId,
+        gameType,
+        betPlaced.roundId,
+        session
+      );
+    }
 
     financialReportService.getAndUpdateStake(cashierId);
 
