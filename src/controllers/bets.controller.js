@@ -1320,7 +1320,7 @@ const getCurrentGameState = catchAsync(async (req, res) => {
     totalPlayerWallets += betHistory.reduce((count, bet) => count + bet.totalPlayerWallets, 0);
   }
 
-  const rtp = (totalWithdrawal / totalDeposit) * 100;
+  const rtp = (totalWithdrawal + totalPlayerWallets / totalDeposit) * 100;
 
   return res.status(httpStatus.OK).send({ gameState: rtp });
 });
