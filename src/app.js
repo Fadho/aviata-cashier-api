@@ -66,6 +66,7 @@ const allowedOrigins = [
   'https://websocket.shootout.sbegames.com',
   'https://websocket2.shootout.sbegames.com',
   'https://shootout.cashier.sbegames.com',
+  'https://aviata.cashier.staging.sbegames.com',
 ];
 
 const corsOptions = {
