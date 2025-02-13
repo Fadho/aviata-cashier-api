@@ -1,3 +1,4 @@
+/* eslint-disable no-continue */
 /* eslint-disable no-shadow */
 /* eslint-disable no-restricted-globals */
 /* eslint-disable no-use-before-define */
@@ -963,7 +964,7 @@ const getFinancialReports1 = catchAsync(async (req, res) => {
 
 const getTransactionReports = catchAsync(async (req, res) => {
   try {
-    const { startDate, endDate, betType, agentId, gameType } = req.query;
+    const { startDate, endDate, agentId, gameType } = req.query;
     const options = pick(req.query, ['sortBy', 'limit', 'page']);
 
     let initialAgents;
@@ -1097,147 +1098,6 @@ const getTransactionReports = catchAsync(async (req, res) => {
   }
 });
 
-const getTransactionReports1 = catchAsync(async (req, res) => {
-  try {
-    const { startDate, endDate, betType, agentId, gameType } = req.query;
-    const options = pick(req.query, ['sortBy', 'limit', 'page']);
-
-    let initialAgents;
-    const pagination = {};
-    const cache = { agents: {}, cashiers: {} };
-
-    // Fetch initial agents based on user role
-    if (req.user.role === 'super') {
-      initialAgents = await userService.queryUsers({ agentId: agentId || { $exists: false }, role: 'admin' }, options);
-      Object.assign(pagination, pick(initialAgents, ['page', 'limit', 'totalPages', 'totalResults']));
-    } else {
-      initialAgents = !agentId
-        ? { results: [req.user] }
-        : await userService.queryUsers({ _id: agentId, agentId: req.user._id, role: 'admin' }, options);
-    }
-
-    // Exchange Rates and Primary Currency Setup
-    const exchangeRates = {};
-    for (const currency of await currencyService.getCurrencies()) {
-      if (currency) exchangeRates[currency.country[0].currencyCode] = currency.exchangeRate;
-    }
-
-    const primaryCurrency = (
-      await currencyService.getCurrencyById(
-        (
-          await walletService.findWallet(null, (await userService.getUserByRole('super'))[0].id, true)
-        )[0].currencyId
-      )
-    ).country[0].currencyCode;
-
-    // Helper functions
-    const getUserHierarchy = async (parentId) => {
-      if (cache.agents[parentId]) return cache.agents[parentId];
-      const agents = await userService.queryUsers({ agentId: parentId, role: 'admin' }, options);
-      const hierarchy = {};
-
-      await Promise.all(
-        agents.results.map(async (agent) => {
-          hierarchy[agent.name] = {
-            cashiers: await getCashiers(agent._id),
-            agents: await getUserHierarchy(agent._id),
-            totals: {},
-          };
-        })
-      );
-      cache.agents[parentId] = hierarchy;
-      return hierarchy;
-    };
-
-    const getCashiers = async (agentId) => {
-      if (cache.cashiers[agentId]) return cache.cashiers[agentId];
-
-      const cashiers = await userService.queryUsers({ agentId, role: 'cashier' }, options);
-      const cashierReports = {};
-
-      await Promise.all(
-        cashiers.results.map(async (cashier) => {
-          const [cashierTransactions, cashierJackpotWinners, userWallets, cashierPlayers] = await Promise.all([
-            transferHistoryService.queryTransferHistorys(
-              { agent: cashier._id, ...(betType && { betType }), ...(gameType && { gameType }) },
-              { limit: 1000000 },
-              startDate,
-              endDate
-            ),
-            jackpotService.getUpdatedJackpotHistory({ ...(gameType && { gameType }) }, cashier._id, startDate, endDate),
-            Wallets.find({ userId: cashier._id }).populate('currencyId'),
-            Player.find({ cashierId: cashier._id }),
-          ]);
-
-          // for (const wallet of userWallets) {
-          // cashiers can only have 1 wallet
-          const wallet = userWallets[0];
-          // eslint-disable-next-line no-continue
-          if (wallet.currencyId) {
-            const { currencyCode } = wallet.currencyId.country[0];
-            if (!cashierReports[cashier.name]) cashierReports[cashier.name] = {};
-            if (!cashierReports[cashier.name][currencyCode]) {
-              cashierReports[cashier.name][currencyCode] = {
-                totalDeposit: 0,
-                totalWithdrawal: 0,
-                totalBonus: 0,
-                numberTransactions: 0,
-                profit: 0,
-                jackpotPayout: 0,
-                profitPrimary: 0,
-                playersWallet: 0,
-              };
-            }
-
-            let currencyReport = cashierReports[cashier.name][currencyCode];
-            cashierJackpotWinners.forEach((jackpot) => {
-              if (jackpot.jackpotType === 'Bronze') {
-                currencyReport.jackpotPayout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
-              } else if (jackpot.jackpotType === 'Silver') {
-                currencyReport.jackpotPayout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
-              } else if (jackpot.jackpotType === 'Gold') {
-                currencyReport.jackpotPayout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
-              }
-            });
-
-            const rate = exchangeRates[currencyCode] || 1;
-            const conversionRate = exchangeRates[primaryCurrency] / rate;
-            cashierTransactions.results.forEach((bet) => {
-              currencyReport.totalDeposit += bet.deposit;
-              currencyReport.totalWithdrawal += bet.withdrawal;
-              currencyReport.numberTransactions += 1;
-              currencyReport.totalBonus += bet.bonus;
-              currencyReport.profit = currencyReport.totalDeposit + currencyReport.totalWithdrawal;
-              currencyReport.profitPrimary = parseFloat((currencyReport.profit * conversionRate).toFixed(3));
-            });
-            for (const player of cashierPlayers) {
-              currencyReport = cashierReports[cashier.name][currencyCode];
-              currencyReport.playersWallet += player.wallet;
-            }
-          }
-          // }
-        })
-      );
-      cache.cashiers[agentId] = cashierReports;
-      return cashierReports;
-    };
-
-    const hierarchyReports = {};
-    await Promise.all(
-      initialAgents.results.map(async (agent) => {
-        hierarchyReports[agent.name] = {
-          agents: await getUserHierarchy(agent._id),
-          cashiers: await getCashiers(agent._id),
-        };
-      })
-    );
-
-    res.json({ hierarchy: hierarchyReports, pagination });
-  } catch (error) {
-    res.status(500).send({ error: 'Error generating transaction report' });
-  }
-});
-
 const getBetPlacedById = catchAsync(async (req, res) => {
   try {
     const betPlaced = await betsService.getBetPlacedById(req.params.id);
@@ -1287,7 +1147,7 @@ const payoutTicket = catchAsync(async (req, res) => {
 });
 
 const getCurrentGameState = catchAsync(async (req, res) => {
-  const { agentId, gameType } = req.query;
+  const { agentId } = req.query;
   let betHistory = [];
   let totalDeposit = 0;
   let totalWithdrawal = 0;
@@ -1313,7 +1173,7 @@ const getCurrentGameState = catchAsync(async (req, res) => {
       endDate
     );
 
-    console.log(betHistory, startDate, endDate);
+    // console.log(betHistory, startDate, endDate);
 
     totalDeposit += betHistory.reduce((accumulator, obj) => accumulator + obj.totalDeposit, 0);
     totalWithdrawal += betHistory.reduce((count, bet) => count + bet.totalWithdrawal, 0);
@@ -1335,7 +1195,7 @@ const populateFinancialReports = catchAsync(async (req, res) => {
     const cashiers = await userService.queryUsersReturnIds({ role: 'cashier' });
 
     if (!cashiers.length) {
-      console.log('No cashiers found.');
+      // console.log('No cashiers found.');
       return;
     }
 

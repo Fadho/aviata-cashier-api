@@ -60,13 +60,17 @@ const getGameConfig = async (body) => {
   return { data, message: 'Fetched Game Data successfully.' };
 };
 
-const updateGameConfig = async (id, gameType, body, isSuper) => {
+const updateGameConfig = async (id, gameType, body, isSuperAgent, isSuperUser) => {
   const gameConfig = await GameConfig.findOneAndUpdate({ agentId: id, gameType }, body, { new: true });
+  let subAgentIds;
 
-  const subAgentIds = isSuper
-    ? await User.find({ superAgentId: id, role: 'admin' }).select('_id')
-    : await User.find({ agentId: id, role: 'admin' }).select('_id');
-
+  if (isSuperUser) {
+    subAgentIds = await User.find({ role: 'admin' }).select('_id');
+  } else {
+    subAgentIds = isSuperAgent
+      ? await User.find({ superAgentId: id, role: 'admin' }).select('_id')
+      : await User.find({ agentId: id, role: 'admin' }).select('_id');
+  }
   if (subAgentIds)
     subAgentIds.forEach(async (el) => {
       await GameConfig.findOneAndUpdate({ agentId: el._id, gameType }, body, { new: true });
@@ -74,11 +78,16 @@ const updateGameConfig = async (id, gameType, body, isSuper) => {
   return { data: gameConfig, message: 'Game Config updated successfully.' };
 };
 
-const updateGameData = async (id, gameType, body, isSuper) => {
+const updateGameData = async (id, gameType, body, isSuperAgent, isSuperUser) => {
   const game = await Game.findOneAndUpdate({ agentId: id, gameType }, body, { new: true });
-  const subAgentIds = isSuper
-    ? await User.find({ superAgentId: id, role: 'admin' }).select('_id')
-    : await User.find({ agentId: id, role: 'admin' }).select('_id');
+  let subAgentIds;
+  if (isSuperUser) {
+    subAgentIds = await User.find({ role: 'admin' }).select('_id');
+  } else {
+    subAgentIds = isSuperAgent
+      ? await User.find({ superAgentId: id, role: 'admin' }).select('_id')
+      : await User.find({ agentId: id, role: 'admin' }).select('_id');
+  }
   if (subAgentIds)
     subAgentIds.forEach(async (el) => {
       await Game.findOneAndUpdate({ agentId: el._id, gameType }, body, { new: true });
