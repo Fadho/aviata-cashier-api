@@ -19,7 +19,7 @@ const ticketSchema = mongoose.Schema(
     playerId: {
       type: mongoose.SchemaTypes.String,
       ref: 'Player',
-      required: true,
+      // required: true,
     },
     betType: {
       type: String,
