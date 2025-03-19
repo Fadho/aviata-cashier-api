@@ -55,7 +55,7 @@ const createBetPlaced = catchAsync(async (req, res) => {
 
   // Create the bet
   let betPlaced = {};
-  if (gameType === 'shootout') {
+  if (gameType === 'shootout' || gameType === 'aviatax') {
     betPlaced = await betsService.createBetPlacedForPlayer(stake, gameType, roundId, cashierId, playerId, deviceId);
   } else {
     betPlaced = await betsService.createBetPlaced(result, stake, selections, cashierId, potentialWinnings, roundId);

@@ -53,21 +53,7 @@ app.use(mongoSanitize());
 app.use(compression());
 
 // enable cors
-const allowedOrigins = [
-  'https://bo.sbegames.com',
-  'https://bo.staging.sbegames.com',
-  'https://cashier.sbegames.com',
-  'https://websocket.aviata.sportsbookengine.com',
-  'https://shoutout-cashier.staging.sbegames.com',
-  'https://next-backoffice-gamma.vercel.app',
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'http://65.21.184.193',
-  'https://websocket.shootout.sbegames.com',
-  'https://websocket2.shootout.sbegames.com',
-  'https://shootout.cashier.sbegames.com',
-  'https://aviata.cashier.staging.sbegames.com',
-];
+const { allowedOrigins } = config;
 
 const corsOptions = {
   origin: (origin, callback) => {
