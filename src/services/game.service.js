@@ -96,7 +96,17 @@ const updateGameData = async (id, gameType, body, isSuperAgent, isSuperUser) => 
 };
 
 const getGameData = async (agentId, gameType) => {
-  const game = await Game.findOne({ agentId, gameType }).select('-id');
+  const user = await User.find({ _id: agentId, role: 'admin' }).select('_id');
+  if (!user) {
+    return;
+  }
+  if (gameType !== 'aviata' && gameType !== 'shootout' && gameType !== 'aviatax') {
+    return;
+  }
+  let game = await Game.findOne({ agentId, gameType }).select('-id');
+  if (!game) {
+    game = await Game.create({ agentId, gameType });
+  }
   return game;
 };
 
