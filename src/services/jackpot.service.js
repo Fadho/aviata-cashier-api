@@ -214,6 +214,23 @@ const getUpdatedJackpotHistory = async (filter, cashierId, startDate, endDate) =
 };
 
 const getAgentJackpots = async (agentId, gameType) => {
+  const jackpots = await Jackpot.find({ agentId, gameType });
+
+  if (jackpots.length) {
+    return jackpots;
+  }
+
+  const user = await User.find({ _id: agentId, role: 'admin' }).select('_id');
+  if (!user) {
+    return;
+  }
+  // eslint-disable-next-line no-useless-return
+  if (gameType !== 'aviata' && gameType !== 'shootout' && gameType !== 'aviatax') return;
+
+  await Jackpot.create({ agentId, gameType, jackpotName: 'Bronze' });
+  await Jackpot.create({ agentId, gameType, jackpotName: 'Silver' });
+  await Jackpot.create({ agentId, gameType, jackpotName: 'Gold' });
+
   return Jackpot.find({ agentId, gameType });
 };
 
