@@ -93,6 +93,12 @@ const financialReportSchema = mongoose.Schema(
       // required: true,
     },
 
+    gameType: {
+      type: mongoose.SchemaTypes.String,
+      default: 'shootout',
+      // required: true,
+    },
+
     cashierId: {
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'User',

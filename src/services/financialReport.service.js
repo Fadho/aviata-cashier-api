@@ -38,7 +38,7 @@ const getBetHistory1 = async (filter, startDate, endDate) => {
  * @param {Object} financialReportBody
  * @returns {Promise<FinancialReport>}
  */
-const getAndUpdateStake = async (cashierId) => {
+const getAndUpdateStake = async (cashierId, gameType) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
   let numberOfBets = 0;
@@ -54,8 +54,8 @@ const getAndUpdateStake = async (cashierId) => {
   let jackpot3Contributions = 0;
 
   const [players, tickets, cashierJackpotWinners] = await Promise.all([
-    Player.find({ cashierId }),
-    getBetHistory1({ cashierId }, today, today),
+    Player.find({ cashierId, gameType }),
+    getBetHistory1({ cashierId, gameType }, today, today),
     jackpotService.getUpdatedJackpotHistory({}, cashierId, today, today),
   ]);
   players.forEach((player) => {
@@ -86,6 +86,7 @@ const getAndUpdateStake = async (cashierId) => {
     return FinancialReport.create({
       cashierId,
       numberOfBets,
+      gameType,
       totalWinnings,
       totalStake,
       totalPlayerWallets,
@@ -122,7 +123,7 @@ const getAndUpdateStake = async (cashierId) => {
  * @param {Object} financialReportBody
  * @returns {Promise<FinancialReport>}
  */
-const getAndUpdatePlayerWallets = async (cashierId) => {
+const getAndUpdatePlayerWallets = async (cashierId, gameType) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
   let totalPlayerWallets = 0;
@@ -145,6 +146,7 @@ const getAndUpdatePlayerWallets = async (cashierId) => {
   if (!financialReport) {
     return FinancialReport.create({
       cashierId,
+      gameType,
       totalPlayerWallets,
       totalPlayerBonus,
       totalBonusAwarded,
