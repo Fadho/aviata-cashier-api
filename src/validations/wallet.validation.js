@@ -24,6 +24,7 @@ const fundWallet = {
     currencyId: Joi.string().custom(objectId),
     userId: Joi.string().required().custom(objectId),
     amount: Joi.string().required(),
+    gameType: Joi.string(),
   }),
 };
 
