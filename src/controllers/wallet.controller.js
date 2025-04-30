@@ -6,7 +6,7 @@ const { walletService, currencyService, userService, transferHistoryService } = 
 const fundWallet = catchAsync(async (req, res) => {
   // destructuring parameters
   // eslint-disable-next-line prefer-const
-  let { amount, currencyId, userId } = req.body;
+  let { amount, currencyId, userId, gameType } = req.body;
   amount = Number(amount);
 
   if (!Number(amount)) throw new ApiError(httpStatus.NOT_FOUND, 'Provide valid amount e.g 500 or -500');
@@ -52,6 +52,7 @@ const fundWallet = catchAsync(async (req, res) => {
       target: userId,
       transactionType: `${amount < 0 ? 'from' : 'to'} ${isUser.role}`,
       currency: currencyId,
+      gameType,
       deposit: amount < 0 ? 0 : amount,
       withdrawal: amount < 0 ? amount * 1 : 0,
     });
@@ -78,6 +79,7 @@ const fundWallet = catchAsync(async (req, res) => {
       target: userId,
       transactionType: `${amount < 0 ? 'from' : 'to'} ${isUser.role}`,
       currency: currencyId,
+      gameType,
       deposit: amount < 0 ? 0 : amount,
       withdrawal: amount < 0 ? amount * 1 : 0,
     });
@@ -116,6 +118,7 @@ const fundWallet = catchAsync(async (req, res) => {
     target: userId,
     transactionType: `${amount < 0 ? 'from' : 'to'} ${isUser.role}`,
     currency: currencyId,
+    gameType,
     deposit: amount < 0 ? 0 : amount,
     withdrawal: amount < 0 ? amount * 1 : 0,
   });

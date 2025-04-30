@@ -8,6 +8,7 @@ const walletService = require('./wallet.service');
 const logger = require('../config/logger');
 const { userService } = require('.');
 const financialReportService = require('./financialReport.service');
+const gameReportService = require('./gameReport.service');
 
 /**
  * create a new ticket
@@ -232,7 +233,6 @@ const getBetHistory1 = async (filter, startDate, endDate) => {
     filter = dateFilter;
   }
 
-  console.log(filter)
   const tickets = await Tickets.find(filter);
   const ticketsArchive = await TicketsArchive.find(filter);
   return [...tickets, ...ticketsArchive];
@@ -375,7 +375,8 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
       { new: true, session } // Include session in the update
     );
 
-    financialReportService.getAndUpdatePlayerWallets(player.cashierId, bet.gameType);
+    financialReportService.getAndUpdatePlayerWallets(player.cashierId, bet.gameType, winnings);
+    gameReportService.getAndUpdatePlayerWallets(player.cashierId, bet.gameType, winnings);
 
     // Commit the transaction
     await session.commitTransaction();

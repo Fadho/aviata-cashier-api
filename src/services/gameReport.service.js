@@ -1,5 +1,5 @@
 /* eslint-disable no-param-reassign */
-const { FinancialReport, Player, Tickets, TicketsArchive } = require('../models');
+const { GameReport, Player, Tickets, TicketsArchive } = require('../models');
 const transferHistoryService = require('./transferHistory.service');
 const jackpotService = require('./jackpot.service');
 // const { getBetHistory1 } = require('./bets.service');
@@ -36,7 +36,7 @@ const getBetHistory1 = async (filter, startDate, endDate) => {
 /**
  * Get and update financial report - stake
  * @param {Object} financialReportBody
- * @returns {Promise<FinancialReport>}
+ * @returns {Promise<GameReport>}
  */
 const getAndUpdateStake = async (cashierId, gameType) => {
   const today = new Date();
@@ -81,9 +81,9 @@ const getAndUpdateStake = async (cashierId, gameType) => {
     }
   });
 
-  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
-  if (!financialReport) {
-    return FinancialReport.create({
+  const gameReport = await GameReport.findOne({ cashierId, createdAt: { $gte: today } });
+  if (!gameReport) {
+    return GameReport.create({
       cashierId,
       numberOfBets,
       gameType,
@@ -99,8 +99,8 @@ const getAndUpdateStake = async (cashierId, gameType) => {
       jackpot3Contributions,
     });
   }
-  return FinancialReport.findByIdAndUpdate(
-    financialReport._id,
+  return GameReport.findByIdAndUpdate(
+    gameReport._id,
     {
       numberOfBets,
       totalWinnings,
@@ -121,7 +121,7 @@ const getAndUpdateStake = async (cashierId, gameType) => {
 /**
  * Get and update financial report - player wallets
  * @param {Object} financialReportBody
- * @returns {Promise<FinancialReport>}
+ * @returns {Promise<GameReport>}
  */
 const getAndUpdatePlayerWallets = async (cashierId, gameType, winnings) => {
   const today = new Date();
@@ -143,19 +143,19 @@ const getAndUpdatePlayerWallets = async (cashierId, gameType, winnings) => {
     totalBonusAwarded += Number(transaction.bonus ? transaction.bonus : 0);
   });
 
-  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
-  if (!financialReport) {
-    return FinancialReport.create({
+  const gameReport = await GameReport.findOne({ cashierId, createdAt: { $gte: today } });
+  if (!gameReport) {
+    return GameReport.create({
       cashierId,
       gameType,
       totalPlayerWallets,
       totalPlayerBonus,
       totalBonusAwarded,
-      totalWinnings: winnings,
+      totalWinnings,
     });
   }
-  return FinancialReport.findByIdAndUpdate(
-    financialReport._id,
+  return GameReport.findByIdAndUpdate(
+    gameReport._id,
     {
       $set: {
         totalPlayerWallets,
@@ -163,7 +163,7 @@ const getAndUpdatePlayerWallets = async (cashierId, gameType, winnings) => {
         totalBonusAwarded,
       },
       $inc: {
-        totalWinnings: winnings,
+        totalWinnings,
       },
     },
     { new: true }
@@ -173,9 +173,9 @@ const getAndUpdatePlayerWallets = async (cashierId, gameType, winnings) => {
 /**
  * Get and update transactions report - totalDeposits, totalWithdrawals, totalBonusAwarded
  * @param {Object} financialReportBody
- * @returns {Promise<FinancialReport>}
+ * @returns {Promise<GameReport>}
  */
-const getAndUpdateTotalTransactions = async (cashierId) => {
+const getAndUpdateTotalTransactions = async (cashierId, gameType) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
   let totalDeposits = 0;
@@ -183,10 +183,11 @@ const getAndUpdateTotalTransactions = async (cashierId) => {
   let totalBonusAwarded = 0;
 
   const transactions = await transferHistoryService.queryTransferHistorys(
-    { agent: cashierId },
+    { agent: cashierId, gameType },
     { limit: 1000000 },
     today,
-    today
+    today,
+    gameType
   );
 
   transactions.results.forEach((transaction) => {
@@ -195,17 +196,18 @@ const getAndUpdateTotalTransactions = async (cashierId) => {
     totalBonusAwarded += Number(transaction.bonus ? transaction.bonus : 0);
   });
 
-  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
-  if (!financialReport) {
-    return FinancialReport.create({
+  const gameReport = await GameReport.findOne({ cashierId, createdAt: { $gte: today } });
+  if (!gameReport) {
+    return GameReport.create({
       cashierId,
       totalDeposits,
       totalWithdrawals,
       totalBonusAwarded,
+      gameType,
     });
   }
-  return FinancialReport.findByIdAndUpdate(
-    financialReport._id,
+  return GameReport.findByIdAndUpdate(
+    gameReport._id,
     {
       totalDeposits,
       totalWithdrawals,
@@ -216,7 +218,7 @@ const getAndUpdateTotalTransactions = async (cashierId) => {
 };
 
 /**
- * Query for financialReports
+ * Query for gameReports
  * @param {Object} filter - Mongo filter
  * @param {Object} options - Query options
  * @param {string} [options.sortBy] - Sort option in the format: sortField:(desc|asc)
@@ -225,11 +227,11 @@ const getAndUpdateTotalTransactions = async (cashierId) => {
  * @returns {Promise<QueryResult>}
  */
 const queryFinancialReports = async (filter, options) => {
-  const financialReports = await FinancialReport.paginate(filter, options);
-  return financialReports;
+  const gameReports = await GameReport.paginate(filter, options);
+  return gameReports;
 };
 
-const getFinancialReports = async (filter, startDate, endDate) => {
+const getGameReports = async (filter, startDate, endDate) => {
   const startDateWithoutTime = new Date(startDate);
   startDateWithoutTime.setHours(0, 0, 0, 0);
   const endDateWithoutTime = new Date(endDate);
@@ -251,12 +253,11 @@ const getFinancialReports = async (filter, startDate, endDate) => {
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
   }
-  console.log(filter);
-  const financialReports = await FinancialReport.find(filter);
-  return financialReports;
+  const gameReports = await GameReport.find(filter);
+  return gameReports;
 };
 
-const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
+const getAndUpdateStakeByDay = async (cashierId, startDate, endDate, gameType) => {
   try {
     const startDateWithoutTime = new Date(startDate);
     const endDateWithoutTime = new Date(endDate);
@@ -267,6 +268,7 @@ const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
       jackpotService.getUpdatedJackpotHistory(
         {},
         cashierId,
+        gameType,
         startDate.toISOString().split('T')[0],
         endDate.toISOString().split('T')[0]
       ),
@@ -307,22 +309,23 @@ const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
       }
     });
 
-    const financialReport = await FinancialReport.findOne({
+    const gameReport = await GameReport.findOne({
       cashierId,
+      gameType,
       createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime },
     });
-    if (!financialReport)
-      return FinancialReport.create(
-        { cashierId, ...aggregates, createdAt: startDateWithoutTime } // Include createdAt for backdated reports
+    if (!gameReport)
+      return GameReport.create(
+        { cashierId, ...aggregates, gameType, createdAt: startDateWithoutTime } // Include createdAt for backdated reports
       );
 
-    return FinancialReport.updateOne(
-      { cashierId, createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime } },
+    return GameReport.updateOne(
+      { cashierId, createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime }, gameType },
       { ...aggregates },
       { new: true }
     );
 
-    // return financialReport;
+    // return gameReport;
   } catch (error) {
     console.error('Error in getAndUpdateStakeByDay:', error);
   }
@@ -356,17 +359,17 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
     );
     // console.log(aggregates, cashierId, startDateWithoutTime);
 
-    const financialReport = await FinancialReport.findOne({
+    const gameReport = await GameReport.findOne({
       cashierId,
       createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime },
     });
 
-    if (!financialReport)
-      return FinancialReport.create(
+    if (!gameReport)
+      return GameReport.create(
         { cashierId, ...aggregates, createdAt: startDateWithoutTime } // Include createdAt for backdated reports
       );
 
-    return FinancialReport.findOneAndUpdate(
+    return GameReport.findOneAndUpdate(
       { cashierId, createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime } },
       { ...aggregates },
       { new: true }
@@ -379,7 +382,7 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
 module.exports = {
   queryFinancialReports,
   getAndUpdateStake,
-  getFinancialReports,
+  getGameReports,
   getAndUpdatePlayerWallets,
   getAndUpdateTotalTransactions,
   getAndUpdateStakeByDay,
