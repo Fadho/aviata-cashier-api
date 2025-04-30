@@ -1048,6 +1048,7 @@ const getTransactionReports = catchAsync(async (req, res) => {
                 totalDeposit: 0,
                 totalWithdrawal: 0,
                 totalStake: 0,
+                totalWinnings: 0,
                 totalBonus: 0,
                 numberOfTransactions: 0,
                 numberOfBets: 0,
@@ -1067,6 +1068,7 @@ const getTransactionReports = catchAsync(async (req, res) => {
               currencyReport.totalDeposit += report.totalDeposit;
               currencyReport.totalWithdrawal += report.totalWithdrawal;
               currencyReport.totalStake += report.totalStake;
+              currencyReport.totalWinnings += report.totalWinnings;
               currencyReport.numberOfTransactions += report.numberOfTransactions;
               currencyReport.numberOfBets += report.numberOfBets;
               currencyReport.totalBonus += report.totalPlayerBonus;
