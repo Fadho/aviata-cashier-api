@@ -233,6 +233,7 @@ const getBetHistory1 = async (filter, startDate, endDate) => {
     filter = dateFilter;
   }
 
+  // console.log(filter)
   const tickets = await Tickets.find(filter);
   const ticketsArchive = await TicketsArchive.find(filter);
   return [...tickets, ...ticketsArchive];
