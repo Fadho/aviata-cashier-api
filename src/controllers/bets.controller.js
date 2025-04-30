@@ -21,8 +21,8 @@ const {
   freebetService,
   // financialReportService,
 } = require('../services');
-const financialReportService = require('../services/gameReport.service');
-const gameReportService = require('../services/financialReport.service');
+const gameReportService = require('../services/gameReport.service');
+const financialReportService = require('../services/financialReport.service');
 
 const { Wallets, Player, User, FinancialReport } = require('../models');
 const GameConfig = require('../models/gameConfig.model');
