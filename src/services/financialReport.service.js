@@ -129,7 +129,7 @@ const getAndUpdatePlayerWallets = async (cashierId, gameType, winnings) => {
   let totalPlayerWallets = 0;
   let totalPlayerBonus = 0;
   let totalBonusAwarded = 0;
-  const totalWinnings = 0;
+  // const totalWinnings = 0;
 
   const [players, transactions] = await Promise.all([
     Player.find({ cashierId }),

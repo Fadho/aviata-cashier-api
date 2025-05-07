@@ -7,6 +7,7 @@ const userRoute = require('./user.route');
 const currencyRoute = require('./currency.route');
 const walletRoute = require('./wallet.route');
 const roundsRoute = require('./rounds.route');
+const feedbackRoute = require('./feedback.route');
 
 const router = express.Router();
 
@@ -42,6 +43,10 @@ const defaultRoutes = [
   {
     path: '/rounds',
     route: roundsRoute,
+  },
+  {
+    path: '/feedback',
+    route: feedbackRoute,
   },
 ];
 

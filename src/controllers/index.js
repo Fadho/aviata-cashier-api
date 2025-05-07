@@ -5,3 +5,4 @@ module.exports.betsController = require('./bets.controller');
 module.exports.gameController = require('./game.controller');
 module.exports.transferHistoryController = require('./transferHistory.controller');
 module.exports.roundsController = require('./rounds.controller');
+module.exports.feedbackController = require('./feedback.controller');

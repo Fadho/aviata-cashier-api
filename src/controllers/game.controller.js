@@ -224,7 +224,7 @@ const updateAgentLastMan = catchAsync(async (req, res) => {
     const subAgentIds = await User.find({ role: 'admin' }).select('_id');
     if (subAgentIds)
       subAgentIds.forEach(async (el) => {
-        await Freebet.findOneAndUpdate({ agentId: el._id }, req.body, { new: true });
+        await LastMan.findOneAndUpdate({ agentId: el._id }, req.body, { new: true });
       });
   } else {
     if (userCheck.role === 'admin' && !userCheck.agentId) isSuperAgent = true;

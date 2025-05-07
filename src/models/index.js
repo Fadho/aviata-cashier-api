@@ -18,3 +18,4 @@ module.exports.Freebet = require('./freebet.model');
 module.exports.LastMan = require('./lastMan.model');
 module.exports.LastManWinners = require('./lastManWinners.model');
 module.exports.GameReport = require('./gameReport.model');
+module.exports.Feedback = require('./feedback.model');
