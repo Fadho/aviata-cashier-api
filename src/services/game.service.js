@@ -64,6 +64,8 @@ const updateGameConfig = async (id, gameType, body, isSuperAgent, isSuperUser) =
   const gameConfig = await GameConfig.findOneAndUpdate({ agentId: id, gameType }, body, { new: true });
   let subAgentIds;
 
+  console.log(id, gameType, body, isSuperAgent, isSuperUser, 'updateGameConfig')
+
   if (isSuperUser) {
     subAgentIds = await User.find({ role: 'admin' }).select('_id');
   } else {
