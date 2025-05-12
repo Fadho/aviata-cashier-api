@@ -73,7 +73,7 @@ const updateGameConfig = async (id, gameType, body, isSuperAgent, isSuperUser) =
   }
   if (subAgentIds)
     subAgentIds.forEach(async (el) => {
-      await GameConfig.findOneAndUpdate({ agentId: el._id, gameType }, body, { new: true });
+      GameConfig.findOneAndUpdate({ agentId: el._id, gameType }, body, { new: true });
     });
   return { data: gameConfig, message: 'Game Config updated successfully.' };
 };
@@ -90,7 +90,7 @@ const updateGameData = async (id, gameType, body, isSuperAgent, isSuperUser) => 
   }
   if (subAgentIds)
     subAgentIds.forEach(async (el) => {
-      await Game.findOneAndUpdate({ agentId: el._id, gameType }, body, { new: true });
+      Game.findOneAndUpdate({ agentId: el._id, gameType }, body, { new: true });
     });
   return { data: game, message: 'Game Data updated successfully.' };
 };

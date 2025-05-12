@@ -49,9 +49,17 @@ const getGameSettings = catchAsync(async (req, res) => {
 
 const updateGameConfig = catchAsync(async (req, res) => {
   let isSuperAgent = false;
+  let isSuperUser = false;
   const user = await User.findOne({ _id: req.params.agentId }).select('role');
   if (user.role === 'admin' && !user.agentId) isSuperAgent = true;
-  const game = await gameService.updateGameConfig(req.params.agentId, req.params.gameType, req.body, isSuperAgent);
+  isSuperUser = user.role === 'super';
+  const game = await gameService.updateGameConfig(
+    req.params.agentId,
+    req.params.gameType,
+    req.body,
+    isSuperAgent,
+    isSuperUser
+  );
   res.send(game);
 });
 
