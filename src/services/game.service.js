@@ -64,7 +64,7 @@ const updateGameConfig = async (id, gameType, body, isSuperAgent, isSuperUser) =
   const gameConfig = await GameConfig.findOneAndUpdate({ agentId: id, gameType }, body, { new: true });
   let subAgentIds;
 
-  console.log(id, gameType, body, isSuperAgent, isSuperUser, 'updateGameConfig')
+  console.log(id, gameType, body, isSuperAgent, isSuperUser, 'updateGameConfig');
 
   if (isSuperUser) {
     subAgentIds = await User.find({ role: 'admin' }).select('_id');
@@ -73,6 +73,7 @@ const updateGameConfig = async (id, gameType, body, isSuperAgent, isSuperUser) =
       ? await User.find({ superAgentId: id, role: 'admin' }).select('_id')
       : await User.find({ agentId: id, role: 'admin' }).select('_id');
   }
+  console.log(subAgentIds)
   if (subAgentIds)
     subAgentIds.forEach(async (el) => {
       GameConfig.findOneAndUpdate({ agentId: el._id, gameType }, body, { new: true });
@@ -90,10 +91,13 @@ const updateGameData = async (id, gameType, body, isSuperAgent, isSuperUser) => 
       ? await User.find({ superAgentId: id, role: 'admin' }).select('_id')
       : await User.find({ agentId: id, role: 'admin' }).select('_id');
   }
+  console.log(subAgentIds)
+
   if (subAgentIds)
     subAgentIds.forEach(async (el) => {
       Game.findOneAndUpdate({ agentId: el._id, gameType }, body, { new: true });
     });
+
   return { data: game, message: 'Game Data updated successfully.' };
 };
 
