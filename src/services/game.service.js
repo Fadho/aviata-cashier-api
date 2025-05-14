@@ -46,11 +46,6 @@ const getGameConfig = async (body) => {
     game = await Game.create({ agentId: body.agentId, gameType: body.gameType });
   }
 
-  // let jackpot = await Jackpot.find({ agentId: body.agentId, gameType: body.gameType }).select('-id');
-  // if (!jackpot.length) {
-  //   jackpot = await Jackpot.create({ agentId: body.agentId, gameType: body.gameType, jackpotName: 'Bronze' });
-  // }
-
   if (!game || !gameConfig) {
     return { data: { game, gameConfig }, message: 'Not Found' };
   }
@@ -72,9 +67,23 @@ const updateGameConfig = async (id, gameType, body, isSuperAgent, isSuperUser) =
       : await User.find({ agentId: id, role: 'admin' }).select('_id');
   }
   if (subAgentIds)
-    subAgentIds.forEach(async (el) => {
-      await GameConfig.findOneAndUpdate({ agentId: el._id, gameType }, body, { new: true });
-    });
+    await Promise.all(
+      subAgentIds.map(async (user) => {
+        const existingGameConfig = await GameConfig.findOne({ agentId: user._id, gameType });
+
+        if (existingGameConfig) {
+          // Update existing jackpot
+          await GameConfig.findOneAndUpdate({ _id: existingGameConfig._id }, body);
+        } else {
+          // Create new jackpot with inherited data
+          await GameConfig.create({
+            agentId: user._id,
+            gameType,
+            ...body,
+          });
+        }
+      })
+    );
   return { data: gameConfig, message: 'Game Config updated successfully.' };
 };
 
@@ -91,9 +100,23 @@ const updateGameData = async (id, gameType, body, isSuperAgent, isSuperUser) => 
   // console.log(subAgentIds)
 
   if (subAgentIds)
-    subAgentIds.forEach(async (el) => {
-      await Game.findOneAndUpdate({ agentId: el._id, gameType }, body, { new: true });
-    });
+    await Promise.all(
+      subAgentIds.map(async (user) => {
+        const existingGame = await Game.findOne({ agentId: user._id, gameType });
+
+        if (existingGame) {
+          // Update existing jackpot
+          await Game.findOneAndUpdate({ _id: existingGame._id }, body);
+        } else {
+          // Create new jackpot with inherited data
+          await Game.create({
+            agentId: user._id,
+            gameType,
+            ...body,
+          });
+        }
+      })
+    );
 
   return { data: game, message: 'Game Data updated successfully.' };
 };

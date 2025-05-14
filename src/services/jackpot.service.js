@@ -142,24 +142,34 @@ const updateAgentJackpot = async (id, body, isSuperAgent, isSuperUser) => {
   const updateJackpot = await Jackpot.findOneAndUpdate(id, body, { new: true });
   let subAgentIds;
   if (isSuperUser) {
-    subAgentIds = await User.find({ role: 'admin' })
-      .select('_id')
-      .lean()
-      .map((user) => user._id);
+    subAgentIds = await User.find({ role: 'admin' }).select('_id').lean();
   } else {
     subAgentIds = isSuperAgent
-      ? await User.find({ superAgentId: updateJackpot.agentId })
-          .select('_id')
-          .lean()
-          .map((user) => user._id)
-      : await User.find({ agentId: updateJackpot.agentId })
-          .select('_id')
-          .lean()
-          .map((user) => user._id);
+      ? await User.find({ superAgentId: updateJackpot.agentId }).select('_id').lean()
+      : await User.find({ agentId: updateJackpot.agentId }).select('_id').lean();
   }
-  subAgentIds.forEach((el) => {
-    Jackpot.findOneAndUpdate({ agentId: el }, body, { new: true });
-  });
+  await Promise.all(
+    subAgentIds.map(async (user) => {
+      const existingJackpot = await Jackpot.findOne({
+        agentId: user._id,
+        gameType: updateJackpot.gameType,
+        jackpotName: updateJackpot.jackpotName,
+      });
+
+      if (existingJackpot) {
+        // Update existing jackpot
+        await Jackpot.findOneAndUpdate({ _id: existingJackpot._id }, body);
+      } else {
+        // Create new jackpot with inherited data
+        await Jackpot.create({
+          agentId: user._id,
+          gameType: updateJackpot.gameType,
+          jackpotName: updateJackpot.jackpotName,
+          ...body,
+        });
+      }
+    })
+  );
   return updateJackpot;
 };
 
@@ -223,25 +233,53 @@ const getUpdatedJackpotHistory = async (filter, cashierId, startDate, endDate) =
 
 const getAgentJackpots = async (agentId, gameType) => {
   const jackpots = await Jackpot.find({ agentId, gameType });
+  console.log(jackpots);
 
   if (jackpots.length) {
     return jackpots;
   }
-
-  const user = await User.find({ _id: agentId, role: 'admin' }).select('_id');
-  if (!user) {
+  const user = await User.find({ _id: agentId, role: 'admin' }).select('_id agentId superAgentId');
+  if (!user[0]) {
     return;
   }
   // eslint-disable-next-line no-useless-return
   // Only support specific game types
   if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
 
-  // Create default jackpots
-  await Promise.all([
-    Jackpot.create({ agentId, gameType, jackpotName: 'Bronze' }),
-    Jackpot.create({ agentId, gameType, jackpotName: 'Silver' }),
-    Jackpot.create({ agentId, gameType, jackpotName: 'Gold' }),
-  ]);
+  let parentJackpots = await Jackpot.find({ agentId: user[0].agentId, gameType });
+  if (!parentJackpots.length) {
+    const suser = await User.find({ role: 'super' }).select('_id');
+    parentJackpots = user[0].superAgentId
+      ? await Jackpot.find({ agentId: user[0].superAgentId, gameType })
+      : await Jackpot.find({ agentId: suser[0]._id, gameType });
+  }
+  // eslint-disable-next-line guard-for-in
+  for (const jackpot in parentJackpots) {
+    switch (jackpot) {
+      case 'Bronze':
+        delete jackpot.agentId;
+        Jackpot.create({ agentId, ...jackpot });
+        break;
+      case 'Silver':
+        delete jackpot.agentId;
+        Jackpot.create({ agentId, ...jackpot });
+        break;
+      case 'Gold':
+        delete jackpot.agentId;
+        Jackpot.create({ agentId, ...jackpot });
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  // // Create default jackpots
+  // await Promise.all([
+  //   Jackpot.create({ agentId, gameType, jackpotName: 'Bronze' }),
+  //   Jackpot.create({ agentId, gameType, jackpotName: 'Silver' }),
+  //   Jackpot.create({ agentId, gameType, jackpotName: 'Gold' }),
+  // ]);
 
   return Jackpot.find({ agentId, gameType });
 };

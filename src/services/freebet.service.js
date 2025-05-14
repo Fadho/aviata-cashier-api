@@ -142,9 +142,24 @@ const updateAgentFreebet = async (id, body, isSuperAgent, isSuperUser) => {
           .map((user) => user._id);
   }
 
-  subAgentIds.forEach((el) => {
-    Freebet.findOneAndUpdate({ agentId: el }, body, { new: true });
-  });
+  if (subAgentIds)
+    await Promise.all(
+      subAgentIds.map(async (user) => {
+        const existingLastMan = await Freebet.findOne({ agentId: user._id, gameType: updateFreebet.gameType });
+
+        if (existingLastMan) {
+          // Update existing jackpot
+          await Freebet.findOneAndUpdate({ _id: existingLastMan._id }, body);
+        } else {
+          // Create new jackpot with inherited data
+          await Freebet.create({
+            agentId: user._id,
+            gameType: updateFreebet.gameType,
+            ...body,
+          });
+        }
+      })
+    );
   return updateFreebet;
 };
 
