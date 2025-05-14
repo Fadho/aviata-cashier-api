@@ -86,16 +86,17 @@ const updateGameData = async (id, gameType, body, isSuperAgent, isSuperUser) => 
   let subAgentIds;
   if (isSuperUser) {
     subAgentIds = await User.find({ role: 'admin' }).select('_id');
+    console.log('1', subAgentIds.length)
   } else {
     subAgentIds = isSuperAgent
       ? await User.find({ superAgentId: id, role: 'admin' }).select('_id')
       : await User.find({ agentId: id, role: 'admin' }).select('_id');
   }
-  console.log(subAgentIds)
+  // console.log(subAgentIds)
 
   if (subAgentIds)
     subAgentIds.forEach(async (el) => {
-      Game.findOneAndUpdate({ agentId: el._id, gameType }, body, { new: true });
+      await Game.findOneAndUpdate({ agentId: el._id, gameType }, body, { new: true });
     });
 
   return { data: game, message: 'Game Data updated successfully.' };
