@@ -104,17 +104,27 @@ const findLastMan = async ({ agentId, gameType }) => {
  * @param {Object} body
  * @returns {Promise<LastManWinners>}
  */
-const updateAgentLastMan = async (id, body, isSuper) => {
+const updateAgentLastMan = async (id, body, isSuperAgent, isSuperUser) => {
   const updateLastMan = await LastMan.findOneAndUpdate(id, body, { new: true });
-  const subAgentIds = isSuper
-    ? await User.find({ superAgentId: updateLastMan.agentId })
-        .select('_id')
-        .lean()
-        .map((user) => user._id)
-    : await User.find({ agentId: updateLastMan.agentId })
-        .select('_id')
-        .lean()
-        .map((user) => user._id);
+  let subAgentIds;
+
+  if (isSuperUser) {
+    subAgentIds = await User.find({ role: 'admin' })
+      .select('_id')
+      .lean()
+      .map((user) => user._id);
+  } else {
+    subAgentIds = isSuperAgent
+      ? await User.find({ superAgentId: updateLastMan.agentId })
+          .select('_id')
+          .lean()
+          .map((user) => user._id)
+      : await User.find({ agentId: updateLastMan.agentId })
+          .select('_id')
+          .lean()
+          .map((user) => user._id);
+  }
+
   subAgentIds.forEach((el) => {
     LastMan.findOneAndUpdate({ agentId: el }, body, { new: true });
   });

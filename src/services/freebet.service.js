@@ -34,7 +34,7 @@ const dropFreebet = async (id, deviceId, playerId) => {
       deviceId,
     }).session(session);
 
-    console.log(freebet, freebetWinners);
+    // console.log(freebet, freebetWinners);
 
     if (!freebetWinners || freebetWinners.freebetContributions < freebetAmount)
       throw new Error('No active freebet winner found / freebetContributions < freebetAmount');
@@ -121,17 +121,27 @@ const findFreebet = async ({ agentId, gameType }) => {
  * @param {Object} body
  * @returns {Promise<FreebetWinners>}
  */
-const updateAgentFreebet = async (id, body, isSuper) => {
+const updateAgentFreebet = async (id, body, isSuperAgent, isSuperUser) => {
   const updateFreebet = await Freebet.findOneAndUpdate(id, body, { new: true });
-  const subAgentIds = isSuper
-    ? await User.find({ superAgentId: updateFreebet.agentId })
-        .select('_id')
-        .lean()
-        .map((user) => user._id)
-    : await User.find({ agentId: updateFreebet.agentId })
-        .select('_id')
-        .lean()
-        .map((user) => user._id);
+  let subAgentIds;
+
+  if (isSuperUser) {
+    subAgentIds = await User.find({ role: 'admin' })
+      .select('_id')
+      .lean()
+      .map((user) => user._id);
+  } else {
+    subAgentIds = isSuperAgent
+      ? await User.find({ superAgentId: updateFreebet.agentId })
+          .select('_id')
+          .lean()
+          .map((user) => user._id)
+      : await User.find({ agentId: updateFreebet.agentId })
+          .select('_id')
+          .lean()
+          .map((user) => user._id);
+  }
+
   subAgentIds.forEach((el) => {
     Freebet.findOneAndUpdate({ agentId: el }, body, { new: true });
   });
