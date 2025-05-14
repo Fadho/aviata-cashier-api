@@ -94,7 +94,7 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
   } catch (error) {
     // Rollback the transaction in case of any errors
     await session.abortTransaction();
-    console.log(`Error in dropJackpot: ${error.message}`);
+    // console.log(`Error in dropJackpot: ${error.message}`);
     throw new Error('Error processing jackpot drop');
   } finally {
     // End the session to free up resources
@@ -233,7 +233,6 @@ const getUpdatedJackpotHistory = async (filter, cashierId, startDate, endDate) =
 
 const getAgentJackpots = async (agentId, gameType) => {
   const jackpots = await Jackpot.find({ agentId, gameType });
-  console.log(jackpots);
 
   if (jackpots.length) {
     return jackpots;
