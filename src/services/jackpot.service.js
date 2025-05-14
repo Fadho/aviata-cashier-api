@@ -233,11 +233,20 @@ const getUpdatedJackpotHistory = async (filter, cashierId, startDate, endDate) =
 
 const getAgentJackpots = async (agentId, gameType) => {
   const jackpots = await Jackpot.find({ agentId, gameType });
-
   if (jackpots.length) {
     return jackpots;
   }
-  const user = await User.find({ _id: agentId, role: 'admin' }).select('_id agentId superAgentId');
+  const user = await User.find({ _id: agentId }).select('_id agentId superAgentId role');
+
+  if (user[0].role === 'super') {
+    // Create default jackpots
+    const bronze = await Jackpot.create({ agentId, gameType, jackpotName: 'Bronze' });
+    const silver = await Jackpot.create({ agentId, gameType, jackpotName: 'Silver' });
+    const gold = await Jackpot.create({ agentId, gameType, jackpotName: 'Gold' });
+
+    return [bronze, silver, gold];
+  }
+
   if (!user[0]) {
     return;
   }
@@ -272,13 +281,6 @@ const getAgentJackpots = async (agentId, gameType) => {
         break;
     }
   }
-
-  // // Create default jackpots
-  // await Promise.all([
-  //   Jackpot.create({ agentId, gameType, jackpotName: 'Bronze' }),
-  //   Jackpot.create({ agentId, gameType, jackpotName: 'Silver' }),
-  //   Jackpot.create({ agentId, gameType, jackpotName: 'Gold' }),
-  // ]);
 
   return Jackpot.find({ agentId, gameType });
 };

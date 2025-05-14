@@ -205,12 +205,37 @@ const getUpdatedLastManHistory = async (filter, cashierId, startDate, endDate) =
 };
 
 const getAgentLastMan = async (agentId, gameType) => {
-  let lastMan = await LastMan.find({ agentId, gameType });
-  if (!lastMan.length) {
-    lastMan = await createLastMan(agentId, gameType);
-    return lastMan;
+  const lastMan = await LastMan.find({ agentId, gameType });
+  if (lastMan.length) return lastMan[0];
+
+  const user = await User.find({ _id: agentId }).select('_id agentId superAgentId role');
+
+  if (user[0].role === 'super') {
+    // Create default jackpots
+    const lastman = await LastMan.create({ agentId, gameType });
+
+    return lastman;
   }
-  return lastMan[0];
+
+  if (!user[0]) {
+    return;
+  }
+  // eslint-disable-next-line no-useless-return
+  // Only support specific game types
+  if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
+
+  let parentLastMan = await LastMan.find({ agentId: user[0].agentId, gameType });
+  if (!parentLastMan) {
+    const suser = await User.find({ role: 'super' }).select('_id');
+    parentLastMan = user[0].superAgentId
+      ? await LastMan.find({ agentId: user[0].superAgentId, gameType })
+      : await LastMan.find({ agentId: suser[0]._id, gameType });
+  }
+
+  delete parentLastMan.agentId;
+  const lastmanData = await LastMan.create({ agentId, ...parentLastMan });
+
+  return lastmanData;
 };
 
 const updateLastManContributions = async (lastManId, lastManContributions, deviceId, gameType) => {

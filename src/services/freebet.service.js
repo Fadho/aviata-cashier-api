@@ -145,11 +145,11 @@ const updateAgentFreebet = async (id, body, isSuperAgent, isSuperUser) => {
   if (subAgentIds)
     await Promise.all(
       subAgentIds.map(async (user) => {
-        const existingLastMan = await Freebet.findOne({ agentId: user._id, gameType: updateFreebet.gameType });
+        const existingFreebet = await Freebet.findOne({ agentId: user._id, gameType: updateFreebet.gameType });
 
-        if (existingLastMan) {
+        if (existingFreebet) {
           // Update existing jackpot
-          await Freebet.findOneAndUpdate({ _id: existingLastMan._id }, body);
+          await Freebet.findOneAndUpdate({ _id: existingFreebet._id }, body);
         } else {
           // Create new jackpot with inherited data
           await Freebet.create({
@@ -222,12 +222,37 @@ const getUpdatedFreebetHistory = async (filter, cashierId, startDate, endDate) =
 };
 
 const getAgentFreebets = async (agentId, gameType) => {
-  let freebet = await Freebet.find({ agentId, gameType });
-  if (!freebet.length) {
-    freebet = await createFreebet(agentId, gameType);
-    return freebet;
+  const freebet = await Freebet.find({ agentId, gameType });
+  if (freebet.length) return freebet[0];
+
+  const user = await User.find({ _id: agentId }).select('_id agentId superAgentId role');
+
+  if (user[0].role === 'super') {
+    // Create default jackpots
+    const freebetData = await Freebet.create({ agentId, gameType });
+
+    return freebetData;
   }
-  return freebet[0];
+
+  if (!user[0]) {
+    return;
+  }
+  // eslint-disable-next-line no-useless-return
+  // Only support specific game types
+  if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
+
+  let parentFreebet = await Freebet.find({ agentId: user[0].agentId, gameType });
+  if (!parentFreebet) {
+    const suser = await User.find({ role: 'super' }).select('_id');
+    parentFreebet = user[0].superAgentId
+      ? await Freebet.find({ agentId: user[0].superAgentId, gameType })
+      : await Freebet.find({ agentId: suser[0]._id, gameType });
+  }
+
+  delete parentFreebet.agentId;
+  const freebetData = await Freebet.create({ agentId, ...parentFreebet });
+
+  return freebetData;
 };
 
 const updateFreebetContributions = async (freebetId, freebetContributions, deviceId, gameType, roundId) => {
@@ -263,8 +288,6 @@ const updateFreebetContributions = async (freebetId, freebetContributions, devic
       await dropFreebet(freebetId, deviceId, players[players.length > 1 ? randomInt(players.length) : 0]);
     }
   }
-
-  console.log(activeContribution);
 
   return activeContribution;
 };
