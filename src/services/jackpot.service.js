@@ -138,17 +138,25 @@ const findJackpot = async ({ agentId, gameType }) => {
  * @param {Object} body
  * @returns {Promise<JackpotWinners>}
  */
-const updateAgentJackpot = async (id, body, isSuper) => {
+const updateAgentJackpot = async (id, body, isSuperAgent, isSuperUser) => {
   const updateJackpot = await Jackpot.findOneAndUpdate(id, body, { new: true });
-  const subAgentIds = isSuper
-    ? await User.find({ superAgentId: updateJackpot.agentId })
-        .select('_id')
-        .lean()
-        .map((user) => user._id)
-    : await User.find({ agentId: updateJackpot.agentId })
-        .select('_id')
-        .lean()
-        .map((user) => user._id);
+  let subAgentIds;
+  if (isSuperUser) {
+    subAgentIds = await User.find({ role: 'admin' })
+      .select('_id')
+      .lean()
+      .map((user) => user._id);
+  } else {
+    subAgentIds = isSuperAgent
+      ? await User.find({ superAgentId: updateJackpot.agentId })
+          .select('_id')
+          .lean()
+          .map((user) => user._id)
+      : await User.find({ agentId: updateJackpot.agentId })
+          .select('_id')
+          .lean()
+          .map((user) => user._id);
+  }
   subAgentIds.forEach((el) => {
     Jackpot.findOneAndUpdate({ agentId: el }, body, { new: true });
   });
@@ -225,11 +233,15 @@ const getAgentJackpots = async (agentId, gameType) => {
     return;
   }
   // eslint-disable-next-line no-useless-return
-  if (gameType !== 'aviata' && gameType !== 'shootout' && gameType !== 'aviatax') return;
+  // Only support specific game types
+  if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
 
-  await Jackpot.create({ agentId, gameType, jackpotName: 'Bronze' });
-  await Jackpot.create({ agentId, gameType, jackpotName: 'Silver' });
-  await Jackpot.create({ agentId, gameType, jackpotName: 'Gold' });
+  // Create default jackpots
+  await Promise.all([
+    Jackpot.create({ agentId, gameType, jackpotName: 'Bronze' }),
+    Jackpot.create({ agentId, gameType, jackpotName: 'Silver' }),
+    Jackpot.create({ agentId, gameType, jackpotName: 'Gold' }),
+  ]);
 
   return Jackpot.find({ agentId, gameType });
 };
