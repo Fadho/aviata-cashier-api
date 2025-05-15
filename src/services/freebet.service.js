@@ -126,20 +126,11 @@ const updateAgentFreebet = async (id, body, isSuperAgent, isSuperUser) => {
   let subAgentIds;
 
   if (isSuperUser) {
-    subAgentIds = await User.find({ role: 'admin' })
-      .select('_id')
-      .lean()
-      .map((user) => user._id);
+    subAgentIds = await User.find({ role: 'admin' }).select('_id').lean();
   } else {
     subAgentIds = isSuperAgent
-      ? await User.find({ superAgentId: updateFreebet.agentId })
-          .select('_id')
-          .lean()
-          .map((user) => user._id)
-      : await User.find({ agentId: updateFreebet.agentId })
-          .select('_id')
-          .lean()
-          .map((user) => user._id);
+      ? await User.find({ superAgentId: updateFreebet.agentId }).select('_id').lean()
+      : await User.find({ agentId: updateFreebet.agentId }).select('_id').lean();
   }
 
   if (subAgentIds)
