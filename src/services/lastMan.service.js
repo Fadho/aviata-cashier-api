@@ -105,7 +105,7 @@ const findLastMan = async ({ agentId, gameType }) => {
  * @returns {Promise<LastManWinners>}
  */
 const updateAgentLastMan = async (id, body, isSuperAgent, isSuperUser) => {
-  const updateLastMan = await LastMan.findOneAndUpdate(id, body, { new: true });
+  const updateLastMan = await LastMan.findOne({ _id: id });
   let subAgentIds;
 
   if (isSuperUser) {

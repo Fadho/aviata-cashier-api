@@ -122,7 +122,7 @@ const findFreebet = async ({ agentId, gameType }) => {
  * @returns {Promise<FreebetWinners>}
  */
 const updateAgentFreebet = async (id, body, isSuperAgent, isSuperUser) => {
-  const updateFreebet = await Freebet.findOneAndUpdate(id, body, { new: true });
+  const updateFreebet = await Freebet.findOne({ _id: id });
   let subAgentIds;
 
   if (isSuperUser) {
