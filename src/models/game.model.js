@@ -24,7 +24,7 @@ const gameSchema = mongoose.Schema({
   },
   rtp: {
     type: mongoose.SchemaTypes.Number,
-    enum: [95, 90, 80, 65],
+    enum: [95, 90, 80, 88, 85, 75, 65],
     default: 95,
     required: true,
   },

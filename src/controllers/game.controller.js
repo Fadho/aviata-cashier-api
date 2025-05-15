@@ -83,7 +83,7 @@ const getAgentJackpots = catchAsync(async (req, res) => {
   const { agentId, gameType } = req.body;
   const jackpot = await jackpotService.getAgentJackpots(agentId, gameType);
   // rearrange list to have bronze first, silver, then gold.
-  console.log(jackpot)
+  console.log(jackpot);
   const order = ['Bronze', 'Silver', 'Gold'];
 
   const sortedGames = jackpot.sort((a, b) => {
@@ -100,24 +100,9 @@ const updateAgentJackpot = catchAsync(async (req, res) => {
   const jackpot = await Jackpot.findOneAndUpdate({ _id: jackpotId }, req.body, { new: true });
   const userCheck = await User.findOne({ _id: jackpot.agentId }).select('role');
   isSuperUser = userCheck.role === 'super';
+  if (userCheck.role === 'admin' && !userCheck.agentId) isSuperAgent = true;
 
-  if (isSuperUser) {
-    const subAgentIds = await User.find({ role: 'admin' }).select('_id');
-    if (subAgentIds)
-      subAgentIds.forEach(async (el) => {
-        await Jackpot.findOneAndUpdate({ agentId: el._id, jackpotName: jackpot.jackpotName }, req.body, { new: true });
-      });
-  } else {
-    if (userCheck.role === 'admin' && !userCheck.agentId) isSuperAgent = true;
-    const subAgentIds = isSuperAgent
-      ? await User.find({ superAgentId: jackpot.agentId, role: 'admin' }).select('_id')
-      : await User.find({ agentId: jackpot.agentId, role: 'admin' }).select('_id');
-    if (subAgentIds)
-      subAgentIds.forEach(async (el) => {
-        await Jackpot.findOneAndUpdate({ agentId: el._id, jackpotName: jackpot.jackpotName }, req.body, { new: true });
-      });
-  }
-
+  await jackpotService.updateAgentJackpot(jackpotId, req.body, isSuperAgent, isSuperUser);
   res.send(jackpot);
 });
 
@@ -173,23 +158,9 @@ const updateAgentFreebet = catchAsync(async (req, res) => {
   const freebet = await Freebet.findOneAndUpdate({ _id: freebetId }, req.body, { new: true });
   const userCheck = await User.findOne({ _id: freebet.agentId }).select('role');
   isSuperUser = userCheck.role === 'super';
+  if (userCheck.role === 'admin' && !userCheck.agentId) isSuperAgent = true;
 
-  if (isSuperUser) {
-    const subAgentIds = await User.find({ role: 'admin' }).select('_id');
-    if (subAgentIds)
-      subAgentIds.forEach(async (el) => {
-        await Freebet.findOneAndUpdate({ agentId: el._id }, req.body, { new: true });
-      });
-  } else {
-    if (userCheck.role === 'admin' && !userCheck.agentId) isSuperAgent = true;
-    const subAgentIds = isSuperAgent
-      ? await User.find({ superAgentId: freebet.agentId, role: 'admin' }).select('_id')
-      : await User.find({ agentId: freebet.agentId, role: 'admin' }).select('_id');
-    if (subAgentIds)
-      subAgentIds.forEach(async (el) => {
-        await Freebet.findOneAndUpdate({ agentId: el._id }, req.body, { new: true });
-      });
-  }
+  await freebetService.updateAgentFreebet(freebetId, req.body, isSuperAgent, isSuperUser);
   res.send(freebet);
 });
 
@@ -227,23 +198,9 @@ const updateAgentLastMan = catchAsync(async (req, res) => {
   const lastman = await LastMan.findOneAndUpdate({ _id: lastmanId }, req.body, { new: true });
   const userCheck = await User.findOne({ _id: lastman.agentId }).select('role');
   isSuperUser = userCheck.role === 'super';
+  if (userCheck.role === 'admin' && !userCheck.agentId) isSuperAgent = true;
 
-  if (isSuperUser) {
-    const subAgentIds = await User.find({ role: 'admin' }).select('_id');
-    if (subAgentIds)
-      subAgentIds.forEach(async (el) => {
-        await LastMan.findOneAndUpdate({ agentId: el._id }, req.body, { new: true });
-      });
-  } else {
-    if (userCheck.role === 'admin' && !userCheck.agentId) isSuperAgent = true;
-    const subAgentIds = isSuperAgent
-      ? await User.find({ superAgentId: lastman.agentId, role: 'admin' }).select('_id')
-      : await User.find({ agentId: lastman.agentId, role: 'admin' }).select('_id');
-    if (subAgentIds)
-      subAgentIds.forEach(async (el) => {
-        await LastMan.findOneAndUpdate({ agentId: el._id }, req.body, { new: true });
-      });
-  }
+  await lastManService.updateAgentLastMan(lastmanId, req.body, isSuperAgent, isSuperUser);
   res.send(lastman);
 });
 

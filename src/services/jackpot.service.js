@@ -139,8 +139,9 @@ const findJackpot = async ({ agentId, gameType }) => {
  * @returns {Promise<JackpotWinners>}
  */
 const updateAgentJackpot = async (id, body, isSuperAgent, isSuperUser) => {
-  const updateJackpot = await Jackpot.findOneAndUpdate(id, body, { new: true });
-  let subAgentIds;
+  const updateJackpot = await Jackpot.findOne({ _id: id });
+  let subAgentIds = [];
+
   if (isSuperUser) {
     subAgentIds = await User.find({ role: 'admin' }).select('_id').lean();
   } else {
@@ -148,6 +149,9 @@ const updateAgentJackpot = async (id, body, isSuperAgent, isSuperUser) => {
       ? await User.find({ superAgentId: updateJackpot.agentId }).select('_id').lean()
       : await User.find({ agentId: updateJackpot.agentId }).select('_id').lean();
   }
+
+  console.log(`Updating/creating jackpots for ${subAgentIds.length} sub agents`);
+
   await Promise.all(
     subAgentIds.map(async (user) => {
       const existingJackpot = await Jackpot.findOne({
@@ -157,10 +161,8 @@ const updateAgentJackpot = async (id, body, isSuperAgent, isSuperUser) => {
       });
 
       if (existingJackpot) {
-        // Update existing jackpot
         await Jackpot.findOneAndUpdate({ _id: existingJackpot._id }, body);
       } else {
-        // Create new jackpot with inherited data
         await Jackpot.create({
           agentId: user._id,
           gameType: updateJackpot.gameType,
@@ -170,6 +172,7 @@ const updateAgentJackpot = async (id, body, isSuperAgent, isSuperUser) => {
       }
     })
   );
+
   return updateJackpot;
 };
 
