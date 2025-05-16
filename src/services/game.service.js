@@ -36,14 +36,49 @@ const createGameData = async (body) => {
 };
 
 const getGameConfig = async (body) => {
-  let gameConfig = await GameConfig.find({ agentId: body.agentId, gameType: body.gameType }).select('-id');
+  const { gameType, agentId } = body;
+  let gameConfig = await GameConfig.find({ agentId, gameType: body.gameType }).select('-id');
   if (!gameConfig.length) {
-    gameConfig = await GameConfig.create({ agentId: body.agentId, gameType: body.gameType });
+    const user = await User.find({ _id: agentId }).select('_id agentId superAgentId role');
+
+    if (user[0].role === 'super') {
+      gameConfig = await GameConfig.create({ agentId, gameType });
+    }
+
+    if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
+
+    let parentGameConfig = await GameConfig.find({ agentId: user[0].agentId, gameType });
+    if (!parentGameConfig) {
+      const suser = await User.find({ role: 'super' }).select('_id');
+      parentGameConfig = user[0].superAgentId
+        ? await GameConfig.find({ agentId: user[0].superAgentId, gameType })
+        : await GameConfig.find({ agentId: suser[0]._id, gameType });
+    }
+
+    delete parentGameConfig.agentId;
+    gameConfig = await GameConfig.create({ agentId: user[0].agentId, ...parentGameConfig });
   }
 
-  let game = await Game.find({ agentId: body.agentId, gameType: body.gameType }).select('-id');
+  let game = await Game.find({ agentId, gameType }).select('-id');
   if (!game.length) {
-    game = await Game.create({ agentId: body.agentId, gameType: body.gameType });
+    const user = await User.find({ _id: agentId }).select('_id agentId superAgentId role');
+
+    if (user[0].role === 'super') {
+      game = await Game.create({ agentId, gameType });
+    }
+
+    if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
+
+    let parentGame = await Game.find({ agentId: user[0].agentId, gameType });
+    if (!parentGame) {
+      const suser = await User.find({ role: 'super' }).select('_id');
+      parentGame = user[0].superAgentId
+        ? await Game.find({ agentId: user[0].superAgentId, gameType })
+        : await Game.find({ agentId: suser[0]._id, gameType });
+    }
+
+    delete parentGame.agentId;
+    game = await Game.create({ agentId: user[0].agentId, ...parentGame });
   }
 
   if (!game || !gameConfig) {
@@ -97,7 +132,6 @@ const updateGameData = async (id, gameType, body, isSuperAgent, isSuperUser) => 
       ? await User.find({ superAgentId: id, role: 'admin' }).select('_id')
       : await User.find({ agentId: id, role: 'admin' }).select('_id');
   }
-  // console.log(subAgentIds)
 
   if (subAgentIds)
     await Promise.all(
