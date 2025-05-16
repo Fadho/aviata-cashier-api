@@ -48,7 +48,7 @@ const transferHistorySchema = mongoose.Schema(
     },
     gameType: {
       type: mongoose.SchemaTypes.String,
-      default: 'aviata',
+      default: '-',
     },
   },
   {
