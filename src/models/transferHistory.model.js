@@ -26,12 +26,12 @@ const transferHistorySchema = mongoose.Schema(
     playerId: {
       type: mongoose.SchemaTypes.Number,
       // ref: 'Player',
-      required: true,
+      // required: true,
     },
     deviceId: {
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'GameDevice',
-      required: true,
+      // required: true,
     },
     currency: {
       type: mongoose.SchemaTypes.ObjectId,
