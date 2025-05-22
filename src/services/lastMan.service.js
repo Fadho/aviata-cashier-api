@@ -196,8 +196,8 @@ const getUpdatedLastManHistory = async (filter, cashierId, startDate, endDate) =
 };
 
 const getAgentLastMan = async (agentId, gameType) => {
-  const lastMan = await LastMan.find({ agentId, gameType });
-  if (lastMan.length) return lastMan[0];
+  const lastMan = await LastMan.findOne({ agentId, gameType });
+  if (lastMan) return lastMan;
 
   const user = await User.find({ _id: agentId }).select('_id agentId superAgentId role');
 
@@ -217,9 +217,9 @@ const getAgentLastMan = async (agentId, gameType) => {
 
   if (!user[0].agentId || !user[0].superAgentId) {
     const suser = await User.findOne({ role: 'super' }).select('_id');
-    const suserLastMan = await LastMan.findOne({ _id: suser._id, gameType });
+    const suserLastMan = await LastMan.findOne({ agentId: suser._id, gameType });
     delete suserLastMan.agentId;
-    const newLastMan = await LastMan.create({ agentId: user[0].agentId, ...suserLastMan });
+    const newLastMan = await LastMan.create({ agentId: user[0]._id, ...suserLastMan });
     return newLastMan;
   }
 

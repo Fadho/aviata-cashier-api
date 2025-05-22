@@ -235,82 +235,58 @@ const getUpdatedJackpotHistory = async (filter, cashierId, startDate, endDate) =
 };
 
 const getAgentJackpots = async (agentId, gameType) => {
+  let bronze;
+  let silver;
+  let gold;
+
   const jackpots = await Jackpot.find({ agentId, gameType });
-  if (jackpots.length) {
-    return jackpots;
-  }
-  const user = await User.find({ _id: agentId }).select('_id agentId superAgentId role');
+  if (jackpots.length) return jackpots;
 
-  if (user[0].role === 'super') {
-    // Create default jackpots
-    const bronze = await Jackpot.create({ agentId, gameType, jackpotName: 'Bronze' });
-    const silver = await Jackpot.create({ agentId, gameType, jackpotName: 'Silver' });
-    const gold = await Jackpot.create({ agentId, gameType, jackpotName: 'Gold' });
+  const user = await User.findOne({ _id: agentId }).select('_id agentId superAgentId role');
+  if (!user) return;
 
-    return [bronze, silver, gold];
-  }
-
-  if (!user[0]) {
-    return;
-  }
-  // eslint-disable-next-line no-useless-return
   // Only support specific game types
   if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
 
-  if (!user[0].agentId || !user[0].superAgentId) {
-    const suser = await User.findOne({ role: 'super' }).select('_id');
-    const suserJackpots = await Jackpot.find({ _id: suser._id, gameType });
-    // eslint-disable-next-line guard-for-in
-    for (const jackpot in suserJackpots) {
-      switch (jackpot) {
-        case 'Bronze':
-          delete jackpot.agentId;
-          Jackpot.create({ agentId, ...jackpot });
-          break;
-        case 'Silver':
-          delete jackpot.agentId;
-          Jackpot.create({ agentId, ...jackpot });
-          break;
-        case 'Gold':
-          delete jackpot.agentId;
-          Jackpot.create({ agentId, ...jackpot });
-          break;
-
-        default:
-          break;
-      }
-    }
-  } else {
-    let parentJackpots = await Jackpot.find({ agentId: user[0].agentId, gameType });
-    if (!parentJackpots.length) {
-      const suser = await User.find({ role: 'super' }).select('_id');
-      parentJackpots = user[0].superAgentId
-        ? await Jackpot.find({ agentId: user[0].superAgentId, gameType })
-        : await Jackpot.find({ agentId: suser[0]._id, gameType });
-    }
-    // eslint-disable-next-line guard-for-in
-    for (const jackpot in parentJackpots) {
-      switch (jackpot) {
-        case 'Bronze':
-          delete jackpot.agentId;
-          Jackpot.create({ agentId, ...jackpot });
-          break;
-        case 'Silver':
-          delete jackpot.agentId;
-          Jackpot.create({ agentId, ...jackpot });
-          break;
-        case 'Gold':
-          delete jackpot.agentId;
-          Jackpot.create({ agentId, ...jackpot });
-          break;
-
-        default:
-          break;
-      }
-    }
+  if (user.role === 'super') {
+    // Create default jackpots for super agent
+    bronze = await Jackpot.create({ agentId, gameType, jackpotName: 'Bronze' });
+    silver = await Jackpot.create({ agentId, gameType, jackpotName: 'Silver' });
+    gold = await Jackpot.create({ agentId, gameType, jackpotName: 'Gold' });
+    return [bronze, silver, gold];
   }
 
-  return Jackpot.find({ agentId, gameType });
+  let sourceJackpots = [];
+
+  // If no agent or super agent, use default super user's jackpots
+  if (!user.agentId || !user.superAgentId) {
+    const suser = await User.findOne({ role: 'super' }).select('_id');
+    sourceJackpots = await Jackpot.find({ agentId: suser._id, gameType });
+  } else {
+    const parentId = user.superAgentId || user.agentId;
+    sourceJackpots = await Jackpot.find({ agentId: parentId, gameType });
+  }
+
+  for (const jackpot of sourceJackpots) {
+    // eslint-disable-next-line no-await-in-loop
+    const data = await Jackpot.create({
+      agentId,
+      percentageContributions: jackpot.percentageContributions,
+      lowLimitAmount: jackpot.lowLimitAmount,
+      highLimitAmount: jackpot.highLimitAmount,
+      minDisplayAmount: jackpot.minDisplayAmount,
+      minStakeToWin: jackpot.minStakeToWin,
+      gameType: jackpot.gameType,
+      jackpotName: jackpot.jackpotName,
+    });
+
+    const name = jackpot.jackpotName.toLowerCase();
+    if (name === 'bronze') bronze = data;
+    else if (name === 'silver') silver = data;
+    else if (name === 'gold') gold = data;
+  }
+
+  return [bronze, silver, gold];
 };
 
 const updateJackpotContributions = async (
