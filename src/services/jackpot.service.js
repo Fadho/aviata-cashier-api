@@ -150,7 +150,7 @@ const updateAgentJackpot = async (id, body, isSuperAgent, isSuperUser) => {
       : await User.find({ agentId: updateJackpot.agentId }).select('_id').lean();
   }
 
-  console.log(`Updating/creating jackpots for ${subAgentIds.length} sub agents`);
+  // console.log(`Updating/creating jackpots for ${subAgentIds.length} sub agents`);
 
   await Promise.all(
     subAgentIds.map(async (user) => {
@@ -257,31 +257,56 @@ const getAgentJackpots = async (agentId, gameType) => {
   // Only support specific game types
   if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
 
-  let parentJackpots = await Jackpot.find({ agentId: user[0].agentId, gameType });
-  if (!parentJackpots.length) {
-    const suser = await User.find({ role: 'super' }).select('_id');
-    parentJackpots = user[0].superAgentId
-      ? await Jackpot.find({ agentId: user[0].superAgentId, gameType })
-      : await Jackpot.find({ agentId: suser[0]._id, gameType });
-  }
-  // eslint-disable-next-line guard-for-in
-  for (const jackpot in parentJackpots) {
-    switch (jackpot) {
-      case 'Bronze':
-        delete jackpot.agentId;
-        Jackpot.create({ agentId, ...jackpot });
-        break;
-      case 'Silver':
-        delete jackpot.agentId;
-        Jackpot.create({ agentId, ...jackpot });
-        break;
-      case 'Gold':
-        delete jackpot.agentId;
-        Jackpot.create({ agentId, ...jackpot });
-        break;
+  if (!user[0].agentId || !user[0].superAgentId) {
+    const suser = await User.findOne({ role: 'super' }).select('_id');
+    const suserJackpots = await Jackpot.find({ _id: suser._id, gameType });
+    // eslint-disable-next-line guard-for-in
+    for (const jackpot in suserJackpots) {
+      switch (jackpot) {
+        case 'Bronze':
+          delete jackpot.agentId;
+          Jackpot.create({ agentId, ...jackpot });
+          break;
+        case 'Silver':
+          delete jackpot.agentId;
+          Jackpot.create({ agentId, ...jackpot });
+          break;
+        case 'Gold':
+          delete jackpot.agentId;
+          Jackpot.create({ agentId, ...jackpot });
+          break;
 
-      default:
-        break;
+        default:
+          break;
+      }
+    }
+  } else {
+    let parentJackpots = await Jackpot.find({ agentId: user[0].agentId, gameType });
+    if (!parentJackpots.length) {
+      const suser = await User.find({ role: 'super' }).select('_id');
+      parentJackpots = user[0].superAgentId
+        ? await Jackpot.find({ agentId: user[0].superAgentId, gameType })
+        : await Jackpot.find({ agentId: suser[0]._id, gameType });
+    }
+    // eslint-disable-next-line guard-for-in
+    for (const jackpot in parentJackpots) {
+      switch (jackpot) {
+        case 'Bronze':
+          delete jackpot.agentId;
+          Jackpot.create({ agentId, ...jackpot });
+          break;
+        case 'Silver':
+          delete jackpot.agentId;
+          Jackpot.create({ agentId, ...jackpot });
+          break;
+        case 'Gold':
+          delete jackpot.agentId;
+          Jackpot.create({ agentId, ...jackpot });
+          break;
+
+        default:
+          break;
+      }
     }
   }
 

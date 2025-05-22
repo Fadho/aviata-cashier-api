@@ -232,6 +232,13 @@ const getAgentFreebets = async (agentId, gameType) => {
   // Only support specific game types
   if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
 
+  if (!user[0].agentId || !user[0].superAgentId) {
+    const suser = await User.findOne({ role: 'super' }).select('_id');
+    const suserFreebet = await Freebet.findOne({ _id: suser._id, gameType });
+    delete suserFreebet.agentId;
+    const newFreebet = await Freebet.create({ agentId: user[0].agentId, ...suserFreebet });
+    return newFreebet;
+  }
   let parentFreebet = await Freebet.find({ agentId: user[0].agentId, gameType });
   if (!parentFreebet) {
     const suser = await User.find({ role: 'super' }).select('_id');

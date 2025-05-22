@@ -215,6 +215,14 @@ const getAgentLastMan = async (agentId, gameType) => {
   // Only support specific game types
   if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
 
+  if (!user[0].agentId || !user[0].superAgentId) {
+    const suser = await User.findOne({ role: 'super' }).select('_id');
+    const suserLastMan = await LastMan.findOne({ _id: suser._id, gameType });
+    delete suserLastMan.agentId;
+    const newLastMan = await LastMan.create({ agentId: user[0].agentId, ...suserLastMan });
+    return newLastMan;
+  }
+
   let parentLastMan = await LastMan.find({ agentId: user[0].agentId, gameType });
   if (!parentLastMan) {
     const suser = await User.find({ role: 'super' }).select('_id');
