@@ -9,8 +9,8 @@ const searchForUser = catchAsync(async (req, res) => {
     const { username } = req.query;
 
     if (req.user.role === 'super') {
-      const users1 = await userService.queryUsers({ username: { $regex: username } }, {});
-      const users2 = await userService.queryUsers({ name: { $regex: username } }, {});
+      const users1 = await userService.queryUsers({ username: { $regex: username.toLowerCase(), $options: 'i' } }, {});
+      const users2 = await userService.queryUsers({ name: { $regex: username.toLowerCase(), $options: 'i' } }, {});
       return res.status(httpStatus.OK).send({ ...users1, ...users2 });
     }
     let users = await userService.queryUsers({ agentId: req.user._id, username: { $regex: username } }, {});
