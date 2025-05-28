@@ -7,6 +7,11 @@ const gameController = require('../../controllers/game.controller');
 const router = express.Router();
 
 router.get('/gameSettings', auth(), gameController.getGameSettings);
+router.get('/gameConfig/:agentId/:gameType', gameController.getGame);
+// router
+//   .route('/gameConfig/:agentId/:gameType')
+//   .get(auth('getGameConfig'), gameController.getGame)
+//   .patch(auth('manageGameConfig'), validate(gameValidation.updateGameConfig), gameController.updateGameConfig);
 
 router
   .route('/gameConfig')
@@ -29,11 +34,6 @@ router
   .patch(auth('manageGameConfig'), validate(gameValidation.updateJackpot), gameController.updateGameData);
 
 router.route('/authenticateGame/:id').get(gameController.authenticateGame);
-
-router
-  .route('/gameConfig/:agentId/:gameType')
-  .get(auth('getGameConfig'), validate(gameValidation.getgame), gameController.getGame)
-  .patch(auth('manageGameConfig'), validate(gameValidation.updateGameConfig), gameController.updateGameConfig);
 
 router
   .route('/jackpot')

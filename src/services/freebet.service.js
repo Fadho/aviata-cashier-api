@@ -213,8 +213,8 @@ const getUpdatedFreebetHistory = async (filter, cashierId, startDate, endDate) =
 };
 
 const getAgentFreebets = async (agentId, gameType) => {
-  const freebet = await Freebet.find({ agentId, gameType });
-  if (freebet.length) return freebet[0];
+  const freebet = await Freebet.findOne({ agentId, gameType });
+  if (freebet) return freebet;
 
   const user = await User.find({ _id: agentId }).select('_id agentId superAgentId role');
 
@@ -232,6 +232,13 @@ const getAgentFreebets = async (agentId, gameType) => {
   // Only support specific game types
   if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
 
+  if (!user[0].agentId || !user[0].superAgentId) {
+    const suser = await User.findOne({ role: 'super' }).select('_id');
+    const suserFreebet = await Freebet.findOne({ agentId: suser._id, gameType });
+    delete suserFreebet.agentId;
+    const newFreebet = await Freebet.create({ agentId: user[0]._id, ...suserFreebet });
+    return newFreebet;
+  }
   let parentFreebet = await Freebet.find({ agentId: user[0].agentId, gameType });
   if (!parentFreebet) {
     const suser = await User.find({ role: 'super' }).select('_id');

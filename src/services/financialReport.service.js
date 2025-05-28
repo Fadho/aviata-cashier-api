@@ -175,7 +175,7 @@ const getAndUpdatePlayerWallets = async (cashierId, gameType, winnings) => {
  * @param {Object} financialReportBody
  * @returns {Promise<FinancialReport>}
  */
-const getAndUpdateTotalTransactions = async (cashierId) => {
+const getAndUpdateTotalTransactions = async (cashierId, gameType) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
   let totalDeposits = 0;
@@ -183,10 +183,11 @@ const getAndUpdateTotalTransactions = async (cashierId) => {
   let totalBonusAwarded = 0;
 
   const transactions = await transferHistoryService.queryTransferHistorys(
-    { agent: cashierId },
+    { agent: cashierId, gameType },
     { limit: 1000000 },
     today,
-    today
+    today,
+    gameType
   );
 
   transactions.results.forEach((transaction) => {
@@ -195,17 +196,18 @@ const getAndUpdateTotalTransactions = async (cashierId) => {
     totalBonusAwarded += Number(transaction.bonus ? transaction.bonus : 0);
   });
 
-  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
-  if (!financialReport) {
+  const gameReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
+  if (!gameReport) {
     return FinancialReport.create({
       cashierId,
       totalDeposits,
       totalWithdrawals,
       totalBonusAwarded,
+      gameType,
     });
   }
   return FinancialReport.findByIdAndUpdate(
-    financialReport._id,
+    gameReport._id,
     {
       totalDeposits,
       totalWithdrawals,
@@ -356,12 +358,12 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
     );
     // console.log(aggregates, cashierId, startDateWithoutTime);
 
-    const financialReport = await FinancialReport.findOne({
+    const gameReport = await FinancialReport.findOne({
       cashierId,
       createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime },
     });
 
-    if (!financialReport)
+    if (!gameReport)
       return FinancialReport.create(
         { cashierId, ...aggregates, createdAt: startDateWithoutTime } // Include createdAt for backdated reports
       );

@@ -25,7 +25,7 @@ const createGameData = {
 
 const getgame = {
   params: Joi.object().keys({
-    agentId: Joi.string().custom(objectId).required(),
+    agentId: Joi.string().custom(objectId),
     gameType: Joi.string().required(),
   }),
 };
