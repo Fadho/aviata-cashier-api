@@ -88,6 +88,16 @@ const financialReportSchema = mongoose.Schema(
       default: 0,
       // required: true,
     },
+    totalFreebetAwarded: {
+      type: mongoose.SchemaTypes.Number,
+      default: 0,
+      // required: true,
+    },
+    totalLastManAwarded: {
+      type: mongoose.SchemaTypes.Number,
+      default: 0,
+      // required: true,
+    },
     currency: {
       type: mongoose.SchemaTypes.String,
       // required: true,

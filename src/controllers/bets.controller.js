@@ -24,7 +24,7 @@ const {
 const gameReportService = require('../services/gameReport.service');
 const financialReportService = require('../services/financialReport.service');
 
-const { Wallets, Player, User, FinancialReport } = require('../models');
+const { Wallets, Player, User, FinancialReport, Freebet } = require('../models');
 const GameConfig = require('../models/gameConfig.model');
 
 const createBetPlaced = catchAsync(async (req, res) => {
@@ -107,7 +107,12 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
 
       await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance, bonus }, { session });
     } else {
+      const freebet = await Freebet.findOne({ playerId: player.playerId, deviceId: player.deviceId });
+      if (!freebet) {
+        throw new ApiError(httpStatus.NOT_FOUND, 'freebet with provided playerId not found');
+      }
       await Player.findOneAndUpdate({ _id: player.id }, { freebet: false }, { session });
+      await financialReportService.getAndUpdateFreebets(cashierId, gameType, freebet.dropAmount);
     }
 
     // Fetch cashier by cashierId

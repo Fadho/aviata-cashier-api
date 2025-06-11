@@ -2,6 +2,7 @@
 
 const mongoose = require('mongoose');
 const { LastManWinners, LastMan, Player, User, Tickets } = require('../models');
+const { financialReportService } = require('.');
 
 /**
  * drop lastMan
@@ -61,7 +62,7 @@ const dropLastMan = async (id, deviceId, playerId, numberOfPlayers) => {
 
     // Commit the transaction if everything is successful
     await session.commitTransaction();
-
+    await financialReportService.getAndUpdateLastMan(player.cashierId, lastTicket.gameType, lastManAmount);
     return winner;
   } catch (error) {
     // Rollback the transaction in case of any errors

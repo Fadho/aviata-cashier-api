@@ -1,7 +1,7 @@
 const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
-const { gameService, tokenService, jackpotService, freebetService, lastManService } = require('../services');
+const { gameService, tokenService, jackpotService, freebetService, lastManService, financialReportService } = require('../services');
 const { Jackpot, User, Freebet } = require('../models');
 const LastMan = require('../models/lastMan.model');
 
@@ -157,6 +157,7 @@ const updateAgentFreebet = catchAsync(async (req, res) => {
   let isSuperUser = false;
   const freebet = await Freebet.findOneAndUpdate({ _id: freebetId }, req.body, { new: true });
   const userCheck = await User.findOne({ _id: freebet.agentId }).select('role');
+  await financialReportService.getAndUpdatePlayerWallets()
   isSuperUser = userCheck.role === 'super';
   if (userCheck.role === 'admin' && !userCheck.agentId) isSuperAgent = true;
 

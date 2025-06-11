@@ -2,6 +2,7 @@
 const { FinancialReport, Player, Tickets, TicketsArchive } = require('../models');
 const transferHistoryService = require('./transferHistory.service');
 const jackpotService = require('./jackpot.service');
+const { freebetService } = require('.');
 // const { getBetHistory1 } = require('./bets.service');
 
 const getBetHistory1 = async (filter, startDate, endDate) => {
@@ -218,6 +219,60 @@ const getAndUpdateTotalTransactions = async (cashierId, gameType) => {
 };
 
 /**
+ * Get and update financial report - freebets
+ * @param {Object} financialReportBody
+ * @returns {Promise<FinancialReport>}
+ */
+const getAndUpdateFreebets = async (cashierId, gameType, freebetAmount) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Set the time to midnight
+
+  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
+  if (!financialReport) {
+    return FinancialReport.create({
+      cashierId,
+      gameType,
+    });
+  }
+  return FinancialReport.findByIdAndUpdate(
+    financialReport._id,
+    {
+      $inc: {
+        totalFreebetAwarded: freebetAmount,
+      },
+    },
+    { new: true }
+  );
+};
+
+/**
+ * Get and update financial report - freebets
+ * @param {Object} financialReportBody
+ * @returns {Promise<FinancialReport>}
+ */
+const getAndUpdateLastMan = async (cashierId, gameType, LastManAmount) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Set the time to midnight
+
+  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
+  if (!financialReport) {
+    return FinancialReport.create({
+      cashierId,
+      gameType,
+    });
+  }
+  return FinancialReport.findByIdAndUpdate(
+    financialReport._id,
+    {
+      $inc: {
+        totalFreebetAwarded: LastManAmount,
+      },
+    },
+    { new: true }
+  );
+};
+
+/**
  * Query for financialReports
  * @param {Object} filter - Mongo filter
  * @param {Object} options - Query options
@@ -253,7 +308,6 @@ const getFinancialReports = async (filter, startDate, endDate) => {
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
   }
-  console.log(filter);
   const financialReports = await FinancialReport.find(filter);
   return financialReports;
 };
@@ -384,6 +438,8 @@ module.exports = {
   getFinancialReports,
   getAndUpdatePlayerWallets,
   getAndUpdateTotalTransactions,
+  getAndUpdateFreebets,
+  getAndUpdateLastMan,
   getAndUpdateStakeByDay,
   getAndUpdateTotalTransactionsByDay,
 };
