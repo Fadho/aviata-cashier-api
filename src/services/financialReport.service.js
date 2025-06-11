@@ -224,6 +224,7 @@ const getAndUpdateTotalTransactions = async (cashierId, gameType) => {
  * @returns {Promise<FinancialReport>}
  */
 const getAndUpdateFreebets = async (cashierId, gameType, freebetAmount) => {
+  console.log(cashierId, gameType, freebetAmount)
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
 
