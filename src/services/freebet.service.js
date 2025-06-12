@@ -40,7 +40,7 @@ const dropFreebet = async (id, deviceId, playerId) => {
       throw new Error('No active freebet winner found / freebetContributions < freebetAmount');
 
     // Update player freebet
-    Player.updateOne(
+    await Player.updateOne(
       { _id: player._id },
       {
         freebet: true,

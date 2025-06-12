@@ -143,7 +143,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
 
     // Update jackpot contributions
-    await jackpotService.updateJackpotContributions(
+    jackpotService.updateJackpotContributions(
       bronzeJackpot._id,
       bronzeJackpot.percentageContributions * stake,
       silverJackpot._id,
@@ -160,7 +160,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
 
     if (freebet.dropAmount > 1) {
       // Update jackpot contributions
-      await freebetService.updateFreebetContributions(
+      freebetService.updateFreebetContributions(
         freebet._id,
         freebet.percentageContributions * stake,
         deviceId,
@@ -170,7 +170,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       );
     }
 
-    await financialReportService.getAndUpdateStake(cashierId, gameType);
+    financialReportService.getAndUpdateStake(cashierId, gameType);
     // gameReportService.getAndUpdateStake(cashierId, gameType);
 
     // Commit the transaction
