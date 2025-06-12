@@ -143,7 +143,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
 
     // Update jackpot contributions
-    jackpotService.updateJackpotContributions(
+    await jackpotService.updateJackpotContributions(
       bronzeJackpot._id,
       bronzeJackpot.percentageContributions * stake,
       silverJackpot._id,
@@ -158,11 +158,11 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     // Get jackpot contributions
     const freebet = await freebetService.getAgentFreebets(cashier.agentId, gameType, session);
 
-    // console.log(freebet);
+    console.log(freebet);
 
     if (freebet.dropAmount > 1) {
       // Update jackpot contributions
-      freebetService.updateFreebetContributions(
+      await freebetService.updateFreebetContributions(
         freebet._id,
         freebet.percentageContributions * stake,
         deviceId,
@@ -172,12 +172,13 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       );
     }
 
-    financialReportService.getAndUpdateStake(cashierId, gameType);
-    gameReportService.getAndUpdateStake(cashierId, gameType);
+    await financialReportService.getAndUpdateStake(cashierId, gameType);
+    // gameReportService.getAndUpdateStake(cashierId, gameType);
 
     // Commit the transaction
     await session.commitTransaction();
   } catch (error) {
+    console.log(error)
     // Roll back transaction if any error occurs
     await session.abortTransaction();
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, `Error placing bet: ${error.message}`);
