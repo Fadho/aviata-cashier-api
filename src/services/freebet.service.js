@@ -34,8 +34,6 @@ const dropFreebet = async (id, deviceId, playerId) => {
       deviceId,
     }).session(session);
 
-    console.log('dropFreebet', freebet, freebetWinners, player);
-
     if (!freebetWinners || freebetWinners.freebetContributions < freebetAmount)
       throw new Error('No active freebet winner found / freebetContributions < freebetAmount');
 
@@ -46,17 +44,6 @@ const dropFreebet = async (id, deviceId, playerId) => {
         freebet: true,
       },
       { session }
-    );
-
-    console.log(
-      'dropFreebet',
-      { _id: freebetWinners._id, active: true },
-      {
-        dropAmount: freebetAmount,
-        playerId,
-        cashierId: player.cashierId,
-        active: false,
-      }
     );
 
     // Update the freebet winner to mark as inactive and record details
@@ -86,9 +73,6 @@ const dropFreebet = async (id, deviceId, playerId) => {
 
     // Commit the transaction if everything is successful
     await session.commitTransaction();
-
-    // Log the winner for debugging
-    // console.log('winner: ', winner);
 
     return winner;
   } catch (error) {
@@ -276,7 +260,6 @@ const updateFreebetContributions = async (freebetId, freebetContributions, devic
 
   if (freebet) {
     activeContribution = await FreebetWinners.findOne({ active: true, gameType, deviceId });
-    console.log('updateFreebetContributions', activeContribution);
 
     if (activeContribution) {
       activeContribution = await FreebetWinners.findOneAndUpdate(
@@ -294,7 +277,6 @@ const updateFreebetContributions = async (freebetId, freebetContributions, devic
     }
 
     if (activeContribution.freebetContributions >= freebet.dropAmount) {
-      console.log(players, players[players.length > 1 ? randomInt(players.length) : 0]);
       await dropFreebet(freebetId, deviceId, players[players.length > 1 ? randomInt(players.length) : 0]);
     }
   }

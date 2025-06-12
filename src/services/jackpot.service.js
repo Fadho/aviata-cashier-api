@@ -59,7 +59,7 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
     }
 
     // Update player's wallet
-    player.wallet += Number(jackpotAmount);
+    player.wallet += Number(jackpotAmount);   
     await player.save({ session });
 
     // Update the jackpot winner to mark as inactive and record details

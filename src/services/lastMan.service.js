@@ -60,9 +60,10 @@ const dropLastMan = async (id, deviceId, playerId, numberOfPlayers) => {
       { session }
     );
 
+    financialReportService.getAndUpdateLastMan(player.cashierId, lastMan.gameType, lastManAmount);
+
     // Commit the transaction if everything is successful
     await session.commitTransaction();
-    await financialReportService.getAndUpdateLastMan(player.cashierId, lastTicket.gameType, lastManAmount);
     return winner;
   } catch (error) {
     // Rollback the transaction in case of any errors
