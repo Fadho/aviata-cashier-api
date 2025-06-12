@@ -108,7 +108,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance, bonus }, { session });
     } else {
       const freebet = await FreebetWinners.findOne({ playerId: String(player.playerId), deviceId: player.deviceId });
-      // console.log(freebet)
+
       if (!freebet) {
         throw new ApiError(httpStatus.NOT_FOUND, 'freebet with provided playerId not found');
       }
@@ -158,8 +158,6 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     // Get jackpot contributions
     const freebet = await freebetService.getAgentFreebets(cashier.agentId, gameType, session);
 
-    console.log(freebet);
-
     if (freebet.dropAmount > 1) {
       // Update jackpot contributions
       await freebetService.updateFreebetContributions(
@@ -178,7 +176,6 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     // Commit the transaction
     await session.commitTransaction();
   } catch (error) {
-    console.log(error)
     // Roll back transaction if any error occurs
     await session.abortTransaction();
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, `Error placing bet: ${error.message}`);
@@ -734,7 +731,6 @@ const getFinancialReports = catchAsync(async (req, res) => {
 
     res.json({ hierarchy: hierarchyReports, pagination });
   } catch (error) {
-    // console.log(error);
     res.status(500).send({ error: 'Error generating financial report' });
   }
 });
@@ -1030,8 +1026,6 @@ const getTransactionReports = catchAsync(async (req, res) => {
       const cashiers = await userService.queryUsersReturnIds({ agentId, role: 'cashier' });
       const cashierReports = {};
 
-      // console.log('cashiers: ',cashiers)
-
       await Promise.all(
         cashiers.map(async (cashier) => {
           const [financialReport, userWallets] = await Promise.all([
@@ -1185,8 +1179,6 @@ const getCurrentGameState = catchAsync(async (req, res) => {
       endDate
     );
 
-    // console.log(betHistory, startDate, endDate);
-
     totalDeposit += betHistory.reduce((accumulator, obj) => accumulator + obj.totalDeposit, 0);
     totalWithdrawal += betHistory.reduce((count, bet) => count + bet.totalWithdrawal, 0);
     totalPlayerWallets += betHistory.reduce((count, bet) => count + bet.totalPlayerWallets, 0);
@@ -1207,7 +1199,6 @@ const populateFinancialReports = catchAsync(async (req, res) => {
     const cashiers = await userService.queryUsersReturnIds({ role: 'cashier' });
 
     if (!cashiers.length) {
-      // console.log('No cashiers found.');
       return;
     }
 
@@ -1229,9 +1220,7 @@ const populateFinancialReports = catchAsync(async (req, res) => {
   const startDate = '2024-11-01';
   const endDate = '2024-11-10';
 
-  // console.log('Start iterateDateRange');
   await iterateDateRange(startDate, endDate);
-  // console.log('End iterateDateRange');
 
   res.status(200).send({ message: 'Financial reports populated successfully.' });
 });
@@ -1293,8 +1282,6 @@ const getGameReports = catchAsync(async (req, res) => {
 
       const cashiers = await userService.queryUsersReturnIds({ agentId, role: 'cashier' });
       const cashierReports = {};
-
-      // console.log('cashiers: ',cashiers)
 
       await Promise.all(
         cashiers.map(async (cashier) => {
