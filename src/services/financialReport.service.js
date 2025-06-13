@@ -266,7 +266,7 @@ const getAndUpdateLastMan = async (cashierId, gameType, LastManAmount) => {
     financialReport._id,
     {
       $inc: {
-        totalFreebetAwarded: LastManAmount,
+        totalLastManAwarded: LastManAmount,
       },
     },
     { new: true }
