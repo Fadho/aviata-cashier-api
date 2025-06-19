@@ -8,10 +8,9 @@ const router = express.Router();
 
 router.get('/gameSettings', auth(), gameController.getGameSettings);
 router.get('/gameConfig/:agentId/:gameType', gameController.getGame);
-// router
-//   .route('/gameConfig/:agentId/:gameType')
-//   .get(auth('getGameConfig'), gameController.getGame)
-//   .patch(auth('manageGameConfig'), validate(gameValidation.updateGameConfig), gameController.updateGameConfig);
+router
+  .route('/gameConfig/:agentId/:gameType')
+  .patch(auth('manageGameConfig'), validate(gameValidation.updateGameConfig), gameController.updateGameConfig);
 
 router
   .route('/gameConfig')

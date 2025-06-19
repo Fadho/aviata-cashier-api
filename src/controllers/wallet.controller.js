@@ -1,7 +1,13 @@
 const httpStatus = require('http-status');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
-const { walletService, currencyService, userService, transferHistoryService } = require('../services');
+const {
+  walletService,
+  currencyService,
+  userService,
+  transferHistoryService,
+  financialReportService,
+} = require('../services');
 
 const fundWallet = catchAsync(async (req, res) => {
   // destructuring parameters
@@ -122,7 +128,7 @@ const fundWallet = catchAsync(async (req, res) => {
     deposit: amount < 0 ? 0 : amount,
     withdrawal: amount < 0 ? amount * 1 : 0,
   });
-
+  financialReportService.getAndUpdateTotalTransactions();
   return res.status(httpStatus.CREATED).send(wallet);
 });
 

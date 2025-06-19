@@ -3,6 +3,7 @@ const { FinancialReport, Player, Tickets, TicketsArchive } = require('../models'
 const transferHistoryService = require('./transferHistory.service');
 const jackpotService = require('./jackpot.service');
 const { freebetService } = require('.');
+const logger = require('../config/logger');
 // const { getBetHistory1 } = require('./bets.service');
 
 const getBetHistory1 = async (filter, startDate, endDate) => {
@@ -224,7 +225,6 @@ const getAndUpdateTotalTransactions = async (cashierId, gameType) => {
  * @returns {Promise<FinancialReport>}
  */
 const getAndUpdateFreebets = async (cashierId, gameType, freebetAmount) => {
-  // console.log(cashierId, gameType, freebetAmount);
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
 
@@ -381,7 +381,7 @@ const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
 
     // return financialReport;
   } catch (error) {
-    console.error('Error in getAndUpdateStakeByDay:', error);
+    logger.error('Error in getAndUpdateStakeByDay:', error);
   }
 };
 
@@ -411,7 +411,6 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
       },
       { totalDeposit: 0, totalWithdrawal: 0, totalBonusAwarded: 0, numberOfTransactions: 0 }
     );
-    // console.log(aggregates, cashierId, startDateWithoutTime);
 
     const gameReport = await FinancialReport.findOne({
       cashierId,
@@ -420,7 +419,7 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
 
     if (!gameReport)
       return FinancialReport.create(
-        { cashierId, ...aggregates, createdAt: startDateWithoutTime } // Include createdAt for backdated reports
+        { cashierId, ...aggregates, createdAt: startDateWithoutTime } // Include createdAt for get backdated reports
       );
 
     return FinancialReport.findOneAndUpdate(
@@ -429,7 +428,7 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
       { new: true }
     );
   } catch (error) {
-    console.error('Error in getAndUpdateTotalTransactionsByDay:', error);
+    logger.error('Error in getAndUpdateTotalTransactionsByDay:', error);
   }
 };
 

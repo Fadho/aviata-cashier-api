@@ -157,7 +157,7 @@ const updateAgentFreebet = catchAsync(async (req, res) => {
   let isSuperUser = false;
   const freebet = await Freebet.findOneAndUpdate({ _id: freebetId }, req.body, { new: true });
   const userCheck = await User.findOne({ _id: freebet.agentId }).select('role');
-  await financialReportService.getAndUpdatePlayerWallets()
+  // await financialReportService.getAndUpdatePlayerWallets()
   isSuperUser = userCheck.role === 'super';
   if (userCheck.role === 'admin' && !userCheck.agentId) isSuperAgent = true;
 
