@@ -269,7 +269,7 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
         let cumulativeWinnings = 0;
         let atLeastOneSelectionWins = false;
         for (const selection of bet.selections) {
-          if (selection.odd < odd) {
+          if (selection.odd <= odd) {
             selection.winnings = selection.stake * selection.odd;
             cumulativeWinnings += selection.winnings;
             atLeastOneSelectionWins = true;
