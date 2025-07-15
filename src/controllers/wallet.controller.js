@@ -128,7 +128,7 @@ const fundWallet = catchAsync(async (req, res) => {
     deposit: amount < 0 ? 0 : amount,
     withdrawal: amount < 0 ? amount * 1 : 0,
   });
-  financialReportService.getAndUpdateTotalTransactions();
+  // financialReportService.getAndUpdateTotalTransactions();
   return res.status(httpStatus.CREATED).send(wallet);
 });
 

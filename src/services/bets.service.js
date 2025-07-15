@@ -33,7 +33,7 @@ const createBetPlaced = async (result, stake, selections, cashierId, potentialWi
       ticketId,
       betType: 'multiple',
       potentialWinnings,
-      roundId,
+      roundId
     });
   }
   return Tickets.create({ result, stake, selections, cashierId, ticketId, betType: 'single', potentialWinnings, roundId });
@@ -70,8 +70,8 @@ const createBetPlacedForPlayer = async (stake, freebet, gameType, roundId, cashi
           betType: 'single',
           playerId,
           roundId,
-          deviceId,
-        },
+          deviceId
+        }
       ],
       { session }
     );
@@ -115,7 +115,7 @@ const getCancelledBetHistory = async ({ startDate, endDate, betType, cashierId }
 
     return Tickets.find({
       ...query,
-      cancelled: true,
+      cancelled: true
     });
   }
   if (startDate && endDate) {
@@ -131,8 +131,8 @@ const getCancelledBetHistory = async ({ startDate, endDate, betType, cashierId }
         cancelled: true,
         createdAt: {
           $gte: new Date(startDate),
-          $lte: new Date(endDate),
-        },
+          $lte: new Date(endDate)
+        }
       });
       return bets;
     }
@@ -143,8 +143,8 @@ const getCancelledBetHistory = async ({ startDate, endDate, betType, cashierId }
 
       createdAt: {
         $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      },
+        $lte: new Date(endDate)
+      }
     });
   }
 };
@@ -171,10 +171,10 @@ const getBetHistoryReport = async (filter, options, startDate, endDate) => {
         endDate && {
           createdAt: {
             $gte: startDateWithoutTime,
-            $lte: endDateWithoutTime,
-          },
+            $lte: endDateWithoutTime
+          }
         }),
-      ...filter,
+      ...filter
     };
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
@@ -197,10 +197,10 @@ const getBetHistory = async (filter, startDate, endDate) => {
         endDate && {
           createdAt: {
             $gte: startDateWithoutTime,
-            $lte: endDateWithoutTime,
-          },
+            $lte: endDateWithoutTime
+          }
         }),
-      ...filter,
+      ...filter
     };
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
@@ -224,16 +224,15 @@ const getBetHistory1 = async (filter, startDate, endDate) => {
         endDate && {
           createdAt: {
             $gte: startDateWithoutTime,
-            $lte: endDateWithoutTime,
-          },
+            $lte: endDateWithoutTime
+          }
         }),
-      ...filter,
+      ...filter
     };
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
   }
 
-  // console.log(filter)
   const tickets = await Tickets.find(filter);
   const ticketsArchive = await TicketsArchive.find(filter);
   return [...tickets, ...ticketsArchive];
@@ -247,95 +246,105 @@ const getBetHistory1 = async (filter, startDate, endDate) => {
  */
 
 async function updateBetsAndCalculateWinnings(roundId, odd) {
-  const maxRetries = 5; // Maximum number of retries
+  const maxRetries = 5;
   let currentAttempt = 0;
 
   while (currentAttempt < maxRetries) {
     const session = await mongoose.startSession();
     let transactionSuccessful = false;
+
     try {
       session.startTransaction();
+
       const bets = await Tickets.find({ roundId, roundHasEnded: false }).session(session);
+
+      if (!bets.length) {
+        logger.info(`No bets found for round ${roundId}.`);
+        await session.commitTransaction();
+        transactionSuccessful = true;
+        break;
+      }
+
       for (const bet of bets) {
         let cumulativeWinnings = 0;
         let atLeastOneSelectionWins = false;
-
-        if (bet.gameType === 'aviata') {
-          for (const selection of bet.selections) {
-            if (selection.odd < odd) {
-              selection.winnings = selection.stake * selection.odd;
-              cumulativeWinnings += selection.winnings;
-              atLeastOneSelectionWins = true;
-            } else {
-              selection.winnings = 0;
-            }
+        for (const selection of bet.selections) {
+          if (selection.odd < odd) {
+            selection.winnings = selection.stake * selection.odd;
+            cumulativeWinnings += selection.winnings;
+            atLeastOneSelectionWins = true;
+          } else {
+            selection.winnings = 0;
           }
-
-          bet.winnings = cumulativeWinnings;
-          bet.result = atLeastOneSelectionWins ? 'win' : 'loss';
         }
-        bet.winnings = bet.winnings ? 'win' : 'loss';
+
+        bet.winnings = cumulativeWinnings;
+        bet.result = atLeastOneSelectionWins ? 'win' : 'loss';
+
         bet.roundHasEnded = true;
         bet.gameOutcome = odd;
+
         if (!bet.gameOutcome) {
-          return;
+          logger.warn(`Invalid gameOutcome for bet ${bet._id}`);
+          continue;
         }
 
-        // Save bet with session
         await bet.save({ session });
 
         const user = await userService.getUserById(bet.cashierId, { session });
-        const gameConfig = await GameConfig.find({ agentId: user.agentId }).session(session);
+        if (!user) {
+          logger.warn(`User not found for cashierId: ${bet.cashierId}`);
+          continue;
+        }
 
-        // Update user's wallet if payout mode is Manual
-        if (gameConfig[0].payoutMode === 'Manual' && bet.result === 'win') {
-          logger.info('Manual Payout');
-          let { balance } = user.wallets[0];
-          balance = Number(balance);
+        const gameConfig = await GameConfig.findOne({ agentId: user.agentId }).session(session);
 
-          // eslint-disable-next-line no-restricted-globals
-          if (typeof balance !== 'number' || isNaN(balance)) {
-            logger.info('Invalid balance');
-            return;
+        if (gameConfig?.payoutMode === 'Manual' && bet.result === 'win') {
+          logger.info(`Processing manual payout for bet ${bet._id}`);
+
+          let balance = Number(user.wallets?.[0]?.balance || 0);
+
+          if (isNaN(balance)) {
+            logger.warn(`Invalid balance for user ${user._id}`);
+            continue;
           }
 
           balance += Number(bet.winnings);
-
           await walletService.updateWallet(user.wallets[0].id, balance, { session });
         }
       }
 
       await session.commitTransaction();
-      transactionSuccessful = true; // Mark the transaction as successful
+      transactionSuccessful = true;
 
-      // check if round exists else save
-      const exists = await Rounds.find({ roundId });
-      if (exists.length === 0) Rounds.create({ roundId, odd });
+      // Ensure round exists (in case)
+      const roundExists = await Rounds.findOne({ roundId }).session(session);
+      if (!roundExists) {
+        await Rounds.create([{ roundId, odd }], { session });
+      }
 
-      // exit if no open bet
-      // if (!bets.length) break;
-
-      // eslint-disable-next-line no-use-before-define
-      await closeOpenBets();
-      break; // Break the loop on successful transaction
+      await closeOpenBets(); // Optional: manage post-round bet state
+      break;
     } catch (error) {
       if (!transactionSuccessful) {
         await session.abortTransaction();
       }
+
       if (error.code === 112) {
-        // Write conflict error code in MongoDB
-        logger.warn(`Write conflict detected. Attempt ${currentAttempt + 1} failed. Retrying...`);
+        logger.warn(`Write conflict on round ${roundId}, attempt ${currentAttempt + 1}. Retrying...`);
       } else if (currentAttempt === maxRetries - 1) {
-        logger.error('Max retries reached. Transaction failed:', error);
-        throw error; // Throw error on last attempt
+        logger.error(`Max retries reached for round ${roundId}.`, error);
+        throw error;
       } else {
-        logger.warn(`Attempt ${currentAttempt + 1} failed. Retrying...`, error);
+        logger.warn(`Attempt ${currentAttempt + 1} failed for round ${roundId}. Retrying...`, error);
       }
     } finally {
       session.endSession();
       currentAttempt++;
     }
   }
+
+  return true;
 }
 
 /**
@@ -364,7 +373,7 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
         winnings,
         roundHasEnded: true,
         selections: [{ odd, stake: bet.stake }],
-        gameOutcome: odd,
+        gameOutcome: odd
       },
       { new: true, session } // Include session in the update
     );
@@ -413,19 +422,19 @@ const closeOpenBets = async () => {
   // find all open tickets
   const openTickets = await Tickets.aggregate([
     {
-      $match: { roundHasEnded: false },
+      $match: { roundHasEnded: false }
     },
     {
       $group: {
-        _id: '$roundId',
-      },
+        _id: '$roundId'
+      }
     },
     {
       $project: {
         _id: 0,
-        roundId: '$_id',
-      },
-    },
+        roundId: '$_id'
+      }
+    }
   ]);
 
   if (!openTickets.length) return;
@@ -468,12 +477,12 @@ const payoutTicket = async (id) => {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-      weekday: 'short',
+      weekday: 'short'
     });
     const readableTime = ticket.payoutDate.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
+      second: '2-digit'
     });
     const readableCustomDateTime = `${readableDate}, ${readableTime}`;
     return { ticket, message: `Payout has been collected at ${readableCustomDateTime}` };
@@ -497,7 +506,7 @@ const payoutTicket = async (id) => {
 
   return {
     ticket,
-    message: 'Payout verified - proceed with payment',
+    message: 'Payout verified - proceed with payment'
   };
 };
 
@@ -533,5 +542,5 @@ module.exports = {
   getCancelledBetHistory,
   updateBetsAndCalculateWinnings,
   createBetPlacedForPlayer,
-  cashoutBetForPlayer,
+  cashoutBetForPlayer
 };

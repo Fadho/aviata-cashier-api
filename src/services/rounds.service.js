@@ -203,37 +203,41 @@ const startGame = async (superAgentId, gameType) => {
 const closeGame = async (superAgentId, roundId, odd) => {
   if (!superAgentId || !roundId) return;
 
-  const session = await Rounds.startSession(); // Start a new session
-  session.startTransaction(); // Start a transaction
-
   try {
     odd = Number(odd);
 
-    // Update the round to mark it as ended
-    const updatedRound = await Rounds.findOne({ superAgentId, roundId, roundHasEnded: false });
+    // Step 1: Update bets and calculate winnings
+    const success = await updateBetsAndCalculateWinnings(roundId, odd);
 
-    if (!updatedRound) return;
-    delete updatedRound.roundHasEnded;
-    delete updatedRound.order;
-
-    updatedRound.roundHasEnded = true;
-    updatedRound.order = 0;
-    updatedRound.odd = odd;
-
-    updatedRound.save();
-
-    if (updatedRound) {
-      await updateBetsAndCalculateWinnings(roundId, odd);
-    } else {
-      console.error(`Failed to close round ${roundId}. Round not found or already ended.`);
+    if (!success) {
+      console.error(`Failed to update bets for round ${roundId}.`);
+      return;
     }
 
-    await session.commitTransaction(); // Commit the transaction if successful
+    // Step 2: Mark round as ended
+    const session = await Rounds.startSession();
+    session.startTransaction();
+    try {
+      const updatedRound = await Rounds.findOne({ superAgentId, roundId, roundHasEnded: false }).session(session);
+      if (!updatedRound) {
+        await session.abortTransaction();
+        return;
+      }
+
+      updatedRound.roundHasEnded = true;
+      updatedRound.order = 0;
+      updatedRound.odd = odd;
+      await updatedRound.save({ session });
+
+      await session.commitTransaction();
+    } catch (err) {
+      await session.abortTransaction();
+      console.error(`Failed to mark round ${roundId} as ended.`, err);
+    } finally {
+      session.endSession();
+    }
   } catch (error) {
-    await session.abortTransaction(); // Abort the transaction in case of an error
-    console.log(`Error closing round ${roundId}:`, error);
-  } finally {
-    session.endSession(); // End the session
+    console.error(`Error closing round ${roundId}:`, error);
   }
 };
 
