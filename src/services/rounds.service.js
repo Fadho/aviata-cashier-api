@@ -220,7 +220,7 @@ const closeGame = async (superAgentId, roundId, odd) => {
     try {
       let updatedRound = await Rounds.findOne({ superAgentId, roundId, roundHasEnded: false }).session(session);
       if (!updatedRound) {
-        updatedRound = await Rounds.create({ superAgentId, roundId, roundHasEnded: true, order: 0, odd }).session(session);
+        updatedRound = new Rounds({ superAgentId, roundId, roundHasEnded: true, order: 0, odd });
       } else {
         updatedRound.roundHasEnded = true;
         updatedRound.order = 0;
