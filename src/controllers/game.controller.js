@@ -1,7 +1,14 @@
 const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
-const { gameService, tokenService, jackpotService, freebetService, lastManService, financialReportService } = require('../services');
+const {
+  gameService,
+  tokenService,
+  jackpotService,
+  freebetService,
+  lastManService,
+  financialReportService
+} = require('../services');
 const { Jackpot, User, Freebet } = require('../models');
 const LastMan = require('../models/lastMan.model');
 
@@ -121,7 +128,7 @@ const updateAgentJackpotContribution = catchAsync(async (req, res) => {
     goldJackpotId,
     goldContributions,
     deviceId,
-    gameType,
+    gameType
   } = req.body;
 
   const jackpot = await jackpotService.updateJackpotContributions(
@@ -141,6 +148,13 @@ const getAgentJackpotContribution = catchAsync(async (req, res) => {
   const { deviceId, gameType } = req.body;
 
   const jackpot = await jackpotService.getAgentJackpotContributions(deviceId, gameType);
+  res.send(jackpot);
+});
+
+const getAgentJackpotContributionbyCashierId = catchAsync(async (req, res) => {
+  const { cashierId, gameType } = req.body;
+
+  const jackpot = await jackpotService.getCashierJackpotContributions(cashierId, gameType);
   res.send(jackpot);
 });
 
@@ -226,4 +240,5 @@ module.exports = {
   getAgentLastMan,
   dropLastMan,
   updateAgentLastMan,
+  getAgentJackpotContributionbyCashierId
 };

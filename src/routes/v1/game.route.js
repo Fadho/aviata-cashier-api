@@ -50,6 +50,10 @@ router
   .post(validate(gameValidation.getAgentContribution), gameController.getAgentJackpotContribution);
 
 router
+  .route('/jackpot/agentContribution2')
+  .post(validate(gameValidation.getAgentContribution2), gameController.getAgentJackpotContribution);
+
+router
   .route('/freebet')
   .post(validate(gameValidation.getAgentJackpots), gameController.getAgentFreebet)
   .patch(auth('updateJackpot'), validate(gameValidation.updateFreebet), gameController.updateAgentFreebet);

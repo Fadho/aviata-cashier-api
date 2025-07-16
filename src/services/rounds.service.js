@@ -218,15 +218,16 @@ const closeGame = async (superAgentId, roundId, odd) => {
     const session = await Rounds.startSession();
     session.startTransaction();
     try {
-      let updatedRound = await Rounds.findOne({ superAgentId, roundId, roundHasEnded: false }).session(session);
+      const updatedRound = await Rounds.findOne({ superAgentId, roundId, roundHasEnded: false }).session(session);
       if (!updatedRound) {
-        updatedRound = new Rounds({ superAgentId, roundId, roundHasEnded: true, order: 0, odd });
-      } else {
-        updatedRound.roundHasEnded = true;
-        updatedRound.order = 0;
-        updatedRound.odd = odd;
-        await updatedRound.save({ session });
+        await session.abortTransaction();
+        return;
       }
+
+      updatedRound.roundHasEnded = true;
+      updatedRound.order = 0;
+      updatedRound.odd = odd;
+      await updatedRound.save({ session });
 
       await session.commitTransaction();
     } catch (err) {

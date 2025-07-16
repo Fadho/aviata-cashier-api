@@ -46,7 +46,7 @@ const jackpotWinnersSchema = mongoose.Schema(
     deviceId: {
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'GameDevice',
-      required: true,
+      // required: true,
     },
   },
   {

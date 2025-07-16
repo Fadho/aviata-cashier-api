@@ -116,6 +116,13 @@ const getAgentContribution = {
   }),
 };
 
+const getAgentContribution2 = {
+  body: Joi.object().keys({
+    cashierId: Joi.required().custom(objectId),
+    gameType: Joi.string().required(),
+  }),
+};
+
 const updateGameData = {
   params: Joi.object().keys({
     agentId: Joi.required().custom(objectId).required(),
@@ -170,4 +177,5 @@ module.exports = {
   dropFreebet,
   updateLastMan,
   dropLastMan,
+  getAgentContribution2,
 };

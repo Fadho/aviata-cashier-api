@@ -59,7 +59,7 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
     }
 
     // Update player's wallet
-    player.wallet += Number(jackpotAmount);   
+    player.wallet += Number(jackpotAmount);
     await player.save({ session });
 
     // Update the jackpot winner to mark as inactive and record details
@@ -368,6 +368,85 @@ const updateJackpotContributions = async (
   return { activeBronzeContribution, activeSilverContribution, activeGoldContribution };
 };
 
+const updateJackpotContributionsForCashier = async (
+  bronzeJackpotId,
+  bronzeContributions,
+  silverJackpotId,
+  silverContributions,
+  goldJackpotId,
+  goldContributions,
+  cashierId,
+  gameType
+) => {
+  const bronzeJackpot = await Jackpot.findOne({ _id: bronzeJackpotId });
+  const silverJackpot = await Jackpot.findOne({ _id: silverJackpotId });
+  const goldJackpot = await Jackpot.findOne({ _id: goldJackpotId });
+
+  let activeBronzeContribution;
+  let activeSilverContribution;
+  let activeGoldContribution;
+
+  if (bronzeJackpot) {
+    activeBronzeContribution = await JackpotWinners.findOne({ jackpotType: 'Bronze', active: true, gameType, cashierId });
+
+    if (activeBronzeContribution) {
+      activeBronzeContribution = await JackpotWinners.findOneAndUpdate(
+        { _id: activeBronzeContribution._id },
+        { jackpotContributions: activeBronzeContribution.jackpotContributions + Number(bronzeContributions), active: true },
+        { new: true }
+      );
+    } else {
+      activeBronzeContribution = await JackpotWinners.create({
+        jackpotType: 'Bronze',
+        active: true,
+        jackpotContributions: bronzeContributions,
+        cashierId,
+        gameType,
+      });
+    }
+  }
+
+  if (silverJackpot) {
+    activeSilverContribution = await JackpotWinners.findOne({ jackpotType: 'Silver', active: true, gameType, cashierId });
+    if (activeSilverContribution) {
+      activeSilverContribution = await JackpotWinners.findOneAndUpdate(
+        { _id: activeSilverContribution._id },
+        { jackpotContributions: activeSilverContribution.jackpotContributions + Number(silverContributions) },
+        { new: true }
+      );
+    } else {
+      activeSilverContribution = await JackpotWinners.create({
+        jackpotType: 'Silver',
+        active: true,
+        jackpotContributions: silverContributions,
+        cashierId,
+        gameType,
+      });
+    }
+  }
+
+  if (goldJackpot) {
+    activeGoldContribution = await JackpotWinners.findOne({ jackpotType: 'Gold', active: true, gameType, cashierId });
+    if (activeGoldContribution) {
+      activeGoldContribution = await JackpotWinners.findOneAndUpdate(
+        { _id: activeGoldContribution._id },
+        { jackpotContributions: activeGoldContribution.jackpotContributions + Number(goldContributions) },
+        { new: true }
+      );
+    } else {
+      activeGoldContribution = await JackpotWinners.create({
+        jackpotType: 'Gold',
+        active: true,
+        jackpotContributions: goldContributions,
+        cashierId,
+        gameType,
+      });
+    }
+  }
+
+  return { activeBronzeContribution, activeSilverContribution, activeGoldContribution };
+};
+
 const getAgentJackpotContributions = async (deviceId, gameType) => {
   let bronzeJackpot = await JackpotWinners.findOne({ active: true, jackpotType: 'Bronze', deviceId, gameType });
 
@@ -390,6 +469,28 @@ const getAgentJackpotContributions = async (deviceId, gameType) => {
   return [bronzeJackpot, silverJackpot, goldJackpot];
 };
 
+const getCashierJackpotContributions = async (cashierId, gameType) => {
+  let bronzeJackpot = await JackpotWinners.findOne({ active: true, jackpotType: 'Bronze', cashierId, gameType });
+
+  if (!bronzeJackpot) {
+    bronzeJackpot = await JackpotWinners.create({ active: true, jackpotType: 'Bronze', cashierId, gameType });
+    bronzeJackpot = bronzeJackpot._doc;
+  }
+  let silverJackpot = await JackpotWinners.findOne({ active: true, jackpotType: 'Silver', cashierId, gameType });
+  if (!silverJackpot) {
+    silverJackpot = await JackpotWinners.create({ active: true, jackpotType: 'Silver', cashierId, gameType });
+    silverJackpot = silverJackpot._doc;
+  }
+
+  let goldJackpot = await JackpotWinners.findOne({ active: true, jackpotType: 'Gold', cashierId, gameType });
+  if (!goldJackpot) {
+    goldJackpot = await JackpotWinners.create({ active: true, jackpotType: 'Gold', cashierId, gameType });
+    goldJackpot = goldJackpot._doc;
+  }
+
+  return [bronzeJackpot, silverJackpot, goldJackpot];
+};
+
 module.exports = {
   createJackpot,
   findJackpot,
@@ -400,4 +501,6 @@ module.exports = {
   updateJackpotContributions,
   getAgentJackpotContributions,
   getUpdatedJackpotHistory,
+  getCashierJackpotContributions,
+  updateJackpotContributionsForCashier,
 };
