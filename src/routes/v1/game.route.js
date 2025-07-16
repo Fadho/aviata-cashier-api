@@ -51,7 +51,7 @@ router
 
 router
   .route('/jackpot/agentContribution2')
-  .post(validate(gameValidation.getAgentContribution2), gameController.getAgentJackpotContribution);
+  .post(validate(gameValidation.getAgentContribution2), gameController.getAgentJackpotContributionbyCashierId);
 
 router
   .route('/freebet')

@@ -64,6 +64,26 @@ const createBetPlaced = catchAsync(async (req, res) => {
   }
   // Respond with the created bet
   res.status(httpStatus.CREATED).send(betPlaced);
+
+  // Get jackpot contributions
+  const jackpotContributions = await jackpotService.getAgentJackpots(user.agentId, 'aviata');
+  const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
+  const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
+  const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
+
+  // Update jackpot contributions
+  jackpotService.updateJackpotContributionsForCashier(
+    bronzeJackpot._id,
+    bronzeJackpot.percentageContributions * stake,
+    silverJackpot._id,
+    silverJackpot.percentageContributions * stake,
+    goldJackpot._id,
+    goldJackpot.percentageContributions * stake,
+    cashierId,
+    'aviata'
+  );
+
+  financialReportService.getAndUpdateStake(cashierId, gameType);
 });
 
 const createBetPlacedForPlayer = catchAsync(async (req, res) => {
@@ -1100,7 +1120,7 @@ const getTransactionReports = catchAsync(async (req, res) => {
 
     res.json({ hierarchy: hierarchyReports, pagination });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(500).send({ error: 'Error generating transaction report' });
   }
 });

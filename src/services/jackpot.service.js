@@ -240,6 +240,8 @@ const getAgentJackpots = async (agentId, gameType) => {
   let gold;
 
   const jackpots = await Jackpot.find({ agentId, gameType });
+
+  console.log('getAgentJackpots: ', jackpots, agentId, gameType)
   if (jackpots.length) return jackpots;
 
   const user = await User.findOne({ _id: agentId }).select('_id agentId superAgentId role');
