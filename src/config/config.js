@@ -35,6 +35,7 @@ module.exports = {
   port: envVars.PORT,
   secure: envVars.SECURE,
   websocket_url: envVars.WEBSOCKET_URL,
+  aviata_websocket_url: envVars.AVIATA_WEBSOCKET_URL,
   allowedOrigins: envVars.ALLOWED_ORIGINS,
   mongoose: {
     url: envVars.MONGODB_URL + (envVars.NODE_ENV === 'test' ? '-test' : ''),

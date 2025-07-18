@@ -90,7 +90,6 @@ const getAgentJackpots = catchAsync(async (req, res) => {
   const { agentId, gameType } = req.body;
   const jackpot = await jackpotService.getAgentJackpots(agentId, gameType);
   // rearrange list to have bronze first, silver, then gold.
-  // console.log(jackpot);
   const order = ['Bronze', 'Silver', 'Gold'];
 
   const sortedGames = jackpot.sort((a, b) => {
@@ -116,6 +115,12 @@ const updateAgentJackpot = catchAsync(async (req, res) => {
 const dropJackpot = catchAsync(async (req, res) => {
   const { jackpotId, deviceId, playerId, jackpotAmount } = req.body;
   const jackpot = await jackpotService.dropJackpot(jackpotId, deviceId, playerId, jackpotAmount);
+  res.send(jackpot);
+});
+
+const dropTicketJackpot = catchAsync(async (req, res) => {
+  const { jackpotId, ticketId, cashierId, jackpotAmount } = req.body;
+  const jackpot = await jackpotService.dropJackpotForTickets(jackpotId, ticketId, cashierId, jackpotAmount);
   res.send(jackpot);
 });
 
@@ -223,6 +228,7 @@ module.exports = {
   createGameConfig,
   getGame,
   dropJackpot,
+  dropTicketJackpot,
   updateGameConfig,
   updateGameData,
   authenticateGame,
@@ -240,5 +246,5 @@ module.exports = {
   getAgentLastMan,
   dropLastMan,
   updateAgentLastMan,
-  getAgentJackpotContributionbyCashierId
+  getAgentJackpotContributionbyCashierId,
 };

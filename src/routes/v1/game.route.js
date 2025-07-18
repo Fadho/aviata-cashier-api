@@ -40,6 +40,7 @@ router
   .patch(auth('updateJackpot'), validate(gameValidation.updateJackpot), gameController.updateAgentJackpot);
 
 router.route('/jackpot/dropJackpot').post(validate(gameValidation.dropJackpot), gameController.dropJackpot);
+router.route('/jackpot/dropJackpotForTickets').post(gameController.dropTicketJackpot);
 
 router
   .route('/jackpot/updateAgentContribution')

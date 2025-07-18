@@ -5,7 +5,6 @@ const jackpotWinnersSchema = mongoose.Schema(
   {
     jackpotAmount: {
       type: mongoose.SchemaTypes.Number,
-      // required: true,
     },
 
     jackpotContributions: {
@@ -34,19 +33,21 @@ const jackpotWinnersSchema = mongoose.Schema(
     playerId: {
       type: mongoose.SchemaTypes.String,
       ref: 'Player',
-      // required: true,
+    },
+
+    ticketId: {
+      type: mongoose.SchemaTypes.String,
+      ref: 'Ticket',
     },
 
     cashierId: {
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'User',
-      // required: true,
     },
 
     deviceId: {
       type: mongoose.SchemaTypes.ObjectId,
       ref: 'GameDevice',
-      // required: true,
     },
   },
   {

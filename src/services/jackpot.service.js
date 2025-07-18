@@ -2,7 +2,7 @@
 
 const axios = require('axios');
 const mongoose = require('mongoose');
-const { JackpotWinners, Jackpot, Player, User } = require('../models');
+const { JackpotWinners, Jackpot, Player, User, Tickets } = require('../models');
 const config = require('../config/config');
 
 /**
@@ -96,6 +96,93 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
     await session.abortTransaction();
     // console.log(`Error in dropJackpot: ${error.message}`);
     throw new Error('Error processing jackpot drop');
+  } finally {
+    // End the session to free up resources
+    session.endSession();
+  }
+};
+
+const dropJackpotForTickets = async (id, ticketId, cashierId, jackpotAmount) => {
+  const session = await mongoose.startSession(); // Start a MongoDB session
+  session.startTransaction(); // Begin a transaction
+
+  try {
+    // Find the ticket
+    const ticket = await Tickets.findOne({ _id: ticketId }).session(session);
+    if (!ticket) throw new Error('ticket not found');
+
+    // Find the jackpot
+    const jackpot = await Jackpot.findById(id).session(session);
+    if (!jackpot) throw new Error('Jackpot not found');
+
+    // Find active jackpot winners
+    const jackpotWinners = await JackpotWinners.findOne({
+      jackpotType: jackpot.jackpotName,
+      active: true,
+      gameType: jackpot.gameType,
+      cashierId,
+    }).session(session);
+    if (!jackpotWinners || jackpotWinners.jackpotContributions < jackpotAmount)
+      throw new Error('No active jackpot winner found');
+
+    // Time validation
+    const today = new Date();
+    const extractTime = (date) => ({
+      hours: date.getHours(),
+      minutes: date.getMinutes(),
+      seconds: date.getSeconds(),
+    });
+
+    if (jackpot.startTime instanceof Date && jackpot.endTime instanceof Date) {
+      const startTime = extractTime(jackpot.startTime);
+      const endTime = extractTime(jackpot.endTime);
+      const currentTime = extractTime(today);
+
+      const isTimeValid = (start, current, end) => {
+        return (
+          (start.hours < current.hours || (start.hours === current.hours && start.minutes <= current.minutes)) &&
+          (current.hours < end.hours || (current.hours === end.hours && current.minutes <= end.minutes))
+        );
+      };
+
+      if (!isTimeValid(startTime, currentTime, endTime)) {
+        throw new Error('Current time is not within jackpot time range');
+      }
+    }
+
+    // Update the jackpot winner to mark as inactive and record details
+    const winner = await JackpotWinners.findOneAndUpdate(
+      { _id: jackpotWinners._id, active: true },
+      {
+        jackpotAmount,
+        ticketId,
+        cashierId,
+        active: false,
+      },
+      { new: true, session }
+    );
+
+    if (!winner) throw new Error('Failed to update jackpot winner');
+
+    const body = {
+      ticketId,
+      agentId: jackpot.agentId,
+      jackpotAmount,
+      jackpotType: jackpot.jackpotName,
+    };
+
+    // Notify the WebSocket server about the jackpot drop
+    await axios.post(`${config.aviata_websocket_url}/drop-jackpot`, body);
+
+    // Commit the transaction if everything is successful
+    await session.commitTransaction();
+
+    return winner;
+  } catch (error) {
+    // Rollback the transaction in case of any errors
+    await session.abortTransaction();
+    // console.log(`Error in dropJackpot: ${error}`);
+    throw new Error('Error processing jackpot drop : jackpot not ready');
   } finally {
     // End the session to free up resources
     session.endSession();
@@ -241,7 +328,6 @@ const getAgentJackpots = async (agentId, gameType) => {
 
   const jackpots = await Jackpot.find({ agentId, gameType });
 
-  console.log('getAgentJackpots: ', jackpots, agentId, gameType)
   if (jackpots.length) return jackpots;
 
   const user = await User.findOne({ _id: agentId }).select('_id agentId superAgentId role');
@@ -505,4 +591,5 @@ module.exports = {
   getUpdatedJackpotHistory,
   getCashierJackpotContributions,
   updateJackpotContributionsForCashier,
+  dropJackpotForTickets,
 };
