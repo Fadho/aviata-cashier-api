@@ -122,8 +122,9 @@ const dropJackpotForTickets = async (id, ticketId, cashierId, jackpotAmount) => 
       gameType: jackpot.gameType,
       cashierId,
     }).session(session);
-    if (!jackpotWinners || jackpotWinners.jackpotContributions < jackpotAmount)
+    if (!jackpotWinners || jackpotWinners.jackpotContributions < jackpot.jackpotAmount) {
       throw new Error('No active jackpot winner found');
+    }
 
     // Time validation
     const today = new Date();
@@ -132,7 +133,6 @@ const dropJackpotForTickets = async (id, ticketId, cashierId, jackpotAmount) => 
       minutes: date.getMinutes(),
       seconds: date.getSeconds(),
     });
-
     if (jackpot.startTime instanceof Date && jackpot.endTime instanceof Date) {
       const startTime = extractTime(jackpot.startTime);
       const endTime = extractTime(jackpot.endTime);
@@ -181,7 +181,7 @@ const dropJackpotForTickets = async (id, ticketId, cashierId, jackpotAmount) => 
   } catch (error) {
     // Rollback the transaction in case of any errors
     await session.abortTransaction();
-    // console.log(`Error in dropJackpot: ${error}`);
+    console.log(`Error in dropJackpot: ${error}`);
     throw new Error('Error processing jackpot drop : jackpot not ready');
   } finally {
     // End the session to free up resources
