@@ -80,7 +80,8 @@ const createBetPlaced = catchAsync(async (req, res) => {
     goldJackpot._id,
     goldJackpot.percentageContributions * stake,
     cashierId,
-    'aviata'
+    'aviata',
+    betPlaced._id
   );
 
   financialReportService.getAndUpdateStake(cashierId, gameType);

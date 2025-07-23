@@ -155,7 +155,7 @@ const dropJackpotForTickets = async (id, ticketId, cashierId, jackpotAmount) => 
       { _id: jackpotWinners._id, active: true },
       {
         jackpotAmount,
-        ticketId,
+        ticketId: ticket.ticketId,
         cashierId,
         active: false,
       },
@@ -181,7 +181,7 @@ const dropJackpotForTickets = async (id, ticketId, cashierId, jackpotAmount) => 
   } catch (error) {
     // Rollback the transaction in case of any errors
     await session.abortTransaction();
-    console.log(`Error in dropJackpot: ${error}`);
+    // console.log(`Error in dropJackpot: ${error}`);
     throw new Error('Error processing jackpot drop : jackpot not ready');
   } finally {
     // End the session to free up resources
@@ -464,7 +464,8 @@ const updateJackpotContributionsForCashier = async (
   goldJackpotId,
   goldContributions,
   cashierId,
-  gameType
+  gameType,
+  ticketId
 ) => {
   const bronzeJackpot = await Jackpot.findOne({ _id: bronzeJackpotId });
   const silverJackpot = await Jackpot.findOne({ _id: silverJackpotId });
@@ -483,6 +484,16 @@ const updateJackpotContributionsForCashier = async (
         { jackpotContributions: activeBronzeContribution.jackpotContributions + Number(bronzeContributions), active: true },
         { new: true }
       );
+
+      // check drop jackpot
+      if (bronzeJackpot.lowLimitAmount <= activeBronzeContribution.jackpotContributions){
+        if (bronzeJackpot.highLimitAmount >= activeBronzeContribution.jackpotContributions){
+          await dropJackpotForTickets(bronzeJackpotId, ticketId, cashierId, activeBronzeContribution.jackpotContributions)
+        }else{
+          await dropJackpotForTickets(bronzeJackpotId, ticketId, cashierId, bronzeJackpot.highLimitAmount)
+        }
+      }
+
     } else {
       activeBronzeContribution = await JackpotWinners.create({
         jackpotType: 'Bronze',
@@ -502,6 +513,15 @@ const updateJackpotContributionsForCashier = async (
         { jackpotContributions: activeSilverContribution.jackpotContributions + Number(silverContributions) },
         { new: true }
       );
+
+      // check drop jackpot
+      if (silverJackpot.lowLimitAmount <= activeSilverContribution.jackpotContributions){
+        if (silverJackpot.highLimitAmount >= activeSilverContribution.jackpotContributions){
+          await dropJackpotForTickets(silverJackpotId, ticketId, cashierId, activeSilverContribution.jackpotContributions)
+        }else{
+          await dropJackpotForTickets(silverJackpotId, ticketId, cashierId, silverJackpot.highLimitAmount)
+        }
+      }
     } else {
       activeSilverContribution = await JackpotWinners.create({
         jackpotType: 'Silver',
@@ -521,6 +541,15 @@ const updateJackpotContributionsForCashier = async (
         { jackpotContributions: activeGoldContribution.jackpotContributions + Number(goldContributions) },
         { new: true }
       );
+
+      // check drop jackpot
+      if (goldJackpot.lowLimitAmount <= activeGoldContribution.jackpotContributions){
+        if (goldJackpot.highLimitAmount >= activeGoldContribution.jackpotContributions){
+          await dropJackpotForTickets(goldJackpotId, ticketId, cashierId, activeGoldContribution.jackpotContributions)
+        }else{
+          await dropJackpotForTickets(goldJackpotId, ticketId, cashierId, goldJackpot.highLimitAmount)
+        }
+      }
     } else {
       activeGoldContribution = await JackpotWinners.create({
         jackpotType: 'Gold',
