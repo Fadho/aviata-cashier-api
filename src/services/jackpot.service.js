@@ -181,8 +181,8 @@ const dropJackpotForTickets = async (id, ticketId, cashierId, jackpotAmount) => 
   } catch (error) {
     // Rollback the transaction in case of any errors
     await session.abortTransaction();
-    // console.log(`Error in dropJackpot: ${error}`);
-    throw new Error('Error processing jackpot drop : jackpot not ready');
+    console.log(`Error in dropJackpot: ${error} : jackpot not ready`);
+    // throw new Error('Error processing jackpot drop : jackpot not ready');
   } finally {
     // End the session to free up resources
     session.endSession();

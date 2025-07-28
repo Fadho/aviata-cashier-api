@@ -54,6 +54,10 @@ const getAndUpdateStake = async (cashierId, gameType) => {
   let jackpot1Contributions = 0;
   let jackpot2Contributions = 0;
   let jackpot3Contributions = 0;
+  let totalDeposits = 0;
+  let totalWithdrawals = 0;
+  let totalBonusAwarded = 0;
+
 
   const [players, tickets, cashierJackpotWinners] = await Promise.all([
     Player.find({ cashierId, gameType }),
@@ -68,6 +72,11 @@ const getAndUpdateStake = async (cashierId, gameType) => {
     totalStake += Number(ticket.stake ? ticket.stake : 0);
     totalWinnings += Number(ticket.winnings ? ticket.winnings : 0);
     numberOfBets += 1;
+
+    if (gameType==='aviata'){
+      totalDeposits += Number(ticket.stake ? ticket.stake : 0);
+      totalWithdrawals += Number(ticket.winnings ? ticket.winnings : 0);
+    }
   });
 
   cashierJackpotWinners.forEach((jackpot) => {
@@ -83,9 +92,7 @@ const getAndUpdateStake = async (cashierId, gameType) => {
     }
   });
 
-  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
-  if (!financialReport) {
-    return FinancialReport.create({
+  const payload = {
       cashierId,
       numberOfBets,
       gameType,
@@ -99,12 +106,11 @@ const getAndUpdateStake = async (cashierId, gameType) => {
       jackpot1Contributions,
       jackpot2Contributions,
       jackpot3Contributions,
-    });
-  }
-  return FinancialReport.findByIdAndUpdate(
-    financialReport._id,
-    {
+    };
+  const payload_aviata = {
+      cashierId,
       numberOfBets,
+      gameType,
       totalWinnings,
       totalStake,
       totalPlayerWallets,
@@ -115,7 +121,47 @@ const getAndUpdateStake = async (cashierId, gameType) => {
       jackpot1Contributions,
       jackpot2Contributions,
       jackpot3Contributions,
-    },
+      totalDeposits,
+      totalWithdrawals
+    };
+
+  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
+  if (!financialReport) {
+    return FinancialReport.create(gameType==='aviata' ? payload_aviata : payload);
+  }
+
+  const update = {
+    numberOfBets,
+    totalWinnings,
+    totalStake,
+    totalPlayerWallets,
+    totalPlayerBonus,
+    jackpot1Payout,
+    jackpot2Payout,
+    jackpot3Payout,
+    jackpot1Contributions,
+    jackpot2Contributions,
+    jackpot3Contributions,
+  }
+
+  const update_aviata = {
+    numberOfBets,
+    totalWinnings,
+    totalStake,
+    totalPlayerWallets,
+    totalPlayerBonus,
+    jackpot1Payout,
+    jackpot2Payout,
+    jackpot3Payout,
+    jackpot1Contributions,
+    jackpot2Contributions,
+    jackpot3Contributions,
+    totalDeposits,
+    totalWithdrawals
+  }
+
+  return FinancialReport.findByIdAndUpdate(
+    financialReport._id, gameType==='aviata' ? update_aviata : update,
     { new: true }
   );
 };
