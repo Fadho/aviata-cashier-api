@@ -28,8 +28,9 @@ const { Wallets, Player, User, Freebet, FreebetWinners } = require('../models');
 const GameConfig = require('../models/gameConfig.model');
 
 const createBetPlaced = catchAsync(async (req, res) => {
-  const { result, selections, cashierId, potentialWinnings, roundId, gameType, playerId, deviceId } = req.body;
+  const { result, selections, cashierId, potentialWinnings, roundId, playerId, deviceId } = req.body;
   let { stake } = req.body;
+  const gameType = 'aviata';
   // Fetch the user (cashier) by ID
   const user = await userService.getUserById(cashierId);
   if (!user) {
@@ -56,17 +57,14 @@ const createBetPlaced = catchAsync(async (req, res) => {
   await walletService.updateWallet(userWallet.id, balance - stake);
 
   // Create the bet
-  let betPlaced = {};
-  if (gameType === 'shootout' || gameType === 'aviatax') {
-    betPlaced = await betsService.createBetPlacedForPlayer(stake, gameType, roundId, cashierId, playerId, deviceId);
-  } else {
-    betPlaced = await betsService.createBetPlaced(result, stake, selections, cashierId, potentialWinnings, roundId);
-  }
+  let betPlaced = await betsService.createBetPlaced(result, stake, selections, cashierId, potentialWinnings, roundId, gameType);
+  
   // Respond with the created bet
   res.status(httpStatus.CREATED).send(betPlaced);
 
   // Get jackpot contributions
-  const jackpotContributions = await jackpotService.getAgentJackpots(user.agentId, 'aviata');
+  const jackpotContributions = await jackpotService.getAgentJackpots(user.agentId, gameType);
+  
   const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
   const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
   const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
@@ -80,7 +78,7 @@ const createBetPlaced = catchAsync(async (req, res) => {
     goldJackpot._id,
     goldJackpot.percentageContributions * stake,
     cashierId,
-    'aviata',
+    gameType,
     betPlaced._id
   );
 

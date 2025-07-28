@@ -19,7 +19,7 @@ const gameReportService = require('./gameReport.service');
  * @param {ObjectId} cashierId
  * @returns {Promise<Tickets>}
  */
-const createBetPlaced = async (result, stake, selections, cashierId, potentialWinnings, roundId) => {
+const createBetPlaced = async (result, stake, selections, cashierId, potentialWinnings, roundId, gameType) => {
   const minNumber = 1000000000; // Minimum 10-digit number
   const maxNumber = 9999999999; // Maximum 10-digit number
   const ticketId = Math.floor(minNumber + Math.random() * (maxNumber - minNumber + 1)).toString();
@@ -33,10 +33,11 @@ const createBetPlaced = async (result, stake, selections, cashierId, potentialWi
       ticketId,
       betType: 'multiple',
       potentialWinnings,
-      roundId
+      roundId,
+      gameType
     });
   }
-  return Tickets.create({ result, stake, selections, cashierId, ticketId, betType: 'single', potentialWinnings, roundId });
+  return Tickets.create({ result, stake, selections, cashierId, ticketId, betType: 'single', potentialWinnings, roundId, gameType });
 };
 
 /**

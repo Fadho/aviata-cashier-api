@@ -54,10 +54,8 @@ const getAndUpdateStake = async (cashierId, gameType) => {
   let jackpot1Contributions = 0;
   let jackpot2Contributions = 0;
   let jackpot3Contributions = 0;
-  let totalDeposits = 0;
-  let totalWithdrawals = 0;
-  let totalBonusAwarded = 0;
-
+  let totalDeposit = 0;
+  let totalWithdrawal = 0;
 
   const [players, tickets, cashierJackpotWinners] = await Promise.all([
     Player.find({ cashierId, gameType }),
@@ -74,10 +72,11 @@ const getAndUpdateStake = async (cashierId, gameType) => {
     numberOfBets += 1;
 
     if (gameType==='aviata'){
-      totalDeposits += Number(ticket.stake ? ticket.stake : 0);
-      totalWithdrawals += Number(ticket.winnings ? ticket.winnings : 0);
+      totalDeposit += Number(ticket.stake ? ticket.stake : 0);
+      totalWithdrawal += Number(ticket.winnings ? ticket.winnings : 0);
     }
   });
+
 
   cashierJackpotWinners.forEach((jackpot) => {
     if (jackpot.jackpotType === 'Bronze') {
@@ -121,8 +120,8 @@ const getAndUpdateStake = async (cashierId, gameType) => {
       jackpot1Contributions,
       jackpot2Contributions,
       jackpot3Contributions,
-      totalDeposits,
-      totalWithdrawals
+      totalDeposit,
+      totalWithdrawal
     };
 
   const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
@@ -156,8 +155,8 @@ const getAndUpdateStake = async (cashierId, gameType) => {
     jackpot1Contributions,
     jackpot2Contributions,
     jackpot3Contributions,
-    totalDeposits,
-    totalWithdrawals
+    totalDeposit,
+    totalWithdrawal
   }
 
   return FinancialReport.findByIdAndUpdate(
@@ -226,8 +225,8 @@ const getAndUpdatePlayerWallets = async (cashierId, gameType, winnings) => {
 const getAndUpdateTotalTransactions = async (cashierId, gameType) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
-  let totalDeposits = 0;
-  let totalWithdrawals = 0;
+  let totalDeposit = 0;
+  let totalWithdrawal = 0;
   let totalBonusAwarded = 0;
 
   const transactions = await transferHistoryService.queryTransferHistorys(
@@ -239,26 +238,26 @@ const getAndUpdateTotalTransactions = async (cashierId, gameType) => {
   );
 
   transactions.results.forEach((transaction) => {
-    totalDeposits += Number(transaction.deposit ? transaction.deposit : 0);
-    totalWithdrawals += Number(transaction.withdrawal ? transaction.withdrawal : 0);
+    totalDeposit += Number(transaction.deposit ? transaction.deposit : 0);
+    totalWithdrawal += Number(transaction.withdrawal ? transaction.withdrawal : 0);
     totalBonusAwarded += Number(transaction.bonus ? transaction.bonus : 0);
   });
 
-  const gameReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
-  if (!gameReport) {
+  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
+  if (!financialReport) {
     return FinancialReport.create({
       cashierId,
-      totalDeposits,
-      totalWithdrawals,
+      totalDeposit,
+      totalWithdrawal,
       totalBonusAwarded,
       gameType,
     });
   }
   return FinancialReport.findByIdAndUpdate(
-    gameReport._id,
+    financialReport._id,
     {
-      totalDeposits,
-      totalWithdrawals,
+      totalDeposit,
+      totalWithdrawal,
       totalBonusAwarded,
     },
     { new: true }
