@@ -81,12 +81,15 @@ const getAndUpdateStake = async (cashierId, gameType) => {
   cashierJackpotWinners.forEach((jackpot) => {
     if (jackpot.jackpotType === 'Bronze') {
       jackpot1Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
+      totalWithdrawal += jackpot.jackpotAmount ? (-1*jackpot.jackpotAmount) : 0;
       jackpot1Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
     } else if (jackpot.jackpotType === 'Silver') {
       jackpot2Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
+      totalWithdrawal += jackpot.jackpotAmount ? (-1*jackpot.jackpotAmount) : 0;
       jackpot2Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
     } else if (jackpot.jackpotType === 'Gold') {
       jackpot3Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
+      totalWithdrawal += jackpot.jackpotAmount ? (-1*jackpot.jackpotAmount) : 0;
       jackpot3Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
     }
   });
