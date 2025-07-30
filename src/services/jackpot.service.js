@@ -162,6 +162,13 @@ const dropJackpotForTickets = async (id, ticketId, cashierId, jackpotAmount) => 
       { new: true, session }
     );
 
+    await Tickets.findOneAndUpdate(
+      { _id: ticket._id },
+      {
+        jackpotWinnerId: jackpotWinners._id
+      }
+    )
+
     if (!winner) throw new Error('Failed to update jackpot winner');
 
     const body = {

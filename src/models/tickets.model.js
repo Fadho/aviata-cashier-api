@@ -55,6 +55,10 @@ const ticketSchema = mongoose.Schema(
       default: 0,
       required: true,
     },
+    jackpotWinnerId: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'JackpotWinners',
+    },
     potentialWinnings: {
       type: Number,
       default: 0,

@@ -73,7 +73,7 @@ const getAndUpdateStake = async (cashierId, gameType) => {
 
     if (gameType==='aviata'){
       totalDeposit += Number(ticket.stake ? ticket.stake : 0);
-      totalWithdrawal += Number(ticket.winnings ? ticket.winnings : 0);
+      totalWithdrawal += Number(ticket.winnings ? (-1*ticket.winnings) : 0); //totalWithdrawal is a negative value
     }
   });
 
