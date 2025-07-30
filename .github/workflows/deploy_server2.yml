@@ -22,15 +22,15 @@ jobs:
 
       - name: Deploy using SCP with password
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD2 }}" scp -o StrictHostKeyChecking=no -r ./src Dockerfile package*.json ecosystem.config.json ${{ secrets.SSH_USER2 }}@${{ secrets.SSH_USER2 }}:~/aviata-websocket
+          sshpass -p "${{ secrets.SSH_PASSWORD2 }}" scp -o StrictHostKeyChecking=no -r ./src Dockerfile package*.json ecosystem.config.json ${{ secrets.SSH_USER2 }}@${{ secrets.SSH_USER2 }}:~/aviata-cashier-api
 
       - name: Restart Server via SSH with password
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD2 }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER2 }}@${{ secrets.SSH_USER2 }} "cd ~/aviata-websocket && npm install && pm2 del all && npm run start"
+          sshpass -p "${{ secrets.SSH_PASSWORD2 }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER2 }}@${{ secrets.SSH_USER2 }} "cd ~/aviata-cashier-api && npm install && pm2 del all && npm run start"
 
       - name: Build, tag and push Dockerfile
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD2 }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER2 }}@${{ secrets.SSH_USER2 }} "cd ~/aviata-websocket && docker build -t cashier-service . && docker tag cashier-service registry.digitalocean.com/aviata/cashier-service && docker push registry.digitalocean.com/aviata/cashier-service"
+          sshpass -p "${{ secrets.SSH_PASSWORD2 }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER2 }}@${{ secrets.SSH_USER2 }} "cd ~/aviata-cashier-api && docker build -t cashier-service . && docker tag cashier-service registry.digitalocean.com/aviata/cashier-service && docker push registry.digitalocean.com/aviata/cashier-service"
 
       - name: Docker Compose and scale
         run: |
