@@ -24,10 +24,6 @@ jobs:
         run: |
           sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -o StrictHostKeyChecking=no -r ./src Dockerfile package*.json ecosystem.config.json ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/aviata-cashier-api
 
-      - name: Restart Server via SSH with password
-        run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ~/aviata-cashier-api && npm install && pm2 del all && npm run start"
-
       - name: Build, tag and push Dockerfile
         run: |
           sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ~/aviata-cashier-api && docker build -t cashier-service . && docker tag cashier-service registry.digitalocean.com/aviata/cashier-service && docker push registry.digitalocean.com/aviata/cashier-service"
