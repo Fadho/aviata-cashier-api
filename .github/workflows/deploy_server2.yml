@@ -1,9 +1,9 @@
-name: Deploying Cashier Server
+name: Deploying Cashier Server 2
 
 on:
   push:
     branches:
-      - master
+      - freebet
 
 jobs:
   test:

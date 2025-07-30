@@ -3,7 +3,7 @@ name: Deploying Cashier Server
 on:
   push:
     branches:
-      - master
+      - freebet
 
 jobs:
   test:
