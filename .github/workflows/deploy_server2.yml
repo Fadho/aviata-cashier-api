@@ -22,7 +22,7 @@ jobs:
 
       - name: Deploy using SCP with password
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD2 }}" scp -o StrictHostKeyChecking=no -r ./src Dockerfile package*.json ecosystem.config.json ${{ secrets.SSH_USER2 }}@${{ secrets.SSH_SSH_HOST2 }}:~/aviata-cashier-api
+          sshpass -p "${{ secrets.SSH_PASSWORD2 }}" scp -o StrictHostKeyChecking=no -r ./src Dockerfile package*.json ecosystem.config.json ${{ secrets.SSH_USER2 }}@${{ secrets.SSH_HOST2 }}:~/aviata-cashier-api
 
       - name: Restart Server via SSH with password
         run: |
