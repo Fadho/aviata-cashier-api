@@ -387,7 +387,7 @@ const cashierReport = catchAsync(async (req, res) => {
     // let betHistory = [];
     const [user, betHistory, players] = await Promise.all([
       userService.getUserById(cashierId),
-      betsService.getBetHistory({ cashierId, ...(betType && { betType }), ...(gameType && { gameType }) }, startDate, endDate),
+      betsService.getBetHistory1({ cashierId, ...(betType && { betType }), ...(gameType && { gameType }) }, startDate, endDate),
       Player.find({ cashierId }),
     ]);
 
@@ -1014,7 +1014,7 @@ const getTransactionReports = catchAsync(async (req, res) => {
 
     const primaryCurrency = (
       await currencyService.getCurrencyById(
-        (
+        (  
           await walletService.findWallet(null, (await userService.getUserByRole('super'))[0].id, true)
         )[0].currencyId
       )
