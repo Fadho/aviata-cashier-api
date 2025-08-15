@@ -357,7 +357,6 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
       },
       { totalDeposit: 0, totalWithdrawal: 0, totalBonusAwarded: 0, numberOfTransactions: 0 }
     );
-    // console.log(aggregates, cashierId, startDateWithoutTime);
 
     const gameReport = await GameReport.findOne({
       cashierId,
