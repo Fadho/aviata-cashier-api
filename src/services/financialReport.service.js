@@ -128,7 +128,7 @@ const getAndUpdateStake = async (cashierId, gameType) => {
       totalWithdrawal
     };
 
-    Console.LOG('payload:', gameType==='aviata' ? payload_aviata : payload);
+    console.log('payload:', gameType==='aviata' ? payload_aviata : payload);
 
   const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
   if (!financialReport) {
