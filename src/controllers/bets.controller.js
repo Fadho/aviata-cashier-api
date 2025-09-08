@@ -85,123 +85,250 @@ const createBetPlaced = catchAsync(async (req, res) => {
   financialReportService.getAndUpdateStake(cashierId, gameType);
 });
 
+// const createBetPlacedForPlayer = catchAsync(async (req, res) => {
+//   const session = await mongoose.startSession(); // Start a Mongoose session
+//   session.startTransaction(); // Begin a transaction
+
+//   try {
+//     const { cashierId, roundId, gameType, playerId, deviceId } = req.body;
+//     let { stake } = req.body;
+
+//     // Fetch the player by playerId and deviceId
+//     const player = await Player.findOne({ playerId, deviceId }).session(session);
+//     if (!player) {
+//       throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
+//     }
+//     const checkFreebet = player.freebet;
+//     if (!player.freebet) {
+//       // Validate balance and stake
+//       let balance = Number(player.wallet);
+//       let bonus = Number(player.bonus);
+//       // let useBalanceBonus = false;
+//       let useBonus = false;
+//       stake = Number(stake);
+
+//       if (isNaN(balance) || isNaN(stake) || balance < stake) {
+//         useBonus = true;
+//         if (isNaN(bonus + balance) || isNaN(stake) || bonus + balance < stake)
+//           throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount');
+//       }
+
+//       if (useBonus) {
+//         let setStake = stake;
+//         setStake -= balance;
+//         balance = 0;
+//         bonus -= setStake;
+//       } else {
+//         balance -= stake;
+//       }
+
+//       // Update wallet balance
+
+//       await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance, bonus }, { session });
+//     } else {
+//       const freebet = await FreebetWinners.findOne({ playerId: String(player.playerId), deviceId: player.deviceId });
+
+//       if (!freebet) {
+//         throw new ApiError(httpStatus.NOT_FOUND, 'freebet with provided playerId not found');
+//       }
+//       await Player.findOneAndUpdate({ _id: player.id }, { freebet: false }, { session });
+//       financialReportService.getAndUpdateFreebets(cashierId, gameType, freebet.dropAmount);
+//     }
+
+//     // Fetch cashier by cashierId
+//     const cashier = await User.findById(cashierId).session(session);
+//     if (!cashier) {
+//       throw new ApiError(httpStatus.NOT_FOUND, 'cashier with provided ID not found');
+//     }
+
+//     // Place the bet
+//     const betPlaced = await betsService.createBetPlacedForPlayer(
+//       stake,
+//       checkFreebet,
+//       gameType,
+//       roundId,
+//       cashierId,
+//       playerId,
+//       deviceId,
+//       session
+//     );
+
+//     res.status(httpStatus.CREATED).send(betPlaced);
+
+//     // Get jackpot contributions
+//     const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType, session);
+//     const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
+//     const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
+//     const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
+
+//     // Update jackpot contributions
+//     jackpotService.updateJackpotContributions(
+//       bronzeJackpot._id,
+//       bronzeJackpot.percentageContributions * stake,
+//       silverJackpot._id,
+//       silverJackpot.percentageContributions * stake,
+//       goldJackpot._id,
+//       goldJackpot.percentageContributions * stake,
+//       deviceId,
+//       gameType,
+//       session
+//     );
+
+//     // Get jackpot contributions
+//     const freebet = await freebetService.getAgentFreebets(cashier.agentId, gameType, session);
+
+//     if (freebet.dropAmount > 1) {
+//       // Update jackpot contributions
+//       freebetService.updateFreebetContributions(
+//         freebet._id,
+//         freebet.percentageContributions * stake,
+//         deviceId,
+//         gameType,
+//         betPlaced.roundId,
+//         session
+//       );
+//     }
+
+//     financialReportService.getAndUpdateStake(cashierId, gameType);
+//     // gameReportService.getAndUpdateStake(cashierId, gameType);
+
+//     // Commit the transaction
+//     await session.commitTransaction();
+//   } catch (error) {
+//     // Roll back transaction if any error occurs
+//     await session.abortTransaction();
+//     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, `Error placing bet: ${error.message}`);
+//   } finally {
+//     // End the session
+//     session.endSession();
+//   }
+// });
+
 const createBetPlacedForPlayer = catchAsync(async (req, res) => {
-  const session = await mongoose.startSession(); // Start a Mongoose session
-  session.startTransaction(); // Begin a transaction
+  const MAX_RETRIES = 3;
+  let attempt = 0;
+  let lastError;
 
-  try {
-    const { cashierId, roundId, gameType, playerId, deviceId } = req.body;
-    let { stake } = req.body;
+  while (attempt < MAX_RETRIES) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    // Fetch the player by playerId and deviceId
-    const player = await Player.findOne({ playerId, deviceId }).session(session);
-    if (!player) {
-      throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
-    }
-    const checkFreebet = player.freebet;
-    if (!player.freebet) {
-      // Validate balance and stake
-      let balance = Number(player.wallet);
-      let bonus = Number(player.bonus);
-      // let useBalanceBonus = false;
-      let useBonus = false;
-      stake = Number(stake);
+    try {
+      const { cashierId, roundId, gameType, playerId, deviceId } = req.body;
+      let { stake } = req.body;
 
-      if (isNaN(balance) || isNaN(stake) || balance < stake) {
-        useBonus = true;
-        if (isNaN(bonus + balance) || isNaN(stake) || bonus + balance < stake)
-          throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount');
+      // Fetch the player by playerId and deviceId
+      const player = await Player.findOne({ playerId, deviceId }).session(session);
+      if (!player) {
+        throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
       }
+      const checkFreebet = player.freebet;
+      if (!player.freebet) {
+        // Validate balance and stake
+        let balance = Number(player.wallet);
+        let bonus = Number(player.bonus);
+        let useBonus = false;
+        stake = Number(stake);
 
-      if (useBonus) {
-        let setStake = stake;
-        setStake -= balance;
-        balance = 0;
-        bonus -= setStake;
+        if (isNaN(balance) || isNaN(stake) || balance < stake) {
+          useBonus = true;
+          if (isNaN(bonus + balance) || isNaN(stake) || bonus + balance < stake)
+            throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount');
+        }
+
+        if (useBonus) {
+          let setStake = stake;
+          setStake -= balance;
+          balance = 0;
+          bonus -= setStake;
+        } else {
+          balance -= stake;
+        }
+
+        // Update wallet balance
+        await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance, bonus }, { session });
       } else {
-        balance -= stake;
+        const freebet = await FreebetWinners.findOne({ playerId: String(player.playerId), deviceId: player.deviceId });
+
+        if (!freebet) {
+          throw new ApiError(httpStatus.NOT_FOUND, 'freebet with provided playerId not found');
+        }
+        await Player.findOneAndUpdate({ _id: player.id }, { freebet: false }, { session });
+        financialReportService.getAndUpdateFreebets(cashierId, gameType, freebet.dropAmount);
       }
 
-      // Update wallet balance
-
-      await Player.findOneAndUpdate({ _id: player.id }, { wallet: balance, bonus }, { session });
-    } else {
-      const freebet = await FreebetWinners.findOne({ playerId: String(player.playerId), deviceId: player.deviceId });
-
-      if (!freebet) {
-        throw new ApiError(httpStatus.NOT_FOUND, 'freebet with provided playerId not found');
+      // Fetch cashier by cashierId
+      const cashier = await User.findById(cashierId).session(session);
+      if (!cashier) {
+        throw new ApiError(httpStatus.NOT_FOUND, 'cashier with provided ID not found');
       }
-      await Player.findOneAndUpdate({ _id: player.id }, { freebet: false }, { session });
-      financialReportService.getAndUpdateFreebets(cashierId, gameType, freebet.dropAmount);
-    }
 
-    // Fetch cashier by cashierId
-    const cashier = await User.findById(cashierId).session(session);
-    if (!cashier) {
-      throw new ApiError(httpStatus.NOT_FOUND, 'cashier with provided ID not found');
-    }
-
-    // Place the bet
-    const betPlaced = await betsService.createBetPlacedForPlayer(
-      stake,
-      checkFreebet,
-      gameType,
-      roundId,
-      cashierId,
-      playerId,
-      deviceId,
-      session
-    );
-
-    res.status(httpStatus.CREATED).send(betPlaced);
-
-    // Get jackpot contributions
-    const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType, session);
-    const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
-    const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
-    const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
-
-    // Update jackpot contributions
-    jackpotService.updateJackpotContributions(
-      bronzeJackpot._id,
-      bronzeJackpot.percentageContributions * stake,
-      silverJackpot._id,
-      silverJackpot.percentageContributions * stake,
-      goldJackpot._id,
-      goldJackpot.percentageContributions * stake,
-      deviceId,
-      gameType,
-      session
-    );
-
-    // Get jackpot contributions
-    const freebet = await freebetService.getAgentFreebets(cashier.agentId, gameType, session);
-
-    if (freebet.dropAmount > 1) {
-      // Update jackpot contributions
-      freebetService.updateFreebetContributions(
-        freebet._id,
-        freebet.percentageContributions * stake,
-        deviceId,
+      // Place the bet
+      const betPlaced = await betsService.createBetPlacedForPlayer(
+        stake,
+        checkFreebet,
         gameType,
-        betPlaced.roundId,
+        roundId,
+        cashierId,
+        playerId,
+        deviceId,
         session
       );
+
+      res.status(httpStatus.CREATED).send(betPlaced);
+
+      // Get jackpot contributions
+      const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType, session);
+      const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
+      const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
+      const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
+
+      // Update jackpot contributions
+      jackpotService.updateJackpotContributions(
+        bronzeJackpot._id,
+        bronzeJackpot.percentageContributions * stake,
+        silverJackpot._id,
+        silverJackpot.percentageContributions * stake,
+        goldJackpot._id,
+        goldJackpot.percentageContributions * stake,
+        deviceId,
+        gameType,
+        session
+      );
+
+      // Get jackpot contributions
+      const freebet = await freebetService.getAgentFreebets(cashier.agentId, gameType, session);
+
+      if (freebet.dropAmount > 1) {
+        // Update jackpot contributions
+        freebetService.updateFreebetContributions(
+          freebet._id,
+          freebet.percentageContributions * stake,
+          deviceId,
+          gameType,
+          betPlaced.roundId,
+          session
+        );
+      }
+
+      financialReportService.getAndUpdateStake(cashierId, gameType);
+
+      await session.commitTransaction();
+      session.endSession();
+      return; // success, exit loop
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      // MongoDB WriteConflict error code is 112
+      if (error.code === 112 || error.message.includes('WriteConflict')) {
+        attempt++;
+        lastError = error;
+        continue; // retry
+      }
+      throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, `Error placing bet: ${error.message}`);
     }
-
-    financialReportService.getAndUpdateStake(cashierId, gameType);
-    // gameReportService.getAndUpdateStake(cashierId, gameType);
-
-    // Commit the transaction
-    await session.commitTransaction();
-  } catch (error) {
-    // Roll back transaction if any error occurs
-    await session.abortTransaction();
-    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, `Error placing bet: ${error.message}`);
-  } finally {
-    // End the session
-    session.endSession();
   }
+  throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, `WriteConflict after ${MAX_RETRIES} retries: ${lastError.message}`);
 });
 
 const cashoutPlayerBet = catchAsync(async (req, res) => {
