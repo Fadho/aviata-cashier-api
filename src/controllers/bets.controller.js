@@ -82,7 +82,7 @@ const createBetPlaced = catchAsync(async (req, res) => {
     betPlaced._id
   );
 
-  await financialReportService.getAndUpdateStake(cashierId, gameType);
+  financialReportService.getAndUpdateStake(cashierId, gameType);
 });
 
 const createBetPlacedForPlayer = catchAsync(async (req, res) => {
@@ -189,7 +189,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       );
     }
 
-    await financialReportService.getAndUpdateStake(cashierId, gameType);
+    financialReportService.getAndUpdateStake(cashierId, gameType);
     // gameReportService.getAndUpdateStake(cashierId, gameType);
 
     // Commit the transaction

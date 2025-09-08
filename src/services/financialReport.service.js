@@ -41,6 +41,7 @@ const getBetHistory1 = async (filter, startDate, endDate) => {
  * @returns {Promise<FinancialReport>}
  */
 const getAndUpdateStake = async (cashierId, gameType) => {
+  console.log(getAndUpdateStake, cashierId, gameType);
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
   let numberOfBets = 0;
@@ -126,6 +127,8 @@ const getAndUpdateStake = async (cashierId, gameType) => {
       totalDeposit,
       totalWithdrawal
     };
+
+    Console.LOG('payload:', gameType==='aviata' ? payload_aviata : payload);
 
   const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
   if (!financialReport) {
