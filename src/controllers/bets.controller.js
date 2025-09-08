@@ -189,7 +189,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       );
     }
 
-    financialReportService.getAndUpdateStake(cashierId, gameType);
+    await financialReportService.getAndUpdateStake(cashierId, gameType);
     // gameReportService.getAndUpdateStake(cashierId, gameType);
 
     // Commit the transaction
@@ -1210,13 +1210,14 @@ const getCurrentGameState = catchAsync(async (req, res) => {
 });
 
 const populateFinancialReports = catchAsync(async (req, res) => {
-  async function iterateDateRange(startDate, endDate) {
+  async function iterateDateRange(startDate, endDate, gameType) {
     // Convert start and end dates to Date objects
     const start = new Date(startDate);
     const stop = new Date(endDate);
 
     // Fetch all cashiers at once
     const cashiers = await userService.queryUsersReturnIds({ role: 'cashier' });
+    console.log(`Found ${cashiers.length} cashiers.  ${cashiers.map(c => c._id) }`);
 
     if (!cashiers.length) {
       return;
@@ -1230,17 +1231,18 @@ const populateFinancialReports = catchAsync(async (req, res) => {
 
     dates.forEach((date) => {
       cashiers.forEach((cashier) => {
-        financialReportService.getAndUpdateStakeByDay(cashier._id, date, date);
-        financialReportService.getAndUpdateTotalTransactionsByDay(cashier._id, date, date);
+        financialReportService.getAndUpdateStakeByDay(cashier._id, gameType, date, date);
+        financialReportService.getAndUpdateTotalTransactionsByDay(cashier._id, gameType, date, date);
       });
     });
   }
 
   // Example usage
-  const startDate = '2025-03-01';
-  const endDate = '2025-06-10';
+  const startDate = '2025-09-02';
+  const endDate = '2025-09-09';
+  const gameType = 'aviata';
 
-  await iterateDateRange(startDate, endDate);
+  await iterateDateRange(startDate, endDate, gameType);
 
   res.status(200).send({ message: 'Financial reports populated successfully.' });
 });

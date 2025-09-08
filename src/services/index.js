@@ -13,3 +13,4 @@ module.exports.freebetService = require('./freebet.service');
 module.exports.financialReportService = require('./financialReport.service');
 module.exports.lastManService = require('./lastMan.service');
 module.exports.feedbackService = require('./feedback.service');
+module.exports.partnerService = require('./partner.service');

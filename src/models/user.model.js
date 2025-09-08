@@ -66,6 +66,31 @@ const userSchema = mongoose.Schema(
       enum: roles,
       default: 'cashier',
     },
+    thirdparty: {
+      type: Boolean,
+      default: false,
+    },  
+    endpoint: {
+      type: String,
+      required: function() { return this.thirdparty === true; },
+      validate(value) {
+        if (value && !validator.isURL(value)) {
+          throw new Error('Invalid URL');
+        }
+      }
+    },
+    currency: {
+      type: String,
+      required: true,
+      trim: true,
+      uppercase: true,
+      minlength: 3,
+      maxlength: 3,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
     isEmailVerified: {
       type: Boolean,
       default: false,

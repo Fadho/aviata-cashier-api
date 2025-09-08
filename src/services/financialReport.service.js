@@ -361,14 +361,14 @@ const getFinancialReports = async (filter, startDate, endDate) => {
   return financialReports;
 };
 
-const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
+const getAndUpdateStakeByDay = async (cashierId,  gameType, startDate, endDate) => {
   try {
     const startDateWithoutTime = new Date(startDate);
     const endDateWithoutTime = new Date(endDate);
     endDateWithoutTime.setHours(23, 59, 59, 999);
 
     const [tickets, cashierJackpotWinners] = await Promise.all([
-      getBetHistory1({ cashierId }, startDate, endDate),
+      getBetHistory1({ cashierId, gameType: 'aviata' }, startDate, endDate),
       jackpotService.getUpdatedJackpotHistory(
         {},
         cashierId,
@@ -376,6 +376,8 @@ const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
         endDate.toISOString().split('T')[0]
       ),
     ]);
+    console.log(`Processing cashierId: ${cashierId}, gameType: ${gameType}, from ${startDate} to ${endDate}`);
+    console.log(`Found ${tickets.length} tickets and ${cashierJackpotWinners.length} jackpot winners.`);
 
     if (!tickets.length && !cashierJackpotWinners.length) return;
 
@@ -387,6 +389,7 @@ const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
       jackpot1Payout: 0,
       jackpot2Payout: 0,
       jackpot3Payout: 0,
+      profit: 0,
       jackpot1Contributions: 0,
       jackpot2Contributions: 0,
       jackpot3Contributions: 0,
@@ -412,18 +415,24 @@ const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
       }
     });
 
+    if (gameType==='aviata'){
+      aggregates.totalDeposit = aggregates.totalStake;
+      aggregates.totalWithdrawal = -1 * (aggregates.totalWinnings);
+    } 
+
     const financialReport = await FinancialReport.findOne({
       cashierId,
+      gameType,
       createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime },
     });
+    
     if (!financialReport)
       return FinancialReport.create(
-        { cashierId, ...aggregates, createdAt: startDateWithoutTime } // Include createdAt for backdated reports
+        { cashierId, ...aggregates, profit: aggregates.profit, gameType, createdAt: startDateWithoutTime } // Include createdAt for backdated reports
       );
-
     return FinancialReport.updateOne(
-      { cashierId, createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime } },
-      { ...aggregates },
+      { cashierId, gameType, createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime } },
+      { ...aggregates, profit: aggregates.profit },
       { new: true }
     );
 
@@ -433,7 +442,7 @@ const getAndUpdateStakeByDay = async (cashierId, startDate, endDate) => {
   }
 };
 
-const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate) => {
+const getAndUpdateTotalTransactionsByDay = async (cashierId, gameType, startDate, endDate) => {
   try {
     const startDateWithoutTime = new Date(startDate);
     // startDateWithoutTime.setHours(0, 0, 0, 0);
@@ -441,10 +450,10 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
     endDateWithoutTime.setHours(23, 59, 59, 999);
 
     const transactions = await transferHistoryService.queryTransferHistorys(
-      { agent: cashierId },
+      { agent: cashierId, gameType },
       { limit: 1000000 },
-      startDate,
-      endDateWithoutTime
+      startDate.toISOString().split('T')[0],
+      endDate.toISOString().split('T')[0]
     );
     if (!transactions.results.length) return;
 
@@ -460,18 +469,24 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
       { totalDeposit: 0, totalWithdrawal: 0, totalBonusAwarded: 0, numberOfTransactions: 0 }
     );
 
-    const gameReport = await FinancialReport.findOne({
+     const financialReport = await FinancialReport.findOne({
       cashierId,
+      gameType,
       createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime },
     });
 
-    if (!gameReport)
-      return FinancialReport.create(
-        { cashierId, ...aggregates, createdAt: startDateWithoutTime } // Include createdAt for get backdated reports
-      );
+    console.log('financialReport:', financialReport);
+    console.log('aggregates:', aggregates); 
 
-    return FinancialReport.findOneAndUpdate(
-      { cashierId, createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime } },
+     if (gameType==='aviatax')
+      aggregates.profit = aggregates.totalDeposit - aggregates.totalWithdrawal;
+
+    if (!financialReport)
+      return FinancialReport.create(
+        { cashierId, ...aggregates, gameType, createdAt: startDateWithoutTime } // Include createdAt for backdated reports
+      );
+    return FinancialReport.updateOne(
+      { cashierId, gameType, createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime } },
       { ...aggregates },
       { new: true }
     );

@@ -6,3 +6,5 @@ module.exports.gameController = require('./game.controller');
 module.exports.transferHistoryController = require('./transferHistory.controller');
 module.exports.roundsController = require('./rounds.controller');
 module.exports.feedbackController = require('./feedback.controller');
+module.exports.partnerController = require('./partner.controller');
+module.exports.partnerBetsController = require('./partner.bets.controller');

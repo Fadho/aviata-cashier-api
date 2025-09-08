@@ -5,3 +5,4 @@ module.exports.betsValidation = require('./bets.validation');
 module.exports.currencyValidation = require('./currency.validation');
 module.exports.walletValidation = require('./wallet.validation');
 module.exports.feedbackValidation = require('./feedback.validation');
+module.exports.partnerValidation = require('./partner.validation');

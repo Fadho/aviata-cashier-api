@@ -337,6 +337,8 @@ const getAgentJackpots = async (agentId, gameType) => {
   if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
 
   if (user.role === 'super') {
+    const checkJackpots = await Jackpot.find({ agentId: user._id, gameType });
+    if (checkJackpots.length) return checkJackpots;
     // Create default jackpots for super agent
     bronze = await Jackpot.create({ agentId, gameType, jackpotName: 'Bronze' });
     silver = await Jackpot.create({ agentId, gameType, jackpotName: 'Silver' });
