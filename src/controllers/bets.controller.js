@@ -82,7 +82,7 @@ const createBetPlaced = catchAsync(async (req, res) => {
     betPlaced._id
   );
 
-  financialReportService.getAndUpdateStake(cashierId, gameType);
+  await financialReportService.getAndUpdateStake(cashierId, gameType);
 });
 
 const createBetPlacedForPlayer = catchAsync(async (req, res) => {
