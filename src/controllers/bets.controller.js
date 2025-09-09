@@ -1166,6 +1166,8 @@ const getTransactionReports = catchAsync(async (req, res) => {
       return hierarchy;
     };
 
+    console.log('gameType', gameType );
+
     const getCashiers = async (agentId) => {
       if (cache.cashiers[agentId]) return cache.cashiers[agentId];
 
@@ -1176,12 +1178,13 @@ const getTransactionReports = catchAsync(async (req, res) => {
         cashiers.map(async (cashier) => {
           const [financialReport, userWallets] = await Promise.all([
             financialReportService.getFinancialReports(
-              { cashierId: cashier._id, ...(gameType && { gameType }) },
+              { cashierId: cashier._id, gameType },
               startDate,
               endDate
             ),
             Wallets.find({ userId: cashier._id }).populate('currencyId'),
           ]);
+          console.log('financialReport', financialReport);
 
           // for (const wallet of userWallets) {
           // cashiers can only have 1 wallet
@@ -1246,7 +1249,6 @@ const getTransactionReports = catchAsync(async (req, res) => {
 
     res.json({ hierarchy: hierarchyReports, pagination });
   } catch (error) {
-    // console.log(error);
     res.status(500).send({ error: 'Error generating transaction report' });
   }
 });
@@ -1367,7 +1369,7 @@ const populateFinancialReports = catchAsync(async (req, res) => {
   // Example usage
   const startDate = '2025-09-02';
   const endDate = '2025-09-09';
-  const gameType = 'aviata';
+  const gameType = 'aviatax';
 
   await iterateDateRange(startDate, endDate, gameType);
 

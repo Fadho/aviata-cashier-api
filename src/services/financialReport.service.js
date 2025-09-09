@@ -63,10 +63,13 @@ const getAndUpdateStake = async (cashierId, gameType) => {
     getBetHistory1({ cashierId, gameType }, today, today),
     jackpotService.getUpdatedJackpotHistory({}, cashierId, today, today),
   ]);
-  players.forEach((player) => {
-    totalPlayerWallets += Number(player.wallet);
-    totalPlayerBonus += Number(player.bonus);
+  if (gameType==='aviatax'){
+      players.forEach((player) => {
+      totalPlayerWallets += Number(player.wallet);
+      totalPlayerBonus += Number(player.bonus);
   });
+  }
+ 
   tickets.forEach((ticket) => {
     totalStake += Number(ticket.stake ? ticket.stake : 0);
     totalWinnings += Number(ticket.winnings ? ticket.winnings : 0);
@@ -130,10 +133,12 @@ const getAndUpdateStake = async (cashierId, gameType) => {
 
     console.log('payload:', gameType==='aviata' ? payload_aviata : payload);
 
-  const financialReport = await FinancialReport.findOne({ cashierId, createdAt: { $gte: today } });
+  const financialReport = await FinancialReport.findOne({ cashierId, gameType, createdAt: { $gte: today } });
   if (!financialReport) {
     return FinancialReport.create(gameType==='aviata' ? payload_aviata : payload);
   }
+
+  console.log(financialReport, 'payload:', gameType==='aviata' ? payload_aviata : payload);
 
   const update = {
     numberOfBets,
