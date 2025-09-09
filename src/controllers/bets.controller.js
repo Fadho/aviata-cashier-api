@@ -1166,8 +1166,6 @@ const getTransactionReports = catchAsync(async (req, res) => {
       return hierarchy;
     };
 
-    console.log('gameType', gameType );
-
     const getCashiers = async (agentId) => {
       if (cache.cashiers[agentId]) return cache.cashiers[agentId];
 
@@ -1184,7 +1182,6 @@ const getTransactionReports = catchAsync(async (req, res) => {
             ),
             Wallets.find({ userId: cashier._id }).populate('currencyId'),
           ]);
-          console.log('financialReport', financialReport);
 
           // for (const wallet of userWallets) {
           // cashiers can only have 1 wallet
@@ -1346,7 +1343,6 @@ const populateFinancialReports = catchAsync(async (req, res) => {
 
     // Fetch all cashiers at once
     const cashiers = await userService.queryUsersReturnIds({ role: 'cashier' });
-    console.log(`Found ${cashiers.length} cashiers.  ${cashiers.map(c => c._id) }`);
 
     if (!cashiers.length) {
       return;

@@ -41,7 +41,6 @@ const getBetHistory1 = async (filter, startDate, endDate) => {
  * @returns {Promise<FinancialReport>}
  */
 const getAndUpdateStake = async (cashierId, gameType) => {
-  console.log(getAndUpdateStake, cashierId, gameType);
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set the time to midnight
   let numberOfBets = 0;
@@ -131,14 +130,10 @@ const getAndUpdateStake = async (cashierId, gameType) => {
       totalWithdrawal
     };
 
-    console.log('payload:', gameType==='aviata' ? payload_aviata : payload);
-
   const financialReport = await FinancialReport.findOne({ cashierId, gameType, createdAt: { $gte: today } });
   if (!financialReport) {
     return FinancialReport.create(gameType==='aviata' ? payload_aviata : payload);
   }
-
-  console.log(financialReport, 'payload:', gameType==='aviata' ? payload_aviata : payload);
 
   const update = {
     numberOfBets,
@@ -384,8 +379,6 @@ const getAndUpdateStakeByDay = async (cashierId,  gameType, startDate, endDate) 
         endDate.toISOString().split('T')[0]
       ),
     ]);
-    console.log(`Processing cashierId: ${cashierId}, gameType: ${gameType}, from ${startDate} to ${endDate}`);
-    console.log(`Found ${tickets.length} tickets and ${cashierJackpotWinners.length} jackpot winners.`);
 
     if (!tickets.length && !cashierJackpotWinners.length) return;
 
@@ -482,9 +475,6 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, gameType, startDate
       gameType,
       createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime },
     });
-
-    console.log('financialReport:', financialReport);
-    console.log('aggregates:', aggregates); 
 
      if (gameType==='aviatax')
       aggregates.profit = aggregates.totalDeposit - aggregates.totalWithdrawal;
