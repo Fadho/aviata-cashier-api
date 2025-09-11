@@ -123,28 +123,27 @@ const dropJackpotForTickets = async (id, ticketId, cashierId, jackpotAmount) => 
     }
 
     // Time validation
-    const today = new Date();
-    const extractTime = (date) => ({
-      hours: date.getHours(),
-      minutes: date.getMinutes(),
-      seconds: date.getSeconds(),
-    });
-    if (jackpot.startTime instanceof Date && jackpot.endTime instanceof Date) {
-      const startTime = extractTime(jackpot.startTime);
-      const endTime = extractTime(jackpot.endTime);
-      const currentTime = extractTime(today);
+    // const today = new Date();
+    // const extractTime = (date) => ({
+    //   hours: date.getHours(),
+    //   minutes: date.getMinutes(),
+    //   seconds: date.getSeconds(),
+    // });
+    // if (jackpot.startTime instanceof Date && jackpot.endTime instanceof Date) {
+    //   const startTime = extractTime(jackpot.startTime);
+    //   const endTime = extractTime(jackpot.endTime);
+    //   const currentTime = extractTime(today);
 
-      const isTimeValid = (start, current, end) => {
-        return (
-          (start.hours < current.hours || (start.hours === current.hours && start.minutes <= current.minutes)) &&
-          (current.hours < end.hours || (current.hours === end.hours && current.minutes <= end.minutes))
-        );
-      };
+    //   const isTimeValid = (start, current, end) => {
+    //     return (
+    //       (start.hours < current.hours || (start.hours === current.hours && start.minutes <= current.minutes)) &&
+    //       (current.hours < end.hours || (current.hours === end.hours && current.minutes <= end.minutes))
+    //     );
+    //   };
 
-      if (!isTimeValid(startTime, currentTime, endTime)) {
-        throw new Error('Current time is not within jackpot time range');
-      }
-    }
+    //   if (!isTimeValid(startTime, currentTime, endTime)) {
+    //     throw new Error('Current time is not within jackpot time range');
+    //   } 
 
     // Update the jackpot winner to mark as inactive and record details
     const winner = await JackpotWinners.findOneAndUpdate(
@@ -311,13 +310,18 @@ const getUpdatedJackpotHistory = async (filter, cashierId, startDate, endDate) =
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
   }
-  const jackpotWinners = await JackpotWinners.find(filter)
-    .populate({
-      path: 'deviceId',
-      match: { cashierId: mongoose.Types.ObjectId(cashierId) },
-      select: '_id cashierId',
-    })
-    .then((docs) => docs.filter((doc) => doc.deviceId !== null));
+  let jackpotWinners = [];
+  if(filter.gameType === 'aviatax'){
+    jackpotWinners = await JackpotWinners.find({...filter, active: false})
+      .populate({
+        path: 'deviceId',
+        match: { cashierId: mongoose.Types.ObjectId(cashierId) },
+        select: '_id cashierId',
+      });
+  }
+  if(filter.gameType === 'aviata'){
+    jackpotWinners = await JackpotWinners.find({...filter, cashierId, active: false});
+  }
   return jackpotWinners;
 };
 

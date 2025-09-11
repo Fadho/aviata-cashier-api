@@ -60,13 +60,13 @@ const getAndUpdateStake = async (cashierId, gameType) => {
   const [players, tickets, cashierJackpotWinners] = await Promise.all([
     Player.find({ cashierId, gameType }),
     getBetHistory1({ cashierId, gameType }, today, today),
-    jackpotService.getUpdatedJackpotHistory({}, cashierId, today, today),
+    jackpotService.getUpdatedJackpotHistory({gameType}, cashierId, today, today),
   ]);
   if (gameType==='aviatax'){
       players.forEach((player) => {
       totalPlayerWallets += Number(player.wallet);
       totalPlayerBonus += Number(player.bonus);
-  });
+    });
   }
  
   tickets.forEach((ticket) => {
@@ -370,10 +370,12 @@ const getAndUpdateStakeByDay = async (cashierId,  gameType, startDate, endDate) 
     const endDateWithoutTime = new Date(endDate);
     endDateWithoutTime.setHours(23, 59, 59, 999);
 
+    console.log('getAndUpdateStakeByDay', cashierId, gameType, startDateWithoutTime, endDateWithoutTime); 
+
     const [tickets, cashierJackpotWinners] = await Promise.all([
-      getBetHistory1({ cashierId, gameType: 'aviata' }, startDate, endDate),
+      getBetHistory1({ cashierId, gameType }, startDate, endDate),
       jackpotService.getUpdatedJackpotHistory(
-        {},
+        { gameType },
         cashierId,
         startDate.toISOString().split('T')[0],
         endDate.toISOString().split('T')[0]

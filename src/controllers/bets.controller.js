@@ -511,7 +511,6 @@ const cashierReport = catchAsync(async (req, res) => {
   try {
     const { startDate, endDate, betType, gameType } = req.query;
     const cashierId = req.user.id;
-    // let betHistory = [];
     const [user, betHistory, players] = await Promise.all([
       userService.getUserById(cashierId),
       betsService.getBetHistory1({ cashierId, ...(betType && { betType }), ...(gameType && { gameType }) }, startDate, endDate),
@@ -522,10 +521,10 @@ const cashierReport = catchAsync(async (req, res) => {
       throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record by ClientType not found');
     }
     const cashierJackpotWinners = await jackpotService.getJackpotHistory(
-      { cashierId, ...(gameType && { gameType }) },
+      { cashierId,  gameType, active: false },
       startDate,
       endDate
-    );
+    ); 
 
     const totalStake = betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
     const totalWinnings = betHistory.reduce((count, bet) => count + bet.winnings, 0);
@@ -1353,6 +1352,7 @@ const populateFinancialReports = catchAsync(async (req, res) => {
     for (let d = new Date(start); d <= stop; d.setDate(d.getDate() + 1)) {
       dates.push(new Date(d)); // Store a copy of the date
     }
+    console.log('Total dates to process:', dates);
 
     dates.forEach((date) => {
       cashiers.forEach((cashier) => {
@@ -1363,9 +1363,9 @@ const populateFinancialReports = catchAsync(async (req, res) => {
   }
 
   // Example usage
-  const startDate = '2025-09-02';
-  const endDate = '2025-09-09';
-  const gameType = 'aviatax';
+  const startDate = '2025-09-01';
+  const endDate = '2025-09-11';
+  const gameType = 'aviata';
 
   await iterateDateRange(startDate, endDate, gameType);
 
