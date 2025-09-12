@@ -47,6 +47,13 @@ const verifyEmail = catchAsync(async (req, res) => {
   res.status(httpStatus.NO_CONTENT).send();
 });
 
+const redirectClient = catchAsync(async (req, res) => {
+  await authService.redirectClient(req.user, req.body.url);
+   const tokens = await tokenService.generateAuthTokens(user);
+  //redirect to the url in body
+  res.redirect(`${req.body.url}?token=${tokens.access.token}`);   
+});
+
 module.exports = {
   register,
   login,
@@ -56,4 +63,5 @@ module.exports = {
   resetPassword,
   sendVerificationEmail,
   verifyEmail,
+  redirectClient
 };

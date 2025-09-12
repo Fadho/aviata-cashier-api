@@ -47,6 +47,12 @@ const verifyEmail = {
   }),
 };
 
+const redirect = {
+  body: Joi.object().keys({
+    url: Joi.string().required(),
+  }),
+};
+
 module.exports = {
   register,
   login,
@@ -55,4 +61,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   verifyEmail,
+  redirect
 };

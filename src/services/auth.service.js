@@ -121,6 +121,28 @@ const loginUserWithToken = async (username, currency) => {
   return user;
 };
 
+/**
+ * Redirect client
+  * @param {Object} user - user object
+ * @param {string} url - URL to redirect to
+ * @returns {Promise} 
+ */
+const redirectClient = async (user, url) => {
+  // Validate user permissions and URL format
+  if (user.role !== 'admin' && user.role !== 'agent') {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You do not have permission to perform this action');
+  }
+  const allowedDomains = ['https://trusted-domain.com', 'https://another-trusted.com'];
+  const urlObj = new URL(url);
+  if (!allowedDomains.includes(urlObj.origin)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid URL');
+  }
+  // Log the redirection event
+  console.log(`User ${user.id} is being redirected to ${url}`);
+  // In a real application, you might return the URL or perform the redirection on the client side
+  return; 
+} 
+
 module.exports = {
   loginUserWithEmailAndPassword,
   logout,
@@ -128,4 +150,5 @@ module.exports = {
   resetPassword,
   verifyEmail,
   loginUserWithToken,
+  redirectClient
 };
