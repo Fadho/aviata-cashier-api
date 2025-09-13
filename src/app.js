@@ -15,7 +15,6 @@ const routes = require('./routes/v1');
 const { errorConverter, errorHandler } = require('./middlewares/error');
 const ApiError = require('./utils/ApiError');
 const { encryptMiddleware, decryptMiddleware } = require('./middlewares/encryption');
-const { act } = require('react');
 
 const app = express();
 
@@ -95,7 +94,6 @@ const corsOptions = {
   },
   credentials: true,
   optionsSuccessStatus: 200,
-  accessControlAllowOrigin: true,
 };
 
 app.use(cors(corsOptions));
@@ -120,7 +118,7 @@ if (config.env === 'production') {
 
 app.get('/', (req, res) => {
   res.status(httpStatus.OK).json({
-    message: 'Welcome to Shootout API',
+    message: 'Welcome to SBEGAMES API',
   });
 });
 
