@@ -51,7 +51,8 @@ const redirectClient = catchAsync(async (req, res) => {
   await authService.redirectClient(req.user, req.body.url);
    const tokens = await tokenService.generateAuthTokens(req.user);
   //redirect to the url in body
-  res.redirect(`${req.body.url}?token=${tokens.access.token}`);   
+  // res.redirect(`${req.body.url}?token=${tokens.access.token}`);
+  res.status(httpStatus.NO_CONTENT).send();
 });
 
 module.exports = {
