@@ -129,10 +129,10 @@ const loginUserWithToken = async (username, currency) => {
  */
 const redirectClient = async (user, url) => {
   // Validate user permissions and URL format
-  if (user.role !== 'admin' && user.role !== 'agent') {
+  if (user.role !== 'admin' && user.role !== 'cashier') {
     throw new ApiError(httpStatus.FORBIDDEN, 'You do not have permission to perform this action');
   }
-  const allowedDomains = ['https://trusted-domain.com', 'https://another-trusted.com'];
+  const allowedDomains = ['https://aviatorx.cashier.sbegames.com', 'https://aviata.cashier.sbegames.com'];
   const urlObj = new URL(url);
   if (!allowedDomains.includes(urlObj.origin)) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid URL');
