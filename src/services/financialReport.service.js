@@ -495,6 +495,28 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, gameType, startDate
   }
 };
 
+//fetch financial reports for given cashier and date range
+const getFinancialReportsByDay = async (cashierId, gameType, startDate, endDate) => {
+  try {
+    const startDateWithoutTime = new Date(startDate);
+    startDateWithoutTime.setHours(0, 0, 0, 0);
+    const endDateWithoutTime = new Date(endDate);
+    endDateWithoutTime.setHours(23, 59, 59, 999);
+
+    const financialReports = await FinancialReport.find({
+      cashierId,
+      ...(gameType && { gameType }),
+      createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime },
+    }).sort({ createdAt: 1 }); // Sort by date ascending
+
+      console.log('getFinancialReportsByDay', cashierId, gameType, startDateWithoutTime, endDateWithoutTime, financialReports);
+    return financialReports;
+  } catch (error) {
+    logger.error('Error in getFinancialReportsByDay:', error);
+    throw error; // Re-throw the error after logging it
+  }
+
+};
 module.exports = {
   queryFinancialReports,
   getAndUpdateStake,
@@ -505,4 +527,5 @@ module.exports = {
   getAndUpdateLastMan,
   getAndUpdateStakeByDay,
   getAndUpdateTotalTransactionsByDay,
+  getFinancialReportsByDay
 };

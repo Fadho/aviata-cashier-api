@@ -274,7 +274,7 @@ const getJackpotHistory = async (filter, startDate, endDate) => {
     dateFilter = {
       ...(startDate &&
         endDate && {
-          createdAt: {
+          updatedAt: {
             $gte: startDateWithoutTime,
             $lte: endDateWithoutTime,
           },

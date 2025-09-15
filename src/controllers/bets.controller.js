@@ -521,7 +521,7 @@ const cashierReport = catchAsync(async (req, res) => {
       throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record by ClientType not found');
     }
     const cashierJackpotWinners = await jackpotService.getJackpotHistory(
-      { cashierId,  gameType, active: false },
+      { cashierId,  ...(gameType && { gameType }), active: false },
       startDate,
       endDate
     ); 
@@ -581,6 +581,32 @@ const cashierReport = catchAsync(async (req, res) => {
       jackpot3Contributions,
     };
     return res.status(httpStatus.OK).send(data);
+  } catch (error) {
+    throw new ApiError(httpStatus.NOT_FOUND, error.message);
+  }
+});
+
+const getCashierReport = catchAsync(async (req, res) => {
+  try {
+    const { startDate, endDate, gameType } = req.query;
+    const cashierId = req.user.id;
+    const report = await financialReportService.getFinancialReportsByDay(cashierId, gameType, startDate, endDate);
+    report.forEach((report) => {
+              currencyReport.totalDeposit += report.totalDeposit;
+              currencyReport.totalWithdrawal += report.totalWithdrawal;
+              currencyReport.totalStake += report.totalStake;
+              currencyReport.totalWinnings += report.totalWinnings;
+              currencyReport.numberOfTransactions += report.numberOfTransactions;
+              currencyReport.numberOfBets += report.numberOfBets;
+              currencyReport.totalBonus += report.totalPlayerBonus;
+              currencyReport.profit = currencyReport.totalDeposit + currencyReport.totalWithdrawal;
+              currencyReport.profitPrimary = parseFloat((currencyReport.profit * conversionRate).toFixed(3));
+              currencyReport.playersWallet += report.totalPlayerWallets;
+              currencyReport.jackpot1Payout += report.jackpot1Payout ? report.jackpot1Payout : 0;
+              currencyReport.jackpot2Payout += report.jackpot2Payout ? report.jackpot2Payout : 0;
+              currencyReport.jackpot3Payout += report.jackpot3Payout ? report.jackpot3Payout : 0;
+            });
+    return res.status(httpStatus.OK).send(report);
   } catch (error) {
     throw new ApiError(httpStatus.NOT_FOUND, error.message);
   }
@@ -1518,4 +1544,5 @@ module.exports = {
   createBetPlacedForPlayer,
   populateFinancialReports,
   getGameReports,
+  getCashierReport
 };
