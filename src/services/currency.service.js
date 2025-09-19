@@ -41,6 +41,15 @@ const getCurrencyById = async (id) => {
 };
 
 /**
+ * find currency by currencyCode
+ * @param {string} currencyCode
+ * @returns {Promise<Currency>}
+ */
+const findByCurrencyCode = function (currencyCode) {
+  return this.findOne({ 'country.currencyCode': currencyCode });
+};
+
+/**
  * Update currency by id
  * @param {ObjectId} currencyId
  * @param {Object} updateBody
@@ -77,6 +86,7 @@ module.exports = {
   createCurrency,
   queryCurrencies,
   getCurrencies,
+  findByCurrencyCode,
   updateCurrencyById,
   deleteCurrencyById,
   getCurrencyById,

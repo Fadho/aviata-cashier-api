@@ -42,15 +42,15 @@ const createBetPlacedForThirdParty = catchAsync(async (req, res) => {
   }
 
   //check third party wallet balance (agent must have a single wallet)
-  let { balance } = Number(thirdParty.wallets[0]);
+  // let { balance } = Number(thirdParty.wallets[0]);
 
-  if (isNaN(balance) || isNaN(stake) || balance < stake) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount'); 
-  }
+  // if (isNaN(balance) || isNaN(stake) || balance < stake) {
+  //   throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount'); 
+  // }
 
   // Deduct stake from third party wallet
-  balance -= stake;
-  await walletService.updateWallet(thirdParty.wallets[0]._id, { balance });
+  // balance -= stake;
+  // await walletService.updateWallet(thirdParty.wallets[0]._id, { balance });
 
   //query thirdparty debit endpoint
    const response = await axios.post(thirdParty.endpoint+'/debit', { stake, gameType, currency});
@@ -115,10 +115,10 @@ const createBetPlacedForThirdPartyPlayer = catchAsync(async (req, res) => {
 
     // Deduct stake from third party wallet
     // balance -= stake;
-    await walletService.updateWallet(thirdParty.wallets[0]._id, { balance });
+    // await walletService.updateWallet(thirdParty.wallets[0]._id, { balance });
 
     //query thirdparty debit endpoint
-    const response = await axios.post(thirdParty.endpoint+'/debit',{ stake, gameType, currency});
+    const response = await axios.post(thirdParty.endpoint+'/debit', { stake, gameType, currency});
 
     if(response.status !== 200){
       throw new ApiError(httpStatus.BAD_REQUEST, 'Error debiting third party wallet');

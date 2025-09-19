@@ -1,6 +1,6 @@
 const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
-const { generateApiKey, deleteApiKey } = require('../services/partner.service');
+const { generateApiKey, deleteApiKey, getApiKeys } = require('../services/partner.service');
 
 // Generate and manage API keys for partners, multi-keys per partner 
 // to allow key rotation and revocation without downtime.
@@ -41,7 +41,7 @@ const listApiKeys = async (req, res, next) => {
   try {
     const apiKeys = await getApiKeys(req.user.id);
     res.status(httpStatus.OK).send({ apiKeys });
-  } catch (error) {
+ m  } catch (error) {
     next(error);
   }
 };

@@ -99,7 +99,7 @@ const verifyEmail = async (verifyEmailToken) => {
  * @returns {Promise<User>}
  */
 const loginUserWithToken = async (username, currency) => {
-    //verify need for currency spontaneity, can they follow current agent structure.
+  //verify need for currency spontaneity, can they follow current agent structure.
   const user = await userService.getUserById(req.user.id);
   if (!user) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid token');

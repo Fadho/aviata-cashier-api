@@ -79,6 +79,18 @@ const userSchema = mongoose.Schema(
         }
       }
     },
+    companyName: {
+      type: String,
+      required: function() { return this.thirdparty === true; },
+      trim: true,
+    },
+    apiKey: {
+      type: String,
+      required: function() { return this.thirdparty === true; },
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
     currency: {
       type: String,
       required: true,
