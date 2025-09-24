@@ -13,6 +13,8 @@ router
   .route('/')
   .get(auth(), partnerController.createApiKey);
 
+router.route('/listPartnerKeys').get(auth(), partnerController.listApiKeys);
+
 router.route('/deletePartnerKey').post(auth(), validate(partnerValidation.removeApiKey), partnerController.removeApiKey);
 
 router.route('/thirdPartyCashierDetails').post(auth(), validate(partnerValidation.getThirdPartyCashierDetails), partnerAuthController.thirdPartyCashierDetails);

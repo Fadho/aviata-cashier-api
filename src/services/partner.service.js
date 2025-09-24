@@ -11,7 +11,7 @@ const { default: axios } = require('axios');
  * @param {Number} expiryDays - Expiry in days (default: 90 days)
  * @returns {String} raw API key (give to partner once)
  */
-const generateApiKey = async (partnerId, scopes = [], expiryDays = 90) => {
+const generateApiKey = async (partnerId, keyName, scopes = [], expiryDays = 90) => {
   // Generate raw API key
   const rawKey = 'tw_api_' + crypto.randomBytes(32).toString('hex');
 
@@ -26,6 +26,7 @@ const generateApiKey = async (partnerId, scopes = [], expiryDays = 90) => {
   await ApiKey.create({
     partnerId,
     keyHash,
+    keyName,
     scopes,
     status: 'active',
     expiresAt,

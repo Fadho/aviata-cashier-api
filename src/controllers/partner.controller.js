@@ -11,7 +11,7 @@ const { generateApiKey, deleteApiKey, getApiKeys } = require('../services/partne
  */
 const createApiKey = async (req, res, next) => {
   try {
-    const apiKey = await generateApiKey(req.user._id);
+    const apiKey = await generateApiKey(req.user._id, req.body.keyName);
     res.status(httpStatus.CREATED).send({ apiKey });
   } catch (error) {
     next(error);

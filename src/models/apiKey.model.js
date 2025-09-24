@@ -8,6 +8,10 @@ const apiKeySchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    keyName: {
+      type: String,
+      required: true,
+    },
     keyHash: {
       type: String,
       required: true,
