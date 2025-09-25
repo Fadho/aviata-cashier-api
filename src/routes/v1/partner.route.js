@@ -1,5 +1,5 @@
 const express = require('express');
-const {auth, apiKeyAuth} = require('../../middlewares/auth');
+const { auth, apiKeyAuth } = require('../../middlewares/auth');
 
 const validate = require('../../middlewares/validate');
 const partnerValidation = require('../../validations/partner.validation');
@@ -9,14 +9,14 @@ const partnerAuthController = require('../../controllers/partner.auth.controller
 
 const router = express.Router();
 
-router
-  .route('/')
-  .get(auth(), partnerController.createApiKey);
+router.route('/').post(auth(), partnerController.createApiKey);
 
 router.route('/listPartnerKeys').get(auth(), partnerController.listApiKeys);
 
 router.route('/deletePartnerKey').post(auth(), validate(partnerValidation.removeApiKey), partnerController.removeApiKey);
 
-router.route('/thirdPartyCashierDetails').post(auth(), validate(partnerValidation.getThirdPartyCashierDetails), partnerAuthController.thirdPartyCashierDetails);
+router
+  .route('/thirdPartyCashierDetails')
+  .post(auth(), validate(partnerValidation.getThirdPartyCashierDetails), partnerAuthController.thirdPartyCashierDetails);
 
 module.exports = router;
