@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const ApiKey = require('../models/apiKey.model');
 const { th } = require('date-fns/locale');
-const { userService, walletService, currencyService } = require('.'); 
+const { userService, walletService, currencyService } = require('.');
 const { default: axios } = require('axios');
 
 /**
@@ -41,10 +41,10 @@ const generateApiKey = async (partnerId, keyName, scopes = [], expiryDays = 90) 
  * @param {String} rawKey - The raw API key (from partner)
  * @returns {Boolean} true if deleted, false if not found
  */
-const deleteApiKey = async (rawKey) => {
-  const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
+const deleteApiKey = async (apikeyId) => {
+  // const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
 
-  const result = await ApiKey.findOneAndDelete({ keyHash });
+  const result = await ApiKey.findOneAndDelete({ _id: apikeyId });
 
   return !!result; // true if deleted, false if not found
 };
@@ -57,7 +57,7 @@ const deleteApiKey = async (rawKey) => {
 const getApiKeys = async (partnerId) => {
   const apiKeys = await ApiKey.find({ partnerId }).select('-keyHash');
   return apiKeys;
-}
+};
 
 /**
  * token Login with token and userdata
@@ -76,19 +76,18 @@ const loginUserWithToken = async (username, currency, thirdPartyId) => {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid token');
   }
   let getCashier = await userService.getUsers({ username, agentId: thirdPartyId });
-  if(!getCashier.length){
+  if (!getCashier.length) {
     const userBody = {
       username,
       role: 'cashier',
       agentId: thirdPartyId,
       email: req.user.email,
-      superAgentId: req.user.superAgentId ? req.user.superAgentId :  thirdPartyId,
-      thirdParty: true
+      superAgentId: req.user.superAgentId ? req.user.superAgentId : thirdPartyId,
+      thirdParty: true,
     };
     getCashier = await userService.createUser(userBody);
     const wallet = walletService.createWallet(findCurrency._id, getCashier._id, 0);
     getCashier = await userService.getAndUpdateWallet(getCashier._id, wallet.id);
-
   } else {
     getCashier = getCashier[0];
   }
@@ -101,14 +100,14 @@ const getThirdPartyCashierDetails = async (thirdPartyId, username) => {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid token');
   }
 
-  const cashier = await axios.post(`${thirdParty.url}/userDetails`, {username});
+  const cashier = await axios.post(`${thirdParty.url}/userDetails`, { username });
   return cashier.data;
-}
+};
 
 module.exports = {
   generateApiKey,
   deleteApiKey,
   loginUserWithToken,
   getApiKeys,
-  getThirdPartyCashierDetails
+  getThirdPartyCashierDetails,
 };

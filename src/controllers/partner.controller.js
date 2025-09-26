@@ -2,7 +2,7 @@ const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const { generateApiKey, deleteApiKey, getApiKeys } = require('../services/partner.service');
 
-// Generate and manage API keys for partners, multi-keys per partner 
+// Generate and manage API keys for partners, multi-keys per partner
 // to allow key rotation and revocation without downtime.
 // Create, delete, list keys.
 
@@ -23,11 +23,11 @@ const createApiKey = async (req, res, next) => {
  */
 const removeApiKey = async (req, res, next) => {
   try {
-    const { apiKey } = req.body;
-    if (!apiKey) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'API key is required');
-    }
-    await deleteApiKey(req.user.id, apiKey);
+    const { apiKeyId } = req.body;
+    // if (!apiKey) {
+    //   throw new ApiError(httpStatus.BAD_REQUEST, 'API key is required');
+    // }
+    await deleteApiKey(apiKeyId);
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {
     next(error);
@@ -41,7 +41,7 @@ const listApiKeys = async (req, res, next) => {
   try {
     const apiKeys = await getApiKeys(req.user.id);
     res.status(httpStatus.OK).send({ apiKeys });
- m  } catch (error) {
+  } catch (error) {
     next(error);
   }
 };

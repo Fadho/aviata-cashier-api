@@ -3,8 +3,7 @@ const { objectId } = require('./custom.validation');
 
 const removeApiKey = {
   body: Joi.object().keys({
-    apiKey: Joi.string().required(),
-    
+    apiKeyId: Joi.string().custom(objectId).required(),
   }),
 };
 
@@ -16,5 +15,5 @@ const getThirdPartyCashierDetails = {
 
 module.exports = {
   removeApiKey,
-  getThirdPartyCashierDetails
+  getThirdPartyCashierDetails,
 };
