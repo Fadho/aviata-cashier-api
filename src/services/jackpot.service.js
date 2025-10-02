@@ -143,7 +143,7 @@ const dropJackpotForTickets = async (id, ticketId, cashierId, jackpotAmount) => 
 
     //   if (!isTimeValid(startTime, currentTime, endTime)) {
     //     throw new Error('Current time is not within jackpot time range');
-    //   } 
+    //   }
 
     // Update the jackpot winner to mark as inactive and record details
     const winner = await JackpotWinners.findOneAndUpdate(
@@ -160,9 +160,9 @@ const dropJackpotForTickets = async (id, ticketId, cashierId, jackpotAmount) => 
     await Tickets.findOneAndUpdate(
       { _id: ticket._id },
       {
-        jackpotWinnerId: jackpotWinners._id
+        jackpotWinnerId: jackpotWinners._id,
       }
-    )
+    );
 
     if (!winner) throw new Error('Failed to update jackpot winner');
 
@@ -311,16 +311,15 @@ const getUpdatedJackpotHistory = async (filter, cashierId, startDate, endDate) =
     filter = dateFilter;
   }
   let jackpotWinners = [];
-  if(filter.gameType === 'aviatax'){
-    jackpotWinners = await JackpotWinners.find({...filter, active: false})
-      .populate({
-        path: 'deviceId',
-        match: { cashierId: mongoose.Types.ObjectId(cashierId) },
-        select: '_id cashierId',
-      });
+  if (filter.gameType === 'aviatax') {
+    jackpotWinners = await JackpotWinners.find({ ...filter, active: false }).populate({
+      path: 'deviceId',
+      match: { cashierId: mongoose.Types.ObjectId(cashierId) },
+      select: '_id cashierId',
+    });
   }
-  if(filter.gameType === 'aviata'){
-    jackpotWinners = await JackpotWinners.find({...filter, cashierId, active: false});
+  if (filter.gameType === 'aviata') {
+    jackpotWinners = await JackpotWinners.find({ ...filter, cashierId, active: false });
   }
   return jackpotWinners;
 };
@@ -492,14 +491,17 @@ const updateJackpotContributionsForCashier = async (
       );
 
       // check drop jackpot
-      if (bronzeJackpot.lowLimitAmount <= activeBronzeContribution.jackpotContributions){
-        if (bronzeJackpot.highLimitAmount >= activeBronzeContribution.jackpotContributions){
-          await dropJackpotForTickets(bronzeJackpotId, ticketId, cashierId, activeBronzeContribution.jackpotContributions)
-        }else{
-          await dropJackpotForTickets(bronzeJackpotId, ticketId, cashierId, bronzeJackpot.highLimitAmount)
+      if (bronzeJackpot.lowLimitAmount <= activeBronzeContribution.jackpotContributions) {
+        // generate random number between lowLimitAmount and highLimitAmount
+        const min = bronzeJackpot.lowLimitAmount;
+        const max = bronzeJackpot.highLimitAmount;
+
+        // generate random number between min and max (inclusive)
+        const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
+        if (activeBronzeContribution.jackpotContributions >= randomValue) {
+          await dropJackpotForTickets(bronzeJackpotId, ticketId, cashierId, activeBronzeContribution.jackpotContributions);
         }
       }
-
     } else {
       activeBronzeContribution = await JackpotWinners.create({
         jackpotType: 'Bronze',
@@ -521,11 +523,15 @@ const updateJackpotContributionsForCashier = async (
       );
 
       // check drop jackpot
-      if (silverJackpot.lowLimitAmount <= activeSilverContribution.jackpotContributions){
-        if (silverJackpot.highLimitAmount >= activeSilverContribution.jackpotContributions){
-          await dropJackpotForTickets(silverJackpotId, ticketId, cashierId, activeSilverContribution.jackpotContributions)
-        }else{
-          await dropJackpotForTickets(silverJackpotId, ticketId, cashierId, silverJackpot.highLimitAmount)
+      if (silverJackpot.lowLimitAmount <= activeSilverContribution.jackpotContributions) {
+        // generate random number between lowLimitAmount and highLimitAmount
+        const min = silverJackpot.lowLimitAmount;
+        const max = silverJackpot.highLimitAmount;
+
+        // generate random number between min and max (inclusive)
+        const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
+        if (activeSilverContribution.jackpotContributions >= randomValue) {
+          await dropJackpotForTickets(silverJackpotId, ticketId, cashierId, activeSilverContribution.jackpotContributions);
         }
       }
     } else {
@@ -549,11 +555,15 @@ const updateJackpotContributionsForCashier = async (
       );
 
       // check drop jackpot
-      if (goldJackpot.lowLimitAmount <= activeGoldContribution.jackpotContributions){
-        if (goldJackpot.highLimitAmount >= activeGoldContribution.jackpotContributions){
-          await dropJackpotForTickets(goldJackpotId, ticketId, cashierId, activeGoldContribution.jackpotContributions)
-        }else{
-          await dropJackpotForTickets(goldJackpotId, ticketId, cashierId, goldJackpot.highLimitAmount)
+      if (goldJackpot.lowLimitAmount <= activeGoldContribution.jackpotContributions) {
+        // generate random number between lowLimitAmount and highLimitAmount
+        const min = goldJackpot.lowLimitAmount;
+        const max = goldJackpot.highLimitAmount;
+
+        // generate random number between min and max (inclusive)
+        const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
+        if (activeGoldContribution.jackpotContributions >= randomValue) {
+          await dropJackpotForTickets(goldJackpotId, ticketId, cashierId, activeGoldContribution.jackpotContributions);
         }
       }
     } else {
