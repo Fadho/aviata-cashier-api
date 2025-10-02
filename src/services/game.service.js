@@ -76,7 +76,7 @@ const getGameConfig = async (body) => {
       //   : await GameConfig.find({ agentId: user[0].agentId, gameType });
 
       gameConfig = await GameConfig.create({
-        agentId: user[0].agentId,
+        agentId: user[0]._id,
         gameType,
         ticketStakeMin: parentGameConfig.ticketStakeMin,
         ticketStakeMax: parentGameConfig.ticketStakeMax,
@@ -120,7 +120,7 @@ const getGameConfig = async (body) => {
           : await Game.find({ agentId: suser[0]._id, gameType });
       }
       game = await Game.create({
-        agentId: user[0].agentId,
+        agentId: user[0]._id,
         gameType,
         roundWaitTimeValue: parentGame.roundWaitTimeValue,
         timerCountdownValue: parentGame.timerCountdownValue,
