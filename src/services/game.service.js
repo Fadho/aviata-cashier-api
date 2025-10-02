@@ -48,11 +48,10 @@ const getGameConfig = async (body) => {
 
     if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
 
-    if ((!user[0].agentId || !user[0].superAgentId) && user[0].role === 'admin') {
+    if (!user[0].agentId || !user[0].superAgentId) {
       const suser = await User.findOne({ role: 'super' }).select('_id');
       const suserGameConfig = await GameConfig.findOne({ agentId: suser._id, gameType });
 
-      console.log('gameConfig', user[0], suser, gameConfig);
       gameConfig = await GameConfig.create({
         agentId: user[0]._id,
         gameType,
@@ -64,10 +63,17 @@ const getGameConfig = async (body) => {
         payoutMode: suserGameConfig.payoutMode,
         depositBonus: suserGameConfig.depositBonus,
       });
-    } else if (user[0].role === 'admin') {
-      const parentGameConfig = user[0].superAgentId
-        ? await GameConfig.find({ agentId: user[0].superAgentId, gameType })
-        : await GameConfig.find({ agentId: user[0].agentId, gameType });
+    } else {
+      let parentGameConfig = await GameConfig.find({ agentId: user[0].agentId, gameType });
+      if (!parentGameConfig) {
+        const suser = await User.find({ role: 'super' }).select('_id');
+        parentGameConfig = user[0].superAgentId
+          ? await GameConfig.find({ agentId: user[0].superAgentId, gameType })
+          : await GameConfig.find({ agentId: suser[0]._id, gameType });
+      }
+      // const parentGameConfig = user[0].superAgentId
+      //   ? await GameConfig.find({ agentId: user[0].superAgentId, gameType })
+      //   : await GameConfig.find({ agentId: user[0].agentId, gameType });
 
       gameConfig = await GameConfig.create({
         agentId: user[0].agentId,
@@ -123,12 +129,6 @@ const getGameConfig = async (body) => {
       });
     }
   }
-
-  // if (!game || !gameConfig) {
-  //   return { data: { game, gameConfig }, message: 'Not Found' };
-  // }
-
-  console.log('data', game, gameConfig);
 
   const data = { game, gameConfig };
 

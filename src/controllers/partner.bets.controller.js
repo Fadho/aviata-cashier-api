@@ -21,14 +21,15 @@ const {
   freebetService,
   // financialReportService,
 } = require('../services');
-const gameReportService = require('../services/gameReport.service');
 const financialReportService = require('../services/financialReport.service');
-
 const { Wallets, Player, User, Freebet, FreebetWinners } = require('../models');
-const GameConfig = require('../models/gameConfig.model');
+const axios = require('axios');
 
+/**
+ * Create Bet Placed for third party (agent)
+ */
 const createBetPlacedForThirdParty = catchAsync(async (req, res) => {
-  const { result, selections, cashierId, potentialWinnings, roundId, gameType, currency} = req.body;
+  const { result, selections, cashierId, potentialWinnings, roundId, gameType, currency } = req.body;
   let { stake } = req.body;
   let { thirdParty } = req.user;
   // Fetch the user (cashier) by ID
@@ -37,7 +38,7 @@ const createBetPlacedForThirdParty = catchAsync(async (req, res) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Cashier with provided ID not found');
   }
 
-  if (!(user.agentId === thirdParty._id )) {
+  if (!(user.agentId === thirdParty._id)) {
     throw new ApiError(httpStatus.FORBIDDEN, 'Unauthorized to place bet for this third party');
   }
 
@@ -45,7 +46,7 @@ const createBetPlacedForThirdParty = catchAsync(async (req, res) => {
   // let { balance } = Number(thirdParty.wallets[0]);
 
   // if (isNaN(balance) || isNaN(stake) || balance < stake) {
-  //   throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount'); 
+  //   throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount');
   // }
 
   // Deduct stake from third party wallet
@@ -53,21 +54,29 @@ const createBetPlacedForThirdParty = catchAsync(async (req, res) => {
   // await walletService.updateWallet(thirdParty.wallets[0]._id, { balance });
 
   //query thirdparty debit endpoint
-   const response = await axios.post(thirdParty.endpoint+'/debit', { stake, gameType, currency});
+  const response = await axios.post(thirdParty.endpoint + '/debit', { stake, gameType, currency });
 
-  if(response.status !== 200){
+  if (response.status !== 200) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Error debiting third party wallet');
   }
 
   // Create the bet
-  let betPlaced = await betsService.createBetPlaced(result, stake, selections, cashierId, potentialWinnings, roundId, gameType);
-  
+  let betPlaced = await betsService.createBetPlaced(
+    result,
+    stake,
+    selections,
+    cashierId,
+    potentialWinnings,
+    roundId,
+    gameType
+  );
+
   // Respond with the created bet
   res.status(httpStatus.CREATED).send(betPlaced);
 
   // Get jackpot contributions
   const jackpotContributions = await jackpotService.getAgentJackpots(user.agentId, gameType);
-  
+
   const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
   const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
   const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
@@ -93,7 +102,7 @@ const createBetPlacedForThirdPartyPlayer = catchAsync(async (req, res) => {
   session.startTransaction(); // Begin a transaction
 
   try {
-    const { cashierId, roundId, gameType, playerId, deviceId, currency} = req.body;
+    const { cashierId, roundId, gameType, playerId, deviceId, currency } = req.body;
     let { stake } = req.body;
     let { thirdParty } = req.user;
     // Fetch the user (cashier) by ID
@@ -102,7 +111,7 @@ const createBetPlacedForThirdPartyPlayer = catchAsync(async (req, res) => {
       throw new ApiError(httpStatus.NOT_FOUND, 'Cashier with provided ID not found');
     }
 
-    if (!(user.agentId === thirdParty._id )) {
+    if (!(user.agentId === thirdParty._id)) {
       throw new ApiError(httpStatus.FORBIDDEN, 'Unauthorized to place bet for this third party');
     }
 
@@ -110,7 +119,7 @@ const createBetPlacedForThirdPartyPlayer = catchAsync(async (req, res) => {
     // let { balance } = Number(thirdParty.wallets[0]);
 
     // if (isNaN(balance) || isNaN(stake) || balance < stake) {
-    //   throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount'); 
+    //   throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount');
     // }
 
     // Deduct stake from third party wallet
@@ -118,9 +127,9 @@ const createBetPlacedForThirdPartyPlayer = catchAsync(async (req, res) => {
     // await walletService.updateWallet(thirdParty.wallets[0]._id, { balance });
 
     //query thirdparty debit endpoint
-    const response = await axios.post(thirdParty.endpoint+'/debit', { stake, gameType, currency});
+    const response = await axios.post(thirdParty.endpoint + '/debit', { stake, gameType, currency });
 
-    if(response.status !== 200){
+    if (response.status !== 200) {
       throw new ApiError(httpStatus.BAD_REQUEST, 'Error debiting third party wallet');
     }
 
@@ -255,7 +264,6 @@ const fetchBetPlaced = catchAsync(async (req, res) => {
     throw new ApiError(httpStatus.NOT_FOUND, error.message);
   }
 });
-
 
 module.exports = {
   createBetPlacedForThirdParty,
