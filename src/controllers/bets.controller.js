@@ -57,14 +57,22 @@ const createBetPlaced = catchAsync(async (req, res) => {
   await walletService.updateWallet(userWallet.id, balance - stake);
 
   // Create the bet
-  let betPlaced = await betsService.createBetPlaced(result, stake, selections, cashierId, potentialWinnings, roundId, gameType);
-  
+  let betPlaced = await betsService.createBetPlaced(
+    result,
+    stake,
+    selections,
+    cashierId,
+    potentialWinnings,
+    roundId,
+    gameType
+  );
+
   // Respond with the created bet
   res.status(httpStatus.CREATED).send(betPlaced);
 
   // Get jackpot contributions
   const jackpotContributions = await jackpotService.getAgentJackpots(user.agentId, gameType);
-  
+
   const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
   const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
   const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
@@ -513,7 +521,11 @@ const cashierReport = catchAsync(async (req, res) => {
     const cashierId = req.user.id;
     const [user, betHistory, players] = await Promise.all([
       userService.getUserById(cashierId),
-      betsService.getBetHistory1({ cashierId, ...(betType && { betType }), ...(gameType && { gameType }) }, startDate, endDate),
+      betsService.getBetHistory1(
+        { cashierId, ...(betType && { betType }), ...(gameType && { gameType }) },
+        startDate,
+        endDate
+      ),
       Player.find({ cashierId }),
     ]);
 
@@ -521,10 +533,10 @@ const cashierReport = catchAsync(async (req, res) => {
       throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record by ClientType not found');
     }
     const cashierJackpotWinners = await jackpotService.getJackpotHistory(
-      { cashierId,  ...(gameType && { gameType }), active: false },
+      { cashierId, ...(gameType && { gameType }), active: false },
       startDate,
       endDate
-    ); 
+    );
 
     const totalStake = betHistory.reduce((accumulator, obj) => accumulator + obj.stake, 0);
     const totalWinnings = betHistory.reduce((count, bet) => count + bet.winnings, 0);
@@ -592,20 +604,20 @@ const getCashierReport = catchAsync(async (req, res) => {
     const cashierId = req.user.id;
     const report = await financialReportService.getFinancialReportsByDay(cashierId, gameType, startDate, endDate);
     report.forEach((report) => {
-              currencyReport.totalDeposit += report.totalDeposit;
-              currencyReport.totalWithdrawal += report.totalWithdrawal;
-              currencyReport.totalStake += report.totalStake;
-              currencyReport.totalWinnings += report.totalWinnings;
-              currencyReport.numberOfTransactions += report.numberOfTransactions;
-              currencyReport.numberOfBets += report.numberOfBets;
-              currencyReport.totalBonus += report.totalPlayerBonus;
-              currencyReport.profit = currencyReport.totalDeposit + currencyReport.totalWithdrawal;
-              currencyReport.profitPrimary = parseFloat((currencyReport.profit * conversionRate).toFixed(3));
-              currencyReport.playersWallet += report.totalPlayerWallets;
-              currencyReport.jackpot1Payout += report.jackpot1Payout ? report.jackpot1Payout : 0;
-              currencyReport.jackpot2Payout += report.jackpot2Payout ? report.jackpot2Payout : 0;
-              currencyReport.jackpot3Payout += report.jackpot3Payout ? report.jackpot3Payout : 0;
-            });
+      currencyReport.totalDeposit += report.totalDeposit;
+      currencyReport.totalWithdrawal += report.totalWithdrawal;
+      currencyReport.totalStake += report.totalStake;
+      currencyReport.totalWinnings += report.totalWinnings;
+      currencyReport.numberOfTransactions += report.numberOfTransactions;
+      currencyReport.numberOfBets += report.numberOfBets;
+      currencyReport.totalBonus += report.totalPlayerBonus;
+      currencyReport.profit = currencyReport.totalDeposit + currencyReport.totalWithdrawal;
+      currencyReport.profitPrimary = parseFloat((currencyReport.profit * conversionRate).toFixed(3));
+      currencyReport.playersWallet += report.totalPlayerWallets;
+      currencyReport.jackpot1Payout += report.jackpot1Payout ? report.jackpot1Payout : 0;
+      currencyReport.jackpot2Payout += report.jackpot2Payout ? report.jackpot2Payout : 0;
+      currencyReport.jackpot3Payout += report.jackpot3Payout ? report.jackpot3Payout : 0;
+    });
     return res.status(httpStatus.OK).send(report);
   } catch (error) {
     throw new ApiError(httpStatus.NOT_FOUND, error.message);
@@ -1166,7 +1178,7 @@ const getTransactionReports = catchAsync(async (req, res) => {
 
     const primaryCurrency = (
       await currencyService.getCurrencyById(
-        (  
+        (
           await walletService.findWallet(null, (await userService.getUserByRole('super'))[0].id, true)
         )[0].currencyId
       )
@@ -1200,11 +1212,7 @@ const getTransactionReports = catchAsync(async (req, res) => {
       await Promise.all(
         cashiers.map(async (cashier) => {
           const [financialReport, userWallets] = await Promise.all([
-            financialReportService.getFinancialReports(
-              { cashierId: cashier._id, gameType },
-              startDate,
-              endDate
-            ),
+            financialReportService.getFinancialReports({ cashierId: cashier._id, gameType }, startDate, endDate),
             Wallets.find({ userId: cashier._id }).populate('currencyId'),
           ]);
 
@@ -1544,5 +1552,5 @@ module.exports = {
   createBetPlacedForPlayer,
   populateFinancialReports,
   getGameReports,
-  getCashierReport
+  getCashierReport,
 };

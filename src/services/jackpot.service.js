@@ -30,33 +30,41 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
       gameType: jackpot.gameType,
       deviceId,
     }).session(session);
-    if (!jackpotWinners || jackpotWinners.jackpotContributions < jackpotAmount)
+
+    //generate random number between lowLimitAmount and highLimitAmount
+    const min = jackpot.lowLimitAmount;
+    const max = jackpot.highLimitAmount;
+
+    // // generate random number between min and max (inclusive)
+    const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
+
+    if (!jackpotWinners || jackpotWinners.jackpotContributions < jackpotAmount || jackpotAmount < randomValue)
       throw new Error('No active jackpot winner found');
 
     // Time validation
-    const today = new Date();
-    const extractTime = (date) => ({
-      hours: date.getHours(),
-      minutes: date.getMinutes(),
-      seconds: date.getSeconds(),
-    });
+    // const today = new Date();
+    // const extractTime = (date) => ({
+    //   hours: date.getHours(),
+    //   minutes: date.getMinutes(),
+    //   seconds: date.getSeconds(),
+    // });
 
-    if (jackpot.startTime instanceof Date && jackpot.endTime instanceof Date) {
-      const startTime = extractTime(jackpot.startTime);
-      const endTime = extractTime(jackpot.endTime);
-      const currentTime = extractTime(today);
+    // if (jackpot.startTime instanceof Date && jackpot.endTime instanceof Date) {
+    //   const startTime = extractTime(jackpot.startTime);
+    //   const endTime = extractTime(jackpot.endTime);
+    //   const currentTime = extractTime(today);
 
-      const isTimeValid = (start, current, end) => {
-        return (
-          (start.hours < current.hours || (start.hours === current.hours && start.minutes <= current.minutes)) &&
-          (current.hours < end.hours || (current.hours === end.hours && current.minutes <= end.minutes))
-        );
-      };
+    //   const isTimeValid = (start, current, end) => {
+    //     return (
+    //       (start.hours < current.hours || (start.hours === current.hours && start.minutes <= current.minutes)) &&
+    //       (current.hours < end.hours || (current.hours === end.hours && current.minutes <= end.minutes))
+    //     );
+    //   };
 
-      if (!isTimeValid(startTime, currentTime, endTime)) {
-        throw new Error('Current time is not within jackpot time range');
-      }
-    }
+    //   if (!isTimeValid(startTime, currentTime, endTime)) {
+    //     throw new Error('Current time is not within jackpot time range');
+    //   }
+    // }
 
     // Update player's wallet
     player.wallet += Number(jackpotAmount);
@@ -118,9 +126,16 @@ const dropJackpotForTickets = async (id, ticketId, cashierId, jackpotAmount) => 
       gameType: jackpot.gameType,
       cashierId,
     }).session(session);
-    if (!jackpotWinners || jackpotWinners.jackpotContributions < jackpot.jackpotAmount) {
+
+    //generate random number between lowLimitAmount and highLimitAmount
+    const min = jackpot.lowLimitAmount;
+    const max = jackpot.highLimitAmount;
+
+    // // generate random number between min and max (inclusive)
+    const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
+
+    if (!jackpotWinners || jackpotWinners.jackpotContributions < jackpotAmount || jackpotAmount < randomValue)
       throw new Error('No active jackpot winner found');
-    }
 
     // Time validation
     // const today = new Date();
