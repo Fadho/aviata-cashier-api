@@ -32,13 +32,13 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
     }).session(session);
 
     //generate random number between lowLimitAmount and highLimitAmount
-    const min = jackpot.lowLimitAmount;
-    const max = jackpot.highLimitAmount;
+    // const min = jackpot.lowLimitAmount;
+    // const max = jackpot.highLimitAmount;
 
-    // // generate random number between min and max (inclusive)
-    const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
+    // // // generate random number between min and max (inclusive)
+    // const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
 
-    if (!jackpotWinners || jackpotWinners.jackpotContributions < jackpotAmount || jackpotAmount < randomValue)
+    if (!jackpotWinners || jackpotWinners.jackpotContributions < jackpotAmount)
       throw new Error('No active jackpot winner found');
 
     // Time validation
@@ -127,15 +127,14 @@ const dropJackpotForTickets = async (id, ticketId, cashierId, jackpotAmount) => 
       cashierId,
     }).session(session);
 
-    //generate random number between lowLimitAmount and highLimitAmount
-    const min = jackpot.lowLimitAmount;
-    const max = jackpot.highLimitAmount;
+    // //generate random number between lowLimitAmount and highLimitAmount
+    // const min = jackpot.lowLimitAmount;
+    // const max = jackpot.highLimitAmount;
 
-    // // generate random number between min and max (inclusive)
-    const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
+    // // // generate random number between min and max (inclusive)
+    // const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
 
-    if (!jackpotWinners || jackpotWinners.jackpotContributions < jackpotAmount || jackpotAmount < randomValue)
-      throw new Error('No active jackpot winner found');
+    if (!jackpotWinners || jackpotWinners.jackpotContributions < min) throw new Error('No active jackpot winner found');
 
     // Time validation
     // const today = new Date();
