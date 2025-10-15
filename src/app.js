@@ -54,6 +54,8 @@ app.use(compression());
 
 // enable cors
 const allowedOrigins = [
+  'https://partner.sbegames.com',
+  'https://partner.staging.sbegames.com',
   'https://cashier.sbegames.com',
   'https://aviata.cashier.sbegames.com',
   'https://aviata.websocket.sbegames.com',
