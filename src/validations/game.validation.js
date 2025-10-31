@@ -151,6 +151,8 @@ const updateGameConfig = {
       ticketSizeMax: Joi.number(),
       quickPick: Joi.array(),
       depositBonus: Joi.number(),
+      payoutMode: Joi.string().valid('Manual', 'Automatic'),
+      defaultStake: Joi.number(),
     })
     .min(1),
 };

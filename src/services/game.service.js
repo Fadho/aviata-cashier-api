@@ -62,6 +62,7 @@ const getGameConfig = async (body) => {
         quickPick: suserGameConfig.quickPick,
         payoutMode: suserGameConfig.payoutMode,
         depositBonus: suserGameConfig.depositBonus,
+        defaultStake: suserGameConfig.defaultStake,
       });
     } else {
       let parentGameConfig = await GameConfig.find({ agentId: user[0].agentId, gameType });
@@ -85,6 +86,7 @@ const getGameConfig = async (body) => {
         quickPick: parentGameConfig.quickPick,
         payoutMode: parentGameConfig.payoutMode,
         depositBonus: parentGameConfig.depositBonus,
+        defaultStake: parentGameConfig.defaultStake,
       });
     }
   }

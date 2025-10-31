@@ -8,9 +8,47 @@ const playerSchema = mongoose.Schema(
       required: true,
     },
 
+    email: {
+      type: mongoose.SchemaTypes.String,
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
+
+    username: {
+      type: mongoose.SchemaTypes.String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
+
+    password: {
+      type: String,
+      trim: true,
+      minlength: 8,
+      validate(value) {
+        if (!value.match(/\d/) || !value.match(/[a-zA-Z]/)) {
+          throw new Error('Password must contain at least one letter and one number');
+        }
+      },
+      private: true, // used by the toJSON plugin
+    },
+
     wallet: {
       type: mongoose.SchemaTypes.Number,
       default: 0,
+    },
+
+    type: {
+      type: mongoose.SchemaTypes.String,
+      enum: ['regular', 'mobile'],
+      default: 'regular',
+    },
+
+    status: {
+      type: mongoose.SchemaTypes.String,
+      enum: ['active', 'inactive', 'banned'],
+      default: 'active',
     },
 
     playLevel: {

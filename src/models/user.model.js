@@ -69,15 +69,17 @@ const userSchema = mongoose.Schema(
     thirdparty: {
       type: Boolean,
       default: false,
-    },  
+    },
     endpoint: {
       type: String,
-      required: function() { return this.thirdparty === true; },
+      required() {
+        return this.thirdparty === true;
+      },
       validate(value) {
         if (value && !validator.isURL(value)) {
           throw new Error('Invalid URL');
         }
-      }
+      },
     },
     companyName: {
       type: String,

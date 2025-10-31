@@ -32,6 +32,11 @@ const gameConfigSchema = mongoose.Schema({
     default: 'Manual',
     required: true,
   },
+  defaultStake: {
+    type: mongoose.SchemaTypes.Number,
+    required: true,
+    default: 100,
+  },
   agentId: {
     type: mongoose.SchemaTypes.ObjectId,
     ref: 'User',
@@ -43,7 +48,7 @@ const gameConfigSchema = mongoose.Schema({
   },
   depositBonus: {
     type: mongoose.SchemaTypes.Number,
-    default: 2,
+    default: 0.1,
   },
 });
 /**
