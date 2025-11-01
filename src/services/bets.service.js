@@ -34,10 +34,20 @@ const createBetPlaced = async (result, stake, selections, cashierId, potentialWi
       betType: 'multiple',
       potentialWinnings,
       roundId,
-      gameType
+      gameType,
     });
   }
-  return Tickets.create({ result, stake, selections, cashierId, ticketId, betType: 'single', potentialWinnings, roundId, gameType });
+  return Tickets.create({
+    result,
+    stake,
+    selections,
+    cashierId,
+    ticketId,
+    betType: 'single',
+    potentialWinnings,
+    roundId,
+    gameType,
+  });
 };
 
 /**
@@ -71,8 +81,8 @@ const createBetPlacedForPlayer = async (stake, freebet, gameType, roundId, cashi
           betType: 'single',
           playerId,
           roundId,
-          deviceId
-        }
+          deviceId,
+        },
       ],
       { session }
     );
@@ -116,7 +126,7 @@ const getCancelledBetHistory = async ({ startDate, endDate, betType, cashierId }
 
     return Tickets.find({
       ...query,
-      cancelled: true
+      cancelled: true,
     });
   }
   if (startDate && endDate) {
@@ -132,8 +142,8 @@ const getCancelledBetHistory = async ({ startDate, endDate, betType, cashierId }
         cancelled: true,
         createdAt: {
           $gte: new Date(startDate),
-          $lte: new Date(endDate)
-        }
+          $lte: new Date(endDate),
+        },
       });
       return bets;
     }
@@ -144,8 +154,8 @@ const getCancelledBetHistory = async ({ startDate, endDate, betType, cashierId }
 
       createdAt: {
         $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      }
+        $lte: new Date(endDate),
+      },
     });
   }
 };
@@ -172,10 +182,10 @@ const getBetHistoryReport = async (filter, options, startDate, endDate) => {
         endDate && {
           createdAt: {
             $gte: startDateWithoutTime,
-            $lte: endDateWithoutTime
-          }
+            $lte: endDateWithoutTime,
+          },
         }),
-      ...filter
+      ...filter,
     };
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
@@ -198,10 +208,10 @@ const getBetHistory = async (filter, startDate, endDate) => {
         endDate && {
           createdAt: {
             $gte: startDateWithoutTime,
-            $lte: endDateWithoutTime
-          }
+            $lte: endDateWithoutTime,
+          },
         }),
-      ...filter
+      ...filter,
     };
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
@@ -225,10 +235,10 @@ const getBetHistory1 = async (filter, startDate, endDate) => {
         endDate && {
           createdAt: {
             $gte: startDateWithoutTime,
-            $lte: endDateWithoutTime
-          }
+            $lte: endDateWithoutTime,
+          },
         }),
-      ...filter
+      ...filter,
     };
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
@@ -374,7 +384,7 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
         winnings,
         roundHasEnded: true,
         selections: [{ odd, stake: bet.stake }],
-        gameOutcome: odd
+        gameOutcome: odd,
       },
       { new: true, session } // Include session in the update
     );
@@ -423,19 +433,19 @@ const closeOpenBets = async () => {
   // find all open tickets
   const openTickets = await Tickets.aggregate([
     {
-      $match: { roundHasEnded: false }
+      $match: { roundHasEnded: false },
     },
     {
       $group: {
-        _id: '$roundId'
-      }
+        _id: '$roundId',
+      },
     },
     {
       $project: {
         _id: 0,
-        roundId: '$_id'
-      }
-    }
+        roundId: '$_id',
+      },
+    },
   ]);
 
   if (!openTickets.length) return;
@@ -461,6 +471,10 @@ const payoutTicket = async (id) => {
     return { ticket: null, message: 'Invalid ticket' };
   }
 
+  if (!ticket.winnings) {
+    return { ticket, message: 'No winnings to payout' };
+  }
+
   const user = await userService.getUserById(ticket.cashierId);
   const gameConfig = await GameConfig.findOne({ agentId: user.agentId });
   const currentDateTime = new Date();
@@ -478,12 +492,12 @@ const payoutTicket = async (id) => {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-      weekday: 'short'
+      weekday: 'short',
     });
     const readableTime = ticket.payoutDate.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit'
+      second: '2-digit',
     });
     const readableCustomDateTime = `${readableDate}, ${readableTime}`;
     return { ticket, message: `Payout has been collected at ${readableCustomDateTime}` };
@@ -507,7 +521,7 @@ const payoutTicket = async (id) => {
 
   return {
     ticket,
-    message: 'Payout verified - proceed with payment'
+    message: 'Payout verified - proceed with payment',
   };
 };
 
@@ -543,5 +557,5 @@ module.exports = {
   getCancelledBetHistory,
   updateBetsAndCalculateWinnings,
   createBetPlacedForPlayer,
-  cashoutBetForPlayer
+  cashoutBetForPlayer,
 };
