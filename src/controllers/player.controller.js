@@ -68,6 +68,12 @@ const getProfile = catchAsync(async (req, res) => {
   res.send(profile);
 });
 
+const updateProfile = catchAsync(async (req, res) => {
+  const { playerId } = req.params;
+  const updatedProfile = await playerService.updateProfile(playerId, req.body);
+  res.send(updatedProfile);
+});
+
 const getTransactionHistory = catchAsync(async (req, res) => {
   const { playerId } = req.params;
   const { limit, offset } = req.query;
@@ -88,4 +94,5 @@ module.exports = {
   withdraw,
   getProfile,
   getTransactionHistory,
+  updateProfile,
 };

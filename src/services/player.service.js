@@ -1,8 +1,8 @@
 // const bcrypt = require('bcrypt');
 // const jwt = require('jsonwebtoken');
-// const crypto = require('crypto');
+// // const crypto = require('crypto');
 // const { Player, Transaction, OTP } = require('../models');
-// const { sendSMS, sendEmail } = require('./notification.service');
+// const emailService = require('./email.service');
 // const { validateEmail, validatePhone } = require('../utils/validation');
 
 // /**
@@ -85,7 +85,7 @@
 //     };
 //   }
 
-//   // Generate JWT token
+//   //   Generate JWT token
 //   const token = generateJWT(player._id);
 
 //   // Update last login
@@ -133,7 +133,7 @@
 
 //   // Send OTP via SMS
 //   const message = `Your OTP for ${purpose.replace('_', ' ')}: ${otpCode}. Valid for 10 minutes.`;
-//   await sendSMS(player.phone, message);
+//   await emailService.sendEmail(player.phone, message);
 
 //   return { message: 'OTP sent successfully' };
 // };
@@ -304,6 +304,18 @@
 //   return player;
 // };
 
+// const updateProfile = async (playerId, updateData) => {
+//   const player = await Player.findById(playerId);
+//   if (!player) {
+//     throw new Error('Player not found');
+//   }
+
+//   Object.assign(player, updateData);
+//   await player.save();
+
+//   return player;
+// };
+
 // /**
 //  * Get transaction history
 //  * @param {string} playerId
@@ -327,4 +339,5 @@
 //   generateJWT,
 //   getProfile,
 //   getTransactionHistory,
+//   updateProfile,
 // };

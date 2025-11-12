@@ -1,5 +1,5 @@
 const express = require('express');
-const {auth, apiKeyAuth} = require('../../middlewares/auth');
+const { auth, apiKeyAuth } = require('../../middlewares/auth');
 
 const validate = require('../../middlewares/validate');
 const partnerValidation = require('../../validations/partner.validation');
@@ -18,15 +18,19 @@ const router = express.Router();
 // for now we keep it simple
 router
   .route('/')
-  .post(apiKeyAuth(), validate(betsValidation.createBetPlaced), partnerBetsController.createBetPlacedForThirdParty)
-  // .get(apiKeyAuth(), validate(betsValidation.fetchBetPlaced), partnerBetsController.fetchBetPlaced);
+  .post(apiKeyAuth(), validate(betsValidation.createBetPlaced), partnerBetsController.createBetPlacedForThirdParty);
+// .get(apiKeyAuth(), validate(betsValidation.fetchBetPlaced), partnerBetsController.fetchBetPlaced);
 
-router.route('/player').post(validate(betsValidation.createBetPlacedPlayer), partnerBetsController.createBetPlacedForThirdPartyPlayer);
+router
+  .route('/player')
+  .post(validate(betsValidation.createBetPlacedPlayer), partnerBetsController.createBetPlacedForThirdPartyPlayer);
 
 router.route('/player/cashout').post(validate(betsValidation.cashoutPlayerTicket), partnerBetsController.cashoutPlayerBet);
 
 router.route('/cancel/:id').get(apiKeyAuth(), validate(betsValidation.cancelTicket), partnerBetsController.cancelTicket);
 
-router.route('/cashier-reports').get(apiKeyAuth(), validate(betsValidation.getAccountingReports), partnerBetsController.cashierReport);
+router
+  .route('/cashier-reports')
+  .get(apiKeyAuth(), validate(betsValidation.getAccountingReports), partnerBetsController.cashierReport);
 
 module.exports = router;

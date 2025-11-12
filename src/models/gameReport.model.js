@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
-const { toJSON, paginate } = require("./plugins");
+const mongoose = require('mongoose');
+const { toJSON, paginate } = require('./plugins');
 
 const gameReportSchema = mongoose.Schema(
   {
@@ -95,23 +95,23 @@ const gameReportSchema = mongoose.Schema(
 
     gameType: {
       type: mongoose.SchemaTypes.String,
-      default: "shootout",
+      default: 'shootout',
       // required: true,
     },
 
     cashierId: {
       type: mongoose.SchemaTypes.ObjectId,
-      ref: "User",
+      ref: 'User',
     },
 
     agentId: {
       type: mongoose.SchemaTypes.ObjectId,
-      ref: "User",
+      ref: 'User',
     },
 
     superAgentId: {
       type: mongoose.SchemaTypes.ObjectId,
-      ref: "User",
+      ref: 'User',
     },
 
     createdAt: { type: Date, default: Date.now },
@@ -123,7 +123,7 @@ const gameReportSchema = mongoose.Schema(
 );
 
 // Pre-save middleware to calculate profit
-gameReportSchema.pre("save", function (next) {
+gameReportSchema.pre('save', function (next) {
   // Profit calculation logic
   //   const totalJackpotPayout = this.jackpot1Payout + this.jackpot2Payout + this.jackpot3Payout;
   //   const totalJackpotContributions = this.jackpot1Contributions + this.jackpot2Contributions + this.jackpot3Contributions;
@@ -134,7 +134,7 @@ gameReportSchema.pre("save", function (next) {
   next(); // Proceed with saving the document
 });
 
-gameReportSchema.pre("update", () => {
+gameReportSchema.pre('update', () => {
   this.updateOne({}, { $set: { updatedAt: new Date() } });
 });
 // add plugin that converts mongoose to json
@@ -144,6 +144,6 @@ gameReportSchema.plugin(paginate);
 /**
  * @typedef GameReport
  */
-const GameReport = mongoose.model("GameReport", gameReportSchema);
+const GameReport = mongoose.model('GameReport', gameReportSchema);
 
 module.exports = GameReport;

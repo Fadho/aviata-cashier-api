@@ -7,7 +7,7 @@ const {
   jackpotService,
   freebetService,
   lastManService,
-  financialReportService
+  financialReportService,
 } = require('../services');
 const { Jackpot, User, Freebet } = require('../models');
 const LastMan = require('../models/lastMan.model');
@@ -133,7 +133,7 @@ const updateAgentJackpotContribution = catchAsync(async (req, res) => {
     goldJackpotId,
     goldContributions,
     deviceId,
-    gameType
+    gameType,
   } = req.body;
 
   const jackpot = await jackpotService.updateJackpotContributions(
@@ -165,6 +165,7 @@ const getAgentJackpotContributionbyCashierId = catchAsync(async (req, res) => {
 
 const getAgentFreebet = catchAsync(async (req, res) => {
   const { agentId, gameType } = req.body;
+  console.log('Controller received request for agentId:', agentId, 'gameType:', gameType);
   const freebet = await freebetService.getAgentFreebets(agentId, gameType);
   res.send(freebet);
 });
@@ -179,6 +180,9 @@ const updateAgentFreebet = catchAsync(async (req, res) => {
   // await financialReportService.getAndUpdatePlayerWallets()
   isSuperUser = userCheck.role === 'super';
   if (userCheck.role === 'admin' && !userCheck.agentId) isSuperAgent = true;
+
+  console.log('Updating freebet with isSuperAgent:', isSuperAgent, 'isSuperUser:', isSuperUser);
+  console.log('Freebet ID:', freebet, 'Update Data:', req.body);
 
   await freebetService.updateAgentFreebet(freebetId, req.body, isSuperAgent, isSuperUser);
   res.send(freebet);

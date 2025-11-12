@@ -1,6 +1,6 @@
 const express = require('express');
 const validate = require('../../middlewares/validate');
-const {auth, apiKeyAuth} = require('../../middlewares/auth');
+const { auth, apiKeyAuth } = require('../../middlewares/auth');
 const { betsValidation } = require('../../validations');
 const { betsController } = require('../../controllers');
 
@@ -33,7 +33,9 @@ router
 
 router.route('/cashier-reports').get(auth(), validate(betsValidation.getAccountingReports), betsController.cashierReport);
 
-router.route('/cashier-financial-reports').get(auth(), validate(betsValidation.getAccountingReports), betsController.getCashierReport);
+router
+  .route('/cashier-financial-reports')
+  .get(auth(), validate(betsValidation.getAccountingReports), betsController.getCashierReport);
 
 router
   .route('/gaming-activity')

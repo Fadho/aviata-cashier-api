@@ -209,9 +209,13 @@ const getUpdatedFreebetHistory = async (filter, cashierId, startDate, endDate) =
 
 const getAgentFreebets = async (agentId, gameType) => {
   const freebet = await Freebet.findOne({ agentId, gameType });
+  console.log('Fetched freebet for agentId:', agentId, 'gameType:', gameType, 'freebet:', freebet);
   if (freebet) return freebet;
+  console.log('No freebet found, creating one for agentId:', agentId, 'gameType:', gameType);
 
   const user = await User.find({ _id: agentId }).select('_id agentId superAgentId role');
+
+  console.log('User details for agentId:', agentId, 'user:', user);
 
   if (user[0].role === 'super') {
     // Create default jackpots
@@ -228,13 +232,13 @@ const getAgentFreebets = async (agentId, gameType) => {
   if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
 
   if (!user[0].agentId || !user[0].superAgentId) {
-    // If the user is a super agent or has no parent
+    // If the user is a super agent / has no parent
     const suser = await User.findOne({ role: 'super' }).select('_id');
     const suserFreebet = await Freebet.findOne({ agentId: suser._id, gameType });
 
     delete suserFreebet.agentId;
 
-    const newFreebet = await Freebet.create({ agentId: user[0]._id, ...suserFreebet });
+    const newFreebet = await Freebet.create({ agentId: user[0]._id, ...suserFreebet, gameType });
     return newFreebet;
   }
 
@@ -248,7 +252,7 @@ const getAgentFreebets = async (agentId, gameType) => {
   }
 
   delete parentFreebet.agentId;
-  const freebetData = await Freebet.create({ agentId, ...parentFreebet });
+  const freebetData = await Freebet.create({ agentId, ...parentFreebet, gameType });
 
   return freebetData;
 };

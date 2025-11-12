@@ -23,7 +23,7 @@ const freebetSettingsSchema = mongoose.Schema({
   },
   gameType: {
     type: mongoose.SchemaTypes.String,
-    default: 'aviata',
+    // default: 'aviata',
   },
 });
 /**

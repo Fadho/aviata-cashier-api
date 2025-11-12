@@ -15,6 +15,9 @@ const envVarsSchema = Joi.object()
     JWT_SECRET: Joi.string().required().description('JWT secret key'),
     JWT_ACCESS_EXPIRATION_MINUTES: Joi.number().default(30).description('minutes after which access tokens expire'),
     JWT_REFRESH_EXPIRATION_DAYS: Joi.number().default(30).description('days after which refresh tokens expire'),
+    RESEND_API_KEY: Joi.string().required().description('Resend email service API key'),
+    RESEND_FROM_EMAIL: Joi.string().description('Resend service from email address'),
+    AVIATA_WEBSOCKET_URL: Joi.string().required().description('Aviata websocket base url'),
     JWT_RESET_PASSWORD_EXPIRATION_MINUTES: Joi.number()
       .default(10)
       .description('minutes after which reset password token expires'),
@@ -52,5 +55,9 @@ module.exports = {
     refreshExpirationDays: envVars.JWT_REFRESH_EXPIRATION_DAYS,
     resetPasswordExpirationMinutes: envVars.JWT_RESET_PASSWORD_EXPIRATION_MINUTES,
     verifyEmailExpirationMinutes: envVars.JWT_VERIFY_EMAIL_EXPIRATION_MINUTES,
+  },
+  resend: {
+    apiKey: envVars.RESEND_API_KEY,
+    fromEmail: envVars.RESEND_FROM_EMAIL,
   },
 };

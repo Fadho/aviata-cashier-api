@@ -60,79 +60,78 @@ const getAndUpdateStake = async (cashierId, gameType) => {
   const [players, tickets, cashierJackpotWinners] = await Promise.all([
     Player.find({ cashierId, gameType }),
     getBetHistory1({ cashierId, gameType }, today, today),
-    jackpotService.getUpdatedJackpotHistory({gameType}, cashierId, today, today),
+    jackpotService.getUpdatedJackpotHistory({ gameType }, cashierId, today, today),
   ]);
-  if (gameType==='aviatax'){
-      players.forEach((player) => {
+  if (gameType === 'aviatax') {
+    players.forEach((player) => {
       totalPlayerWallets += Number(player.wallet);
       totalPlayerBonus += Number(player.bonus);
     });
   }
- 
+
   tickets.forEach((ticket) => {
     totalStake += Number(ticket.stake ? ticket.stake : 0);
     totalWinnings += Number(ticket.winnings ? ticket.winnings : 0);
     numberOfBets += 1;
 
-    if (gameType==='aviata'){
+    if (gameType === 'aviata') {
       totalDeposit += Number(ticket.stake ? ticket.stake : 0);
-      totalWithdrawal += Number(ticket.winnings ? (-1*ticket.winnings) : 0); //totalWithdrawal is a negative value
+      totalWithdrawal += Number(ticket.winnings ? -1 * ticket.winnings : 0); //totalWithdrawal is a negative value
     }
   });
-
 
   cashierJackpotWinners.forEach((jackpot) => {
     if (jackpot.jackpotType === 'Bronze') {
       jackpot1Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
-      totalWithdrawal += jackpot.jackpotAmount ? (-1*jackpot.jackpotAmount) : 0;
+      totalWithdrawal += jackpot.jackpotAmount ? -1 * jackpot.jackpotAmount : 0;
       jackpot1Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
     } else if (jackpot.jackpotType === 'Silver') {
       jackpot2Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
-      totalWithdrawal += jackpot.jackpotAmount ? (-1*jackpot.jackpotAmount) : 0;
+      totalWithdrawal += jackpot.jackpotAmount ? -1 * jackpot.jackpotAmount : 0;
       jackpot2Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
     } else if (jackpot.jackpotType === 'Gold') {
       jackpot3Payout += jackpot.jackpotAmount ? jackpot.jackpotAmount : 0;
-      totalWithdrawal += jackpot.jackpotAmount ? (-1*jackpot.jackpotAmount) : 0;
+      totalWithdrawal += jackpot.jackpotAmount ? -1 * jackpot.jackpotAmount : 0;
       jackpot3Contributions += jackpot.active ? jackpot.jackpotContributions : 0;
     }
   });
 
   const payload = {
-      cashierId,
-      numberOfBets,
-      gameType,
-      totalWinnings,
-      totalStake,
-      totalPlayerWallets,
-      totalPlayerBonus,
-      jackpot1Payout,
-      jackpot2Payout,
-      jackpot3Payout,
-      jackpot1Contributions,
-      jackpot2Contributions,
-      jackpot3Contributions,
-    };
+    cashierId,
+    numberOfBets,
+    gameType,
+    totalWinnings,
+    totalStake,
+    totalPlayerWallets,
+    totalPlayerBonus,
+    jackpot1Payout,
+    jackpot2Payout,
+    jackpot3Payout,
+    jackpot1Contributions,
+    jackpot2Contributions,
+    jackpot3Contributions,
+  };
   const payload_aviata = {
-      cashierId,
-      numberOfBets,
-      gameType,
-      totalWinnings,
-      totalStake,
-      totalPlayerWallets,
-      totalPlayerBonus,
-      jackpot1Payout,
-      jackpot2Payout,
-      jackpot3Payout,
-      jackpot1Contributions,
-      jackpot2Contributions,
-      jackpot3Contributions,
-      totalDeposit,
-      totalWithdrawal
-    };
+    cashierId,
+    numberOfBets,
+    gameType,
+    totalWinnings,
+    totalStake,
+    totalPlayerWallets,
+    totalPlayerBonus,
+    jackpot1Payout,
+    jackpot2Payout,
+    jackpot3Payout,
+    jackpot1Contributions,
+    jackpot2Contributions,
+    jackpot3Contributions,
+    totalDeposit,
+    totalWithdrawal,
+  };
 
   const financialReport = await FinancialReport.findOne({ cashierId, gameType, createdAt: { $gte: today } });
   if (!financialReport) {
-    return FinancialReport.create(gameType==='aviata' ? payload_aviata : payload);
+    return FinancialReport.create(gameType === 'aviata' ? payload_aviata : payload);
   }
 
   const update = {
@@ -147,7 +146,7 @@ const getAndUpdateStake = async (cashierId, gameType) => {
     jackpot1Contributions,
     jackpot2Contributions,
     jackpot3Contributions,
-  }
+  };
 
   const update_aviata = {
     numberOfBets,
@@ -162,13 +161,12 @@ const getAndUpdateStake = async (cashierId, gameType) => {
     jackpot2Contributions,
     jackpot3Contributions,
     totalDeposit,
-    totalWithdrawal
-  }
+    totalWithdrawal,
+  };
 
-  return FinancialReport.findByIdAndUpdate(
-    financialReport._id, gameType==='aviata' ? update_aviata : update,
-    { new: true }
-  );
+  return FinancialReport.findByIdAndUpdate(financialReport._id, gameType === 'aviata' ? update_aviata : update, {
+    new: true,
+  });
 };
 
 /**
@@ -364,13 +362,13 @@ const getFinancialReports = async (filter, startDate, endDate) => {
   return financialReports;
 };
 
-const getAndUpdateStakeByDay = async (cashierId,  gameType, startDate, endDate) => {
+const getAndUpdateStakeByDay = async (cashierId, gameType, startDate, endDate) => {
   try {
     const startDateWithoutTime = new Date(startDate);
     const endDateWithoutTime = new Date(endDate);
     endDateWithoutTime.setHours(23, 59, 59, 999);
 
-    console.log('getAndUpdateStakeByDay', cashierId, gameType, startDateWithoutTime, endDateWithoutTime); 
+    console.log('getAndUpdateStakeByDay', cashierId, gameType, startDateWithoutTime, endDateWithoutTime);
 
     const [tickets, cashierJackpotWinners] = await Promise.all([
       getBetHistory1({ cashierId, gameType }, startDate, endDate),
@@ -418,17 +416,17 @@ const getAndUpdateStakeByDay = async (cashierId,  gameType, startDate, endDate) 
       }
     });
 
-    if (gameType==='aviata'){
+    if (gameType === 'aviata') {
       aggregates.totalDeposit = aggregates.totalStake;
-      aggregates.totalWithdrawal = -1 * (aggregates.totalWinnings);
-    } 
+      aggregates.totalWithdrawal = -1 * aggregates.totalWinnings;
+    }
 
     const financialReport = await FinancialReport.findOne({
       cashierId,
       gameType,
       createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime },
     });
-    
+
     if (!financialReport)
       return FinancialReport.create(
         { cashierId, ...aggregates, profit: aggregates.profit, gameType, createdAt: startDateWithoutTime } // Include createdAt for backdated reports
@@ -472,14 +470,13 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, gameType, startDate
       { totalDeposit: 0, totalWithdrawal: 0, totalBonusAwarded: 0, numberOfTransactions: 0 }
     );
 
-     const financialReport = await FinancialReport.findOne({
+    const financialReport = await FinancialReport.findOne({
       cashierId,
       gameType,
       createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime },
     });
 
-     if (gameType==='aviatax')
-      aggregates.profit = aggregates.totalDeposit - aggregates.totalWithdrawal;
+    if (gameType === 'aviatax') aggregates.profit = aggregates.totalDeposit - aggregates.totalWithdrawal;
 
     if (!financialReport)
       return FinancialReport.create(
@@ -509,13 +506,12 @@ const getFinancialReportsByDay = async (cashierId, gameType, startDate, endDate)
       createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime },
     }).sort({ createdAt: 1 }); // Sort by date ascending
 
-      console.log('getFinancialReportsByDay', cashierId, gameType, startDateWithoutTime, endDateWithoutTime, financialReports);
+    console.log('getFinancialReportsByDay', cashierId, gameType, startDateWithoutTime, endDateWithoutTime, financialReports);
     return financialReports;
   } catch (error) {
     logger.error('Error in getFinancialReportsByDay:', error);
     throw error; // Re-throw the error after logging it
   }
-
 };
 module.exports = {
   queryFinancialReports,
@@ -527,5 +523,5 @@ module.exports = {
   getAndUpdateLastMan,
   getAndUpdateStakeByDay,
   getAndUpdateTotalTransactionsByDay,
-  getFinancialReportsByDay
+  getFinancialReportsByDay,
 };

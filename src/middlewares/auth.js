@@ -29,20 +29,18 @@ const auth =
       .then(() => next())
       .catch((err) => next(err));
   };
-const apiKeyAuth =
-  () =>
-  async (req, res, next) => {
-    return new Promise((resolve, reject) => {
-      passport.authenticate('api-key', { session: false }, (err, user, info) => {
-        if (err || info || !user) {
-          return reject(new ApiError(httpStatus.UNAUTHORIZED, 'Invalid API key'));
-        }
-        req.user = user; // contains partnerId & scopes
-        resolve();
-      })(req, res, next);
-    })
-      .then(() => next())
-      .catch((err) => next(err));
-  };
+const apiKeyAuth = () => async (req, res, next) => {
+  return new Promise((resolve, reject) => {
+    passport.authenticate('api-key', { session: false }, (err, user, info) => {
+      if (err || info || !user) {
+        return reject(new ApiError(httpStatus.UNAUTHORIZED, 'Invalid API key'));
+      }
+      req.user = user; // contains partnerId & scopes
+      resolve();
+    })(req, res, next);
+  })
+    .then(() => next())
+    .catch((err) => next(err));
+};
 
-module.exports = {  auth, apiKeyAuth  };
+module.exports = { auth, apiKeyAuth };

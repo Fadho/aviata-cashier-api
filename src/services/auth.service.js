@@ -105,7 +105,7 @@ const loginUserWithToken = async (username, currency) => {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid token');
   }
   let getCashier = await userService.getUsers({ username, agentId: req.user.id });
-  if(!getCashier.length) {
+  if (!getCashier.length) {
     const userBody = {
       username,
       role: 'cashier',
@@ -123,9 +123,9 @@ const loginUserWithToken = async (username, currency) => {
 
 /**
  * Redirect client
-  * @param {Object} user - user object
+ * @param {Object} user - user object
  * @param {string} url - URL to redirect to
- * @returns {Promise} 
+ * @returns {Promise}
  */
 const redirectClient = async (user, url) => {
   // Validate user permissions and URL format
@@ -140,8 +140,8 @@ const redirectClient = async (user, url) => {
   // Log the redirection event
   console.log(`User ${user.id} is being redirected to ${url}`);
   // In a real application, you might return the URL or perform the redirection on the client side
-  return; 
-} 
+  return;
+};
 
 module.exports = {
   loginUserWithEmailAndPassword,
@@ -150,5 +150,5 @@ module.exports = {
   resetPassword,
   verifyEmail,
   loginUserWithToken,
-  redirectClient
+  redirectClient,
 };

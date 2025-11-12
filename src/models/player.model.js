@@ -17,8 +17,8 @@ const playerSchema = mongoose.Schema(
 
     username: {
       type: mongoose.SchemaTypes.String,
-      required: true,
-      unique: true,
+      // required: true,
+      // unique: true,
       trim: true,
     },
 
