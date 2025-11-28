@@ -108,7 +108,6 @@ const findLastMan = async ({ agentId, gameType }) => {
  */
 const updateAgentLastMan = async (id, body, isSuperAgent, isSuperUser) => {
   const updateLastMan = await LastMan.findOne({ _id: id });
-  await LastMan.findOneAndUpdate({ _id: id }, body);
   let subAgentIds;
 
   if (isSuperUser) {
@@ -224,7 +223,7 @@ const getAgentLastMan = async (agentId, gameType) => {
 
     delete suserLastMan.agentId;
 
-    const newLastMan = await LastMan.create({ agentId: user[0]._id, ...suserLastMan });
+    const newLastMan = await LastMan.create({ agentId: user[0]._id, ...suserLastMan, gameType });
     return newLastMan;
   }
 
@@ -238,7 +237,7 @@ const getAgentLastMan = async (agentId, gameType) => {
   }
 
   delete parentLastMan.agentId;
-  const lastmanData = await LastMan.create({ agentId, ...parentLastMan });
+  const lastmanData = await LastMan.create({ agentId, ...parentLastMan, gameType });
 
   return lastmanData;
 };
