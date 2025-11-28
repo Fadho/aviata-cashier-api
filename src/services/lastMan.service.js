@@ -108,6 +108,7 @@ const findLastMan = async ({ agentId, gameType }) => {
  */
 const updateAgentLastMan = async (id, body, isSuperAgent, isSuperUser) => {
   const updateLastMan = await LastMan.findOne({ _id: id });
+  await LastMan.findOneAndUpdate({ _id: id }, body);
   let subAgentIds;
 
   if (isSuperUser) {
