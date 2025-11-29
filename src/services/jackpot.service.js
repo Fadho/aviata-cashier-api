@@ -326,11 +326,12 @@ const getUpdatedJackpotHistory = async (filter, cashierId, startDate, endDate) =
   }
   let jackpotWinners = [];
   if (filter.gameType === 'aviatax') {
-    jackpotWinners = await JackpotWinners.find({ ...filter, active: false }).populate({
-      path: 'deviceId',
-      match: { cashierId: mongoose.Types.ObjectId(cashierId) },
-      select: '_id cashierId',
-    });
+    jackpotWinners = await JackpotWinners.find({ ...filter, active: false, cashierId });
+    // jackpotWinners = await JackpotWinners.find({ ...filter, active: false }).populate({
+    //   path: 'deviceId',
+    //   match: { cashierId: mongoose.Types.ObjectId(cashierId) },
+    //   select: '_id cashierId',
+    // });
   }
   if (filter.gameType === 'aviata') {
     jackpotWinners = await JackpotWinners.find({ ...filter, cashierId, active: false });
