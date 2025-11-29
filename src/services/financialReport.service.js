@@ -2,7 +2,6 @@
 const { FinancialReport, Player, Tickets, TicketsArchive } = require('../models');
 const transferHistoryService = require('./transferHistory.service');
 const jackpotService = require('./jackpot.service');
-const { freebetService } = require('.');
 const logger = require('../config/logger');
 // const { getBetHistory1 } = require('./bets.service');
 
@@ -76,7 +75,7 @@ const getAndUpdateStake = async (cashierId, gameType) => {
 
     if (gameType === 'aviata') {
       totalDeposit += Number(ticket.stake ? ticket.stake : 0);
-      totalWithdrawal += Number(ticket.winnings ? -1 * ticket.winnings : 0); //totalWithdrawal is a negative value
+      totalWithdrawal += Number(ticket.winnings ? -1 * ticket.winnings : 0); // totalWithdrawal is a negative value
     }
   });
 
@@ -111,7 +110,7 @@ const getAndUpdateStake = async (cashierId, gameType) => {
     jackpot2Contributions,
     jackpot3Contributions,
   };
-  const payload_aviata = {
+  const payloadAviata = {
     cashierId,
     numberOfBets,
     gameType,
@@ -131,7 +130,7 @@ const getAndUpdateStake = async (cashierId, gameType) => {
 
   const financialReport = await FinancialReport.findOne({ cashierId, gameType, createdAt: { $gte: today } });
   if (!financialReport) {
-    return FinancialReport.create(gameType === 'aviata' ? payload_aviata : payload);
+    return FinancialReport.create(gameType === 'aviata' ? payloadAviata : payload);
   }
 
   const update = {
@@ -148,7 +147,7 @@ const getAndUpdateStake = async (cashierId, gameType) => {
     jackpot3Contributions,
   };
 
-  const update_aviata = {
+  const updateAviata = {
     numberOfBets,
     totalWinnings,
     totalStake,
@@ -164,7 +163,7 @@ const getAndUpdateStake = async (cashierId, gameType) => {
     totalWithdrawal,
   };
 
-  return FinancialReport.findByIdAndUpdate(financialReport._id, gameType === 'aviata' ? update_aviata : update, {
+  return FinancialReport.findByIdAndUpdate(financialReport._id, gameType === 'aviata' ? updateAviata : update, {
     new: true,
   });
 };
@@ -368,8 +367,6 @@ const getAndUpdateStakeByDay = async (cashierId, gameType, startDate, endDate) =
     const endDateWithoutTime = new Date(endDate);
     endDateWithoutTime.setHours(23, 59, 59, 999);
 
-    console.log('getAndUpdateStakeByDay', cashierId, gameType, startDateWithoutTime, endDateWithoutTime);
-
     const [tickets, cashierJackpotWinners] = await Promise.all([
       getBetHistory1({ cashierId, gameType }, startDate, endDate),
       jackpotService.getUpdatedJackpotHistory(
@@ -492,7 +489,7 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, gameType, startDate
   }
 };
 
-//fetch financial reports for given cashier and date range
+// fetch financial reports for given cashier and date range
 const getFinancialReportsByDay = async (cashierId, gameType, startDate, endDate) => {
   try {
     const startDateWithoutTime = new Date(startDate);
@@ -506,7 +503,6 @@ const getFinancialReportsByDay = async (cashierId, gameType, startDate, endDate)
       createdAt: { $gte: startDateWithoutTime, $lte: endDateWithoutTime },
     }).sort({ createdAt: 1 }); // Sort by date ascending
 
-    console.log('getFinancialReportsByDay', cashierId, gameType, startDateWithoutTime, endDateWithoutTime, financialReports);
     return financialReports;
   } catch (error) {
     logger.error('Error in getFinancialReportsByDay:', error);
