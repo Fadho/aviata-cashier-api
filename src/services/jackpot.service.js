@@ -31,7 +31,7 @@ const dropJackpot = async (id, deviceId, playerId, jackpotAmount) => {
       deviceId,
     }).session(session);
 
-    //generate random number between lowLimitAmount and highLimitAmount
+    // generate random number between lowLimitAmount and highLimitAmount
     // const min = jackpot.lowLimitAmount;
     // const max = jackpot.highLimitAmount;
 
@@ -128,7 +128,7 @@ const dropJackpotForTickets = async (id, ticketId, cashierId, jackpotAmount) => 
     }).session(session);
 
     // //generate random number between lowLimitAmount and highLimitAmount
-    // const min = jackpot.lowLimitAmount;
+    const min = jackpot.lowLimitAmount;
     // const max = jackpot.highLimitAmount;
 
     // // // generate random number between min and max (inclusive)
