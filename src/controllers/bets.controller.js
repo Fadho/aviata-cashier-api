@@ -57,7 +57,7 @@ const createBetPlaced = catchAsync(async (req, res) => {
   await walletService.updateWallet(userWallet.id, balance - stake);
 
   // Create the bet
-  let betPlaced = await betsService.createBetPlaced(
+  const betPlaced = await betsService.createBetPlaced(
     result,
     stake,
     selections,
@@ -1212,7 +1212,11 @@ const getTransactionReports = catchAsync(async (req, res) => {
       await Promise.all(
         cashiers.map(async (cashier) => {
           const [financialReport, userWallets] = await Promise.all([
-            financialReportService.getFinancialReports({ cashierId: cashier._id, gameType }, startDate, endDate),
+            financialReportService.getFinancialReports(
+              { cashierId: cashier._id, ...(gameType ? { gameType } : {}) },
+              startDate,
+              endDate
+            ),
             Wallets.find({ userId: cashier._id }).populate('currencyId'),
           ]);
 
@@ -1397,9 +1401,9 @@ const populateFinancialReports = catchAsync(async (req, res) => {
   }
 
   // Example usage
-  const startDate = '2025-09-01';
-  const endDate = '2025-09-11';
-  const gameType = 'aviata';
+  const startDate = '2025-11-01';
+  const endDate = '2025-12-30';
+  const gameType = 'aviatax';
 
   await iterateDateRange(startDate, endDate, gameType);
 
