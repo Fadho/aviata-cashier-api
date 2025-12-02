@@ -54,6 +54,7 @@ app.use(compression());
 
 // enable cors
 const allowedOrigins = [
+  'https://aviatax-retail-mobile-zfecp.ondigitalocean.app',
   'https://partner.sbegames.com',
   'https://partner.staging.sbegames.com',
   'https://cashier.sbegames.com',
