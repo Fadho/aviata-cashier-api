@@ -545,6 +545,11 @@ const getBetPlacedById = async (id) => {
   return Tickets.findOne({ ticketId: id });
 };
 
+const getBetHistoryByPlayer = async (playerId, filter, options) => {
+  const tickets = await Tickets.paginate({ playerId, ...filter }, options);
+  return tickets;
+};
+
 module.exports = {
   createBetPlaced,
   fetchBetPlaced,
@@ -558,4 +563,5 @@ module.exports = {
   updateBetsAndCalculateWinnings,
   createBetPlacedForPlayer,
   cashoutBetForPlayer,
+  getBetHistoryByPlayer,
 };

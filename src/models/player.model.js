@@ -1,11 +1,12 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const { toJSON, paginate } = require('./plugins');
 
 const playerSchema = mongoose.Schema(
   {
     playerId: {
       type: mongoose.SchemaTypes.Number,
-      required: true,
+      // required: true,
     },
 
     email: {
@@ -92,6 +93,24 @@ const playerSchema = mongoose.Schema(
 // add plugin that converts mongoose to json
 playerSchema.plugin(toJSON);
 playerSchema.plugin(paginate);
+
+/**
+ * Check if password matches the user's password
+ * @param {string} password
+ * @returns {Promise<boolean>}
+ */
+playerSchema.methods.isPasswordMatch = async function (password) {
+  const player = this;
+  return bcrypt.compare(password, player.password);
+};
+
+playerSchema.pre('save', async function (next) {
+  const player = this;
+  if (player.isModified('password')) {
+    player.password = await bcrypt.hash(player.password, 8);
+  }
+  next();
+});
 
 /**
  * @typedef Player

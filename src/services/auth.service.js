@@ -4,8 +4,6 @@ const userService = require('./user.service');
 const Token = require('../models/token.model');
 const ApiError = require('../utils/ApiError');
 const { tokenTypes } = require('../config/tokens');
-const { password } = require('../validations/custom.validation');
-const { th } = require('date-fns/locale');
 
 /**
  * Login with username and password

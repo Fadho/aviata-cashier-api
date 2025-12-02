@@ -2,11 +2,12 @@ const httpStatus = require('http-status');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 const pick = require('../utils/pick');
-const { playerService } = require('../services');
+const { playerService, tokenService, betsService } = require('../services');
+const { Tickets } = require('../models');
 
 const getAllPlayers = catchAsync(async (req, res) => {
-  const filter = pick(req.query, ['name', 'email', 'phone']);
-  const options = pick(req.query, ['sortBy', 'limit', 'page']);
+  const filter = pick(req.query, ['username', 'email', 'phone']);
+  const options = pick(req.query, ['sortBy', 'limit', 'page', 'populate']);
   const result = await playerService.queryPlayers(filter, options);
   res.send(result);
 });
@@ -20,7 +21,7 @@ const getPlayer = catchAsync(async (req, res) => {
 });
 
 const createPlayer = catchAsync(async (req, res) => {
-  const player = await playerService.createAccount(req.body);
+  const player = await playerService.register(req.body);
   res.status(httpStatus.CREATED).send(player);
 });
 
@@ -35,19 +36,19 @@ const deletePlayer = catchAsync(async (req, res) => {
 });
 
 const playerLogin = catchAsync(async (req, res) => {
-  const result = await playerService.login(req.body);
-  res.send(result);
+  const player = await playerService.loginUserWithEmailAndPassword(req.body.email, req.body.password);
+  const tokens = await tokenService.generateAuthTokens(player);
+  res.send({ player, tokens });
 });
 
-const verifyOTP = catchAsync(async (req, res) => {
-  const { playerId, otpCode, purpose } = req.body;
-  const result = await playerService.verifyOTP(playerId, otpCode, purpose, req.body.deviceInfo);
-  res.send(result);
+const playerRegister = catchAsync(async (req, res) => {
+  const player = await playerService.register(req.body);
+  res.status(httpStatus.CREATED).send(player);
 });
 
-const generateOTP = catchAsync(async (req, res) => {
-  const { playerId, purpose } = req.body;
-  const result = await playerService.generateOTP(playerId, purpose);
+const joinShop = catchAsync(async (req, res) => {
+  const { playerId, shopCode } = req.body;
+  const result = await playerService.joinShop(playerId, shopCode);
   res.send(result);
 });
 
@@ -74,10 +75,12 @@ const updateProfile = catchAsync(async (req, res) => {
   res.send(updatedProfile);
 });
 
-const getTransactionHistory = catchAsync(async (req, res) => {
+const getBetHistory = catchAsync(async (req, res) => {
   const { playerId } = req.params;
-  const { limit, offset } = req.query;
-  const transactions = await playerService.getTransactionHistory(playerId, parseInt(limit), parseInt(offset));
+  const filter = pick(req.query, ['type', 'status']);
+  const options = pick(req.query, ['limit', 'page', 'sortBy', 'populate']);
+  // const { limit, offset } = req.query;
+  const transactions = await betsService.getBetHistoryByPlayer(playerId, filter, options);
   res.send(transactions);
 });
 
@@ -88,11 +91,10 @@ module.exports = {
   updatePlayer,
   deletePlayer,
   playerLogin,
-  verifyOTP,
-  generateOTP,
   deposit,
   withdraw,
   getProfile,
-  getTransactionHistory,
+  getBetHistory,
   updateProfile,
+  playerRegister,
 };
