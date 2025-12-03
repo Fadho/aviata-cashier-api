@@ -6,3 +6,5 @@ module.exports.currencyValidation = require('./currency.validation');
 module.exports.walletValidation = require('./wallet.validation');
 module.exports.feedbackValidation = require('./feedback.validation');
 module.exports.partnerValidation = require('./partner.validation');
+// module.exports.playerValidation = require('./player.validation');
+module.exports.playerTransferRequestValidation = require('./playerTransferRequest.validation');

@@ -15,3 +15,4 @@ module.exports.lastManService = require('./lastMan.service');
 module.exports.feedbackService = require('./feedback.service');
 module.exports.partnerService = require('./partner.service');
 module.exports.playerService = require('./player.service');
+module.exports.playerTransferRequestService = require('./playerTransferRequest.service');

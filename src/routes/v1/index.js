@@ -10,6 +10,7 @@ const roundsRoute = require('./rounds.route');
 const feedbackRoute = require('./feedback.route');
 const partnerRoute = require('./partner.route');
 const playerRoute = require('./player.route');
+const playerTransferRequestRoute = require('./playerTransferRequest.route');
 
 const router = express.Router();
 
@@ -57,6 +58,10 @@ const defaultRoutes = [
   {
     path: '/player',
     route: playerRoute,
+  },
+  {
+    path: '/playerTransferRequests',
+    route: playerTransferRequestRoute,
   },
 ];
 

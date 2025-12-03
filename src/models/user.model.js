@@ -93,6 +93,10 @@ const userSchema = mongoose.Schema(
       trim: true,
       lowercase: true,
     },
+    balance: {
+      type: Number,
+      default: 0,
+    },
     currency: {
       type: String,
       required: true,

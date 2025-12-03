@@ -3,7 +3,6 @@ const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 const pick = require('../utils/pick');
 const { playerService, tokenService, betsService } = require('../services');
-const { Tickets } = require('../models');
 
 const getAllPlayers = catchAsync(async (req, res) => {
   const filter = pick(req.query, ['username', 'email', 'phone']);
@@ -52,6 +51,12 @@ const joinShop = catchAsync(async (req, res) => {
   res.send(result);
 });
 
+const leaveShop = catchAsync(async (req, res) => {
+  const { playerId } = req.body;
+  const result = await playerService.leaveShop(playerId);
+  res.send(result);
+});
+
 const deposit = catchAsync(async (req, res) => {
   const { playerId, amount, paymentMethod } = req.body;
   const result = await playerService.deposit(playerId, amount, paymentMethod);
@@ -97,4 +102,6 @@ module.exports = {
   getBetHistory,
   updateProfile,
   playerRegister,
+  joinShop,
+  leaveShop,
 };

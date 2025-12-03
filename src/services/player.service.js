@@ -2,7 +2,7 @@ const httpStatus = require('http-status');
 // const tokenService = require('./token.service');
 // const Token = require('../models/token.model');
 const ApiError = require('../utils/ApiError');
-const { Player } = require('../models');
+const { Player, GameDevice } = require('../models');
 
 /**
  * Register a new player
@@ -48,7 +48,7 @@ const queryPlayers = async (filter, options) => {
  * @returns {Promise<User>}
  */
 const getPlayerById = async (id) => {
-  return Player.findById(id);
+  return Player.findById(id).populate('deviceId');
 };
 
 const updatePlayerById = async (playerId, updateBody) => {
@@ -70,6 +70,32 @@ const deletePlayerById = async (playerId) => {
   return player;
 };
 
+const joinShop = async (playerId, shopCode) => {
+  const player = await getPlayerById(playerId);
+  if (!player) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Player not found');
+  }
+
+  const gameDevice = await GameDevice.findOne({ shopAccessCode: shopCode });
+  if (!gameDevice) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Shop not found');
+  }
+  player.deviceId = gameDevice._id;
+  await player.save();
+  return Player.findById(playerId).populate('deviceId');
+};
+
+const leaveShop = async (playerId) => {
+  const player = await getPlayerById(playerId);
+  if (!player) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Player not found');
+  }
+
+  player.deviceId = null;
+  await player.save();
+  return player;
+};
+
 module.exports = {
   register,
   loginUserWithEmailAndPassword,
@@ -77,4 +103,6 @@ module.exports = {
   getPlayerById,
   updatePlayerById,
   deletePlayerById,
+  joinShop,
+  leaveShop,
 };

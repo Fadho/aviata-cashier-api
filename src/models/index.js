@@ -19,3 +19,4 @@ module.exports.LastMan = require('./lastMan.model');
 module.exports.LastManWinners = require('./lastManWinners.model');
 module.exports.GameReport = require('./gameReport.model');
 module.exports.Feedback = require('./feedback.model');
+module.exports.PlayerTransferRequest = require('./playerTransferRequest.model');
