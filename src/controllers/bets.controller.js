@@ -57,7 +57,7 @@ const createBetPlaced = catchAsync(async (req, res) => {
   await walletService.updateWallet(userWallet.id, balance - stake);
 
   // Create the bet
-  let betPlaced = await betsService.createBetPlaced(
+  const betPlaced = await betsService.createBetPlaced(
     result,
     stake,
     selections,
@@ -1153,7 +1153,7 @@ const getFinancialReports1 = catchAsync(async (req, res) => {
 
 const getTransactionReports = catchAsync(async (req, res) => {
   try {
-    const { startDate, endDate, agentId, gameType } = req.query;
+    const { startDate, endDate, agentId, gameType, thirdParty } = req.query;
     const options = pick(req.query, ['sortBy', 'limit', 'page']);
 
     let initialAgents;
@@ -1162,12 +1162,18 @@ const getTransactionReports = catchAsync(async (req, res) => {
 
     // Fetch initial agents based on user role
     if (req.user.role === 'super') {
-      initialAgents = await userService.queryUsers({ agentId: agentId || { $exists: false }, role: 'admin' }, options);
+      initialAgents = await userService.queryUsers(
+        { agentId: agentId || { $exists: false }, role: 'admin', ...(thirdParty ? { thirdParty } : {}) },
+        options
+      );
       Object.assign(pagination, pick(initialAgents, ['page', 'limit', 'totalPages', 'totalResults']));
     } else {
       initialAgents = !agentId
         ? { results: [req.user] }
-        : await userService.queryUsers({ _id: agentId, agentId: req.user._id, role: 'admin' }, options);
+        : await userService.queryUsers(
+            { _id: agentId, agentId: req.user._id, role: 'admin', ...(thirdParty ? { thirdParty } : {}) },
+            options
+          );
     }
 
     // Exchange Rates and Primary Currency Setup
@@ -1187,7 +1193,10 @@ const getTransactionReports = catchAsync(async (req, res) => {
     // Helper functions
     const getUserHierarchy = async (parentId) => {
       if (cache.agents[parentId]) return cache.agents[parentId];
-      const agents = await userService.queryUsers({ agentId: parentId, role: 'admin' }, options);
+      const agents = await userService.queryUsers(
+        { agentId: parentId, role: 'admin', ...(thirdParty ? { thirdParty } : {}) },
+        options
+      );
       const hierarchy = {};
 
       await Promise.all(
