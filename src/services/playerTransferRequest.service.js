@@ -8,7 +8,7 @@ const ApiError = require('../utils/ApiError');
  * @returns {Promise<PlayerTransferRequest>}
  */
 const createTransferRequest = async (requestBody) => {
-  const { playerId, deviceId, requestType, amount, gameType } = requestBody;
+  const { playerId, deviceId, requestType, amount, gameType, code } = requestBody;
 
   // Validate player exists
   const player = await Player.findOne({ _id: playerId, deviceId });
@@ -27,7 +27,7 @@ const createTransferRequest = async (requestBody) => {
   }
 
   // Generate unique transaction code
-  const code = `TR-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+  // const code = `TR-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
   const transferRequest = await PlayerTransferRequest.create({
     playerId,
