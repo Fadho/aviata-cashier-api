@@ -85,7 +85,13 @@ const getBetHistory = catchAsync(async (req, res) => {
   const filter = pick(req.query, ['type', 'status']);
   const options = pick(req.query, ['limit', 'page', 'sortBy', 'populate']);
   // const { limit, offset } = req.query;
-  const transactions = await betsService.getBetHistoryByPlayer(playerId, filter, options);
+  const transactions = await betsService.getBetHistoryByPlayer(
+    playerId,
+    filter,
+    options,
+    req.query.startDate,
+    req.query.endDate
+  );
   res.send(transactions);
 });
 

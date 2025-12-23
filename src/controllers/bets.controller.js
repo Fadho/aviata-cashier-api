@@ -222,8 +222,17 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     session.startTransaction();
 
     try {
-      const { cashierId, roundId, gameType, playerId, deviceId } = req.body;
-      let { stake } = req.body;
+      const { cashierId, roundId, gameType, deviceId } = req.body;
+      let { stake, playerId } = req.body;
+
+      // check playerId, if playerId is a number continue else if a valid string use as username to fetch playerId
+      if (isNaN(playerId)) {
+        const playerByUsername = await Player.findOne({ username: playerId }).session(session);
+        if (!playerByUsername) {
+          throw new ApiError(httpStatus.NOT_FOUND, 'player with provided username not found');
+        }
+        playerId = playerByUsername._id;
+      }
 
       // Fetch the player by playerId and deviceId
       const player = await Player.findOne({ playerId, deviceId }).session(session);

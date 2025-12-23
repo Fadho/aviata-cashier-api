@@ -545,7 +545,27 @@ const getBetPlacedById = async (id) => {
   return Tickets.findOne({ ticketId: id });
 };
 
-const getBetHistoryByPlayer = async (playerId, filter, options) => {
+const getBetHistoryByPlayer = async (playerId, filter, options, startDate, endDate) => {
+  if (startDate && endDate) {
+    const startDateWithoutTime = new Date(startDate);
+    startDateWithoutTime.setHours(0, 0, 0, 0);
+    const endDateWithoutTime = new Date(endDate);
+    endDateWithoutTime.setHours(0, 0, 0, 0);
+    endDateWithoutTime.setDate(endDateWithoutTime.getDate() + 1);
+
+    const dateFilter = {
+      ...(startDate &&
+        endDate && {
+          createdAt: {
+            $gte: startDateWithoutTime,
+            $lte: endDateWithoutTime,
+          },
+        }),
+      ...filter,
+    };
+    // eslint-disable-next-line no-param-reassign
+    filter = dateFilter;
+  }
   const tickets = await Tickets.paginate({ playerId, ...filter }, options);
   return tickets;
 };
