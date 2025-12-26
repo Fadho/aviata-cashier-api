@@ -372,9 +372,14 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
     // Find the bet (ticket) that hasn't ended yet
     const bet = await Tickets.findOne({ _id: ticketId, roundHasEnded: false }).session(session);
     if (!bet) return;
+    let player;
 
-    // Find the player associated with the bet
-    const player = await Player.findOne({ playerId: bet.playerId, deviceId: bet.deviceId }).session(session);
+    if (isNaN(bet.playerId) && typeof bet.playerId === 'string') {
+      player = await Player.findOne({ username: bet.playerId, deviceId: bet.deviceId }).session(session);
+    } else {
+      // Find the player associated with the bet
+      player = await Player.findOne({ playerId: bet.playerId, deviceId: bet.deviceId }).session(session);
+    }
     const winnings = bet.freebet ? bet.stake * odd - bet.stake : bet.stake * odd;
 
     // Update the bet details
