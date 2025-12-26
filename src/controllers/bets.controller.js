@@ -224,20 +224,28 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     try {
       const { cashierId, roundId, gameType, deviceId } = req.body;
       let { stake, playerId } = req.body;
+      let player;
 
-      // check playerId, if playerId is a number continue else if a valid string use as username to fetch playerId
-      if (isNaN(playerId)) {
-        const playerByUsername = await Player.findOne({ username: playerId }).session(session);
+      // Normalize playerId: trim, lowercase if string, and resolve username if not a number
+      if (typeof playerId === 'string') {
+        playerId = playerId.trim();
+      }
+      // If playerId is not a number, treat as username (case-insensitive)
+      if (isNaN(Number(playerId))) {
+        const normalizedUsername = typeof playerId === 'string' ? playerId.trim().toLowerCase() : playerId;
+        const playerByUsername = await Player.findOne({ username: normalizedUsername })
+          .collation({ locale: 'en', strength: 2 })
+          .session(session);
         if (!playerByUsername) {
           throw new ApiError(httpStatus.NOT_FOUND, 'player with provided username not found');
         }
-        playerId = playerByUsername._id;
-      }
-
-      // Fetch the player by playerId and deviceId
-      const player = await Player.findOne({ playerId, deviceId }).session(session);
-      if (!player) {
-        throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
+        player = playerByUsername;
+      } else {
+        // Fetch the player by playerId and deviceId
+        player = await Player.findOne({ playerId, deviceId }).session(session);
+        if (!player) {
+          throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
+        }
       }
       const checkFreebet = player.freebet;
       if (!player.freebet) {
