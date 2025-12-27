@@ -571,6 +571,7 @@ const getBetHistoryByPlayer = async (playerId, filter, options, startDate, endDa
     // eslint-disable-next-line no-param-reassign
     filter = dateFilter;
   }
+  console.log('Filter in service:', filter, playerId);
   const tickets = await Tickets.paginate({ playerId, ...filter }, options);
   return tickets;
 };

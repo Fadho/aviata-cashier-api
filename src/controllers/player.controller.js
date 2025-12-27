@@ -81,10 +81,14 @@ const updateProfile = catchAsync(async (req, res) => {
 });
 
 const getBetHistory = catchAsync(async (req, res) => {
-  const { playerId } = req.params;
+  let { playerId } = req.params;
   const filter = pick(req.query, ['type', 'status']);
   const options = pick(req.query, ['limit', 'page', 'sortBy', 'populate']);
-  // const { limit, offset } = req.query;
+  const player = await playerService.getPlayerById(playerId);
+  if (!player) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Player not found');
+  }
+  playerId = player.username; // Assuming bets are linked by username for mobile gamers
   const transactions = await betsService.getBetHistoryByPlayer(
     playerId,
     filter,
