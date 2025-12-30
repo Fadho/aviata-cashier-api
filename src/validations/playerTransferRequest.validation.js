@@ -7,7 +7,6 @@ const createTransferRequest = {
     deviceId: Joi.string().required(),
     requestType: Joi.string().required().valid('deposit', 'withdrawal'),
     amount: Joi.number().required().positive(),
-    code: Joi.string().required(),
     // currency: Joi.string().required().custom(objectId),
     paymentMethod: Joi.string(),
     metadata: Joi.object(),

@@ -8,7 +8,10 @@ const ApiError = require('../utils/ApiError');
  * @returns {Promise<PlayerTransferRequest>}
  */
 const createTransferRequest = async (requestBody) => {
-  const { playerId, deviceId, requestType, amount, gameType, code } = requestBody;
+  const { playerId, deviceId, requestType, amount, gameType } = requestBody;
+
+  // Generate unique 6 digit code for the transaction, only numbers
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
 
   // Validate player exists
   const player = await Player.findOne({ _id: playerId, deviceId });
