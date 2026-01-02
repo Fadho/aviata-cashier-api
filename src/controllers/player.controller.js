@@ -35,6 +35,11 @@ const deletePlayer = catchAsync(async (req, res) => {
 });
 
 const playerLogin = catchAsync(async (req, res) => {
+  if (req.body.username) {
+    const player = await playerService.loginUserWithUsernameAndPassword(req.body.username, req.body.password);
+    const tokens = await tokenService.generateAuthTokens(player);
+    return res.send({ player, tokens });
+  }
   const player = await playerService.loginUserWithEmailAndPassword(req.body.email, req.body.password);
   const tokens = await tokenService.generateAuthTokens(player);
   res.send({ player, tokens });

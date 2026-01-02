@@ -17,7 +17,7 @@ const register = async (playerBody) => {
 };
 
 /**
- * Login with username and password
+ * Login with email and password
  * @param {string} email
  * @param {string} password
  * @returns {Promise<User>}
@@ -26,6 +26,20 @@ const loginUserWithEmailAndPassword = async (email, password) => {
   const player = await Player.findOne({ email });
   if (!player || !(await player.isPasswordMatch(password))) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect email or password');
+  }
+  return player;
+};
+
+/**
+ * Login with username and password
+ * @param {string} username
+ * @param {string} password
+ * @returns {Promise<User>}
+ */
+const loginUserWithUsernameAndPassword = async (username, password) => {
+  const player = await Player.findOne({ username });
+  if (!player || !(await player.isPasswordMatch(password))) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect username or password');
   }
   return player;
 };
@@ -99,6 +113,7 @@ const leaveShop = async (playerId) => {
 module.exports = {
   register,
   loginUserWithEmailAndPassword,
+  loginUserWithUsernameAndPassword,
   queryPlayers,
   getPlayerById,
   updatePlayerById,
