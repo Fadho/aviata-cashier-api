@@ -573,7 +573,15 @@ const getBetHistoryByPlayer = async (playerId, filter, options, startDate, endDa
   }
   console.log('Filter in service:', filter, playerId);
   const tickets = await Tickets.paginate({ playerId, ...filter }, options);
-  return tickets;
+  // const tickets = await Tickets.find(filter);
+  const ticketsArchive = await TicketsArchive.paginate({ playerId, ...filter }, options);
+  return {
+    results: [...tickets.results, ...ticketsArchive.results],
+    totalPages: tickets.totalPages + ticketsArchive.totalPages,
+    page: tickets.page,
+    limit: tickets.limit,
+    totalResults: tickets.totalResults + ticketsArchive.totalResults,
+  };
 };
 
 module.exports = {
