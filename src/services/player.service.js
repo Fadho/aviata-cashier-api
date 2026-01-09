@@ -23,7 +23,7 @@ const register = async (playerBody) => {
  * @returns {Promise<User>}
  */
 const loginUserWithEmailAndPassword = async (email, password) => {
-  const player = await Player.findOne({ email });
+  const player = await Player.findOne({ email }).populate('deviceId');
   if (!player || !(await player.isPasswordMatch(password))) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect email or password');
   }
@@ -37,7 +37,7 @@ const loginUserWithEmailAndPassword = async (email, password) => {
  * @returns {Promise<User>}
  */
 const loginUserWithUsernameAndPassword = async (username, password) => {
-  const player = await Player.findOne({ username });
+  const player = await Player.findOne({ username }).populate('deviceId');
   if (!player || !(await player.isPasswordMatch(password))) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect username or password');
   }
