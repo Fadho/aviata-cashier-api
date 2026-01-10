@@ -1,5 +1,5 @@
 const express = require('express');
-// const auth = require('../../middlewares/auth');
+const { auth } = require('../../middlewares/auth');
 const validate = require('../../middlewares/validate');
 const { playerTransferRequestValidation } = require('../../validations');
 const playerTransferRequestController = require('../../controllers/playerTransferRequest.controller');
@@ -47,5 +47,13 @@ router.route('/player/:playerId').get(
   validate(playerTransferRequestValidation.getPlayerTransferRequests),
   playerTransferRequestController.getPlayerTransferRequests
 );
+
+router
+  .route('/code/:code/quick-fund-withdrawal')
+  .post(
+    auth(),
+    validate(playerTransferRequestValidation.quickFundAndWithdrawalByCode),
+    playerTransferRequestController.quickFundAndWithdrawalByCode
+  );
 
 module.exports = router;

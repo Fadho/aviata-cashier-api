@@ -70,6 +70,14 @@ const getPlayerTransferRequests = catchAsync(async (req, res) => {
   res.send(result);
 });
 
+const quickFundAndWithdrawalByCode = catchAsync(async (req, res) => {
+  const { code } = req.params;
+  const cashierId = req.user._id; // Assuming auth middleware attaches user
+
+  const transferRequest = await playerTransferRequestService.quickFundAndWithdrawalByCode(code, cashierId);
+  res.send(transferRequest);
+});
+
 module.exports = {
   createTransferRequest,
   getTransferRequests,
@@ -79,4 +87,5 @@ module.exports = {
   rejectTransferRequest,
   cancelTransferRequest,
   getPlayerTransferRequests,
+  quickFundAndWithdrawalByCode,
 };

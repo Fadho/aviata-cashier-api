@@ -24,7 +24,7 @@ const transferHistorySchema = mongoose.Schema(
       // required: true,
     },
     playerId: {
-      type: mongoose.SchemaTypes.Number,
+      type: mongoose.SchemaTypes.Mixed,
       // ref: 'Player',
       // required: true,
     },

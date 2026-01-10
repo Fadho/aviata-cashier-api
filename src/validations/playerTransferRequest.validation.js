@@ -86,6 +86,12 @@ const getPlayerTransferRequests = {
   }),
 };
 
+const quickFundAndWithdrawalByCode = {
+  params: Joi.object().keys({
+    code: Joi.string().required(),
+  }),
+};
+
 module.exports = {
   createTransferRequest,
   getTransferRequests,
@@ -96,4 +102,5 @@ module.exports = {
   rejectTransferRequest,
   cancelTransferRequest,
   getPlayerTransferRequests,
+  quickFundAndWithdrawalByCode,
 };

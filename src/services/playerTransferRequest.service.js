@@ -1,5 +1,5 @@
 const httpStatus = require('http-status');
-const { PlayerTransferRequest, Player, TransferHistory } = require('../models');
+const { PlayerTransferRequest, Player, TransferHistory, GameDevice, User } = require('../models');
 const ApiError = require('../utils/ApiError');
 
 /**
@@ -11,7 +11,14 @@ const createTransferRequest = async (requestBody) => {
   const { playerId, deviceId, requestType, amount, gameType } = requestBody;
 
   // Generate unique 6 digit code for the transaction, only numbers
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  let code = Math.floor(100000 + Math.random() * 900000).toString();
+  // Ensure code is unique, retry if not
+  let existingRequest = await PlayerTransferRequest.findOne({ code });
+  while (existingRequest) {
+    code = Math.floor(100000 + Math.random() * 900000).toString();
+    // eslint-disable-next-line no-await-in-loop
+    existingRequest = await PlayerTransferRequest.findOne({ code });
+  }
 
   // Validate player exists
   const player = await Player.findOne({ _id: playerId, deviceId });
@@ -105,6 +112,17 @@ const approveTransferRequest = async (requestId, approvedBy, notes = '') => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Player not found');
   }
 
+  const cashier = await User.findById(approvedBy).populate('wallets');
+
+  const gameDevice = await GameDevice.findOne({
+    _id: player.deviceId,
+    superAgentId: cashier.superAgentId,
+  });
+
+  if (!gameDevice) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'Player is not on shop devices, player should join a shop device first');
+  }
+
   // if withdrawal, check player balance again
   if (transferRequest.requestType === 'withdrawal') {
     const totalBalance = Number(player.wallet);
@@ -123,11 +141,11 @@ const approveTransferRequest = async (requestId, approvedBy, notes = '') => {
   const transferHistory = await TransferHistory.create({
     agent: approvedBy,
     transactionType: transferRequest.requestType,
-    superAgentId: player.superAgentId,
-    playerId: transferRequest.playerId,
+    superAgentId: cashier.superAgentId,
+    playerId: player.username,
     deviceId: transferRequest.deviceId,
     amount: transferRequest.amount,
-    currencyId: transferRequest.currencyId,
+    currency: cashier.wallets[0].currencyId,
     gameType: transferRequest.gameType || '-',
   });
 
@@ -209,6 +227,22 @@ const getPlayerTransferRequests = async (playerId, options = {}) => {
   return transferRequests;
 };
 
+const quickFundAndWithdrawalByCode = async (code, cashierId) => {
+  const transferRequest = await getTransferRequestByCode(code);
+
+  if (!transferRequest) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Transfer request not found');
+  }
+
+  // chack if player is on cashier related devices
+  const player = await Player.findById(transferRequest.playerId);
+  if (!player) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Player not found');
+  }
+
+  return approveTransferRequest(transferRequest._id, cashierId, 'Quick fund/withdrawal approved');
+};
+
 module.exports = {
   createTransferRequest,
   queryTransferRequests,
@@ -218,4 +252,5 @@ module.exports = {
   rejectTransferRequest,
   cancelTransferRequest,
   getPlayerTransferRequests,
+  quickFundAndWithdrawalByCode,
 };
