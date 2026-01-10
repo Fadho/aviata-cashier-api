@@ -374,7 +374,7 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
     if (!bet) return;
     let player;
 
-    if (isNaN(bet.playerId) && typeof bet.playerId === 'string') {
+    if ((isNaN(bet.playerId) || bet.playerId.length > 3) && typeof bet.playerId === 'string') {
       player = await Player.findOne({ username: bet.playerId, deviceId: bet.deviceId }).session(session);
     } else {
       // Find the player associated with the bet
