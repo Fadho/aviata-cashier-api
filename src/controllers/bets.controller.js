@@ -230,8 +230,8 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       if (typeof playerId === 'string') {
         playerId = playerId.trim();
       }
-      // If playerId is not a number, treat as username (case-insensitive)
-      if (isNaN(Number(playerId))) {
+      // If playerId is not a number, treat as username (case-insensitive) or if it longer 3 digits
+      if (isNaN(Number(playerId)) || playerId.length > 3) {
         const normalizedUsername = typeof playerId === 'string' ? playerId.trim().toLowerCase() : playerId;
         const playerByUsername = await Player.findOne({ username: normalizedUsername })
           .collation({ locale: 'en', strength: 2 })
