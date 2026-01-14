@@ -1,6 +1,7 @@
 const httpStatus = require('http-status');
 const { PlayerTransferRequest, Player, TransferHistory, GameDevice, User } = require('../models');
 const ApiError = require('../utils/ApiError');
+const { walletService } = require('.');
 
 /**
  * Create a transfer request
@@ -135,6 +136,15 @@ const approveTransferRequest = async (requestId, approvedBy, notes = '') => {
   if (transferRequest.requestType === 'deposit') {
     const newBalance = Number(player.wallet) + Number(transferRequest.amount);
     await Player.findByIdAndUpdate(transferRequest.playerId, { wallet: newBalance });
+
+    // update cashier wallet balance
+    const cashierWallet = cashier.wallets[0];
+    if (cashierWallet) {
+      cashierWallet.balance -= transferRequest.amount;
+      await walletService.updateWalletById(cashierWallet._id, { balance: cashierWallet.balance });
+    } else {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Cashier does not have sufficient funds');
+    }
   }
 
   // record transferHistory
