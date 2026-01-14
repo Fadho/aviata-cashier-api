@@ -104,7 +104,7 @@ const approveTransferRequest = async (requestId, approvedBy, notes = '') => {
   }
 
   if (transferRequest.status !== 'pending') {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Transfer request is not pending');
+    return transferRequest;
   }
 
   const player = await Player.findById(transferRequest.playerId);
