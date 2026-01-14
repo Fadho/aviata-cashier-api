@@ -130,6 +130,15 @@ const approveTransferRequest = async (requestId, approvedBy, notes = '') => {
     if (totalBalance < transferRequest.amount) {
       throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient balance');
     }
+
+    // update cashier wallet balance
+    const cashierWallet = cashier.wallets[0];
+    if (cashierWallet) {
+      cashierWallet.balance += transferRequest.amount;
+      await walletService.updateWallet(cashierWallet._id, cashierWallet.balance);
+    } else {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Cashier wallet not found');
+    }
   }
 
   // if deposit, update player balance
@@ -141,7 +150,7 @@ const approveTransferRequest = async (requestId, approvedBy, notes = '') => {
     const cashierWallet = cashier.wallets[0];
     if (cashierWallet) {
       cashierWallet.balance -= transferRequest.amount;
-      await walletService.updateWalletById(cashierWallet._id, { balance: cashierWallet.balance });
+      await walletService.updateWallet(cashierWallet._id, cashierWallet.balance);
     } else {
       throw new ApiError(httpStatus.BAD_REQUEST, 'Cashier does not have sufficient funds');
     }
