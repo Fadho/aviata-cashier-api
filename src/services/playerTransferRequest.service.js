@@ -1,7 +1,7 @@
 const httpStatus = require('http-status');
 const { PlayerTransferRequest, Player, TransferHistory, GameDevice, User } = require('../models');
 const ApiError = require('../utils/ApiError');
-const { walletService } = require('.');
+const { walletService, financialReportService } = require('.');
 
 /**
  * Create a transfer request
@@ -168,6 +168,9 @@ const approveTransferRequest = async (requestId, approvedBy, notes = '') => {
     currency: cashier.wallets[0].currencyId,
     gameType: transferRequest.gameType || '-',
   });
+
+  financialReportService.getAndUpdateStake(transferRequest.approvedBy, transferRequest.gameType);
+  financialReportService.getAndUpdateTotalTransactions(transferRequest.approvedBy, transferRequest.gameType);
 
   transferRequest.transactionId = transferHistory._id;
 
