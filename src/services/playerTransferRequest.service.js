@@ -126,12 +126,6 @@ const approveTransferRequest = async (requestId, approvedBy, notes = '') => {
 
   // if withdrawal, check cashier balance and update balance
   if (transferRequest.requestType === 'withdrawal') {
-    // const totalBalance = Number(player.wallet);
-    // if (totalBalance < transferRequest.amount) {
-    //   throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient balance');
-    // }
-
-    // update cashier wallet balance
     const cashierWallet = cashier.wallets[0];
     if (cashierWallet) {
       cashierWallet.balance += transferRequest.amount;
@@ -159,11 +153,12 @@ const approveTransferRequest = async (requestId, approvedBy, notes = '') => {
   // record transferHistory
   const transferHistory = await TransferHistory.create({
     agent: approvedBy,
-    transactionType: transferRequest.requestType,
+    transactionType:
+      transferRequest.requestType === 'deposit' ? `to player ${player.username}` : `from player ${player.username}`,
     superAgentId: cashier.superAgentId,
     playerId: player.username,
     deviceId: transferRequest.deviceId,
-    amount: transferRequest.amount,
+    amount: -transferRequest.amount,
     currency: cashier.wallets[0].currencyId,
     gameType: transferRequest.gameType || '-',
   });
