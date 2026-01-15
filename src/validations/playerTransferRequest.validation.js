@@ -41,6 +41,7 @@ const getTransferRequestByCode = {
 const approveTransferRequest = {
   params: Joi.object().keys({
     requestId: Joi.string().required().custom(objectId),
+    code: Joi.string().required(),
   }),
   body: Joi.object().keys({
     notes: Joi.string(),

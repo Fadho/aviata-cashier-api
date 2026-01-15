@@ -33,11 +33,12 @@ const getTransferRequestByCode = catchAsync(async (req, res) => {
 });
 
 const approveTransferRequest = catchAsync(async (req, res) => {
-  const { requestId } = req.params;
+  const { code } = req.params;
   const { notes } = req.body;
   const approvedBy = req.user.id; // Assuming auth middleware attaches user
 
-  const transferRequest = await playerTransferRequestService.approveTransferRequest(requestId, approvedBy, notes);
+  const existingRequest = await playerTransferRequestService.getTransferRequestByCode(code);
+  const transferRequest = await playerTransferRequestService.approveTransferRequest(existingRequest._id, approvedBy, notes);
   res.send(transferRequest);
 });
 
