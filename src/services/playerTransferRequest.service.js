@@ -30,8 +30,6 @@ const createTransferRequest = async (requestBody) => {
   // For withdrawals, check if player has sufficient balance
   if (requestType === 'withdrawal') {
     const totalBalance = Number(player.wallet);
-    // update player balance
-    await Player.findByIdAndUpdate(playerId, { wallet: totalBalance - amount, bonus: player.bonus });
     if (totalBalance < amount) {
       throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient balance');
     }
@@ -126,6 +124,14 @@ const approveTransferRequest = async (requestId, approvedBy, notes = '') => {
 
   // if withdrawal, check cashier balance and update balance
   if (transferRequest.requestType === 'withdrawal') {
+    // update player balance
+    const newBalance = Number(player.wallet) - Number(transferRequest.amount);
+    if (newBalance < 0) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Player does not have sufficient funds');
+    }
+    await Player.findByIdAndUpdate(transferRequest.playerId, { wallet: newBalance });
+
+    // update cashier wallet balance
     const cashierWallet = cashier.wallets[0];
     if (cashierWallet) {
       cashierWallet.balance += transferRequest.amount;
