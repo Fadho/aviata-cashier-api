@@ -124,12 +124,12 @@ const approveTransferRequest = async (requestId, approvedBy, notes = '') => {
     throw new ApiError(httpStatus.FORBIDDEN, 'Player is not on shop devices, player should join a shop device first');
   }
 
-  // if withdrawal, check player balance again
+  // if withdrawal, check cashier balance and update balance
   if (transferRequest.requestType === 'withdrawal') {
-    const totalBalance = Number(player.wallet);
-    if (totalBalance < transferRequest.amount) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient balance');
-    }
+    // const totalBalance = Number(player.wallet);
+    // if (totalBalance < transferRequest.amount) {
+    //   throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient balance');
+    // }
 
     // update cashier wallet balance
     const cashierWallet = cashier.wallets[0];
