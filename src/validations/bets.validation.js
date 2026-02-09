@@ -56,6 +56,7 @@ const getAccountingReports = {
     gameType: Joi.string(),
     betType: Joi.string(),
     startDate: Joi.string(),
+    thirdParty: Joi.boolean(),
     endDate: Joi.string(),
     sortBy: Joi.string(),
     limit: Joi.number().integer(),

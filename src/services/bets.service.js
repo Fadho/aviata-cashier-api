@@ -372,9 +372,14 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
     // Find the bet (ticket) that hasn't ended yet
     const bet = await Tickets.findOne({ _id: ticketId, roundHasEnded: false }).session(session);
     if (!bet) return;
+    let player;
 
-    // Find the player associated with the bet
-    const player = await Player.findOne({ playerId: bet.playerId, deviceId: bet.deviceId }).session(session);
+    if ((isNaN(bet.playerId) || bet.playerId.length > 3) && typeof bet.playerId === 'string') {
+      player = await Player.findOne({ username: bet.playerId, deviceId: bet.deviceId }).session(session);
+    } else {
+      // Find the player associated with the bet
+      player = await Player.findOne({ playerId: bet.playerId, deviceId: bet.deviceId }).session(session);
+    }
     const winnings = bet.freebet ? bet.stake * odd - bet.stake : bet.stake * odd;
 
     // Update the bet details
@@ -545,6 +550,39 @@ const getBetPlacedById = async (id) => {
   return Tickets.findOne({ ticketId: id });
 };
 
+const getBetHistoryByPlayer = async (playerId, filter, options, startDate, endDate) => {
+  if (startDate && endDate) {
+    const startDateWithoutTime = new Date(startDate);
+    startDateWithoutTime.setHours(0, 0, 0, 0);
+    const endDateWithoutTime = new Date(endDate);
+    endDateWithoutTime.setHours(0, 0, 0, 0);
+    endDateWithoutTime.setDate(endDateWithoutTime.getDate() + 1);
+
+    const dateFilter = {
+      ...(startDate &&
+        endDate && {
+          createdAt: {
+            $gte: startDateWithoutTime,
+            $lte: endDateWithoutTime,
+          },
+        }),
+      ...filter,
+    };
+    // eslint-disable-next-line no-param-reassign
+    filter = dateFilter;
+  }
+  const tickets = await Tickets.paginate({ playerId, ...filter }, options);
+  // const tickets = await Tickets.find(filter);
+  const ticketsArchive = await TicketsArchive.paginate({ playerId, ...filter }, options);
+  return {
+    results: [...tickets.results, ...ticketsArchive.results],
+    totalPages: tickets.totalPages + ticketsArchive.totalPages,
+    page: tickets.page,
+    limit: tickets.limit,
+    totalResults: tickets.totalResults + ticketsArchive.totalResults,
+  };
+};
+
 module.exports = {
   createBetPlaced,
   fetchBetPlaced,
@@ -558,4 +596,5 @@ module.exports = {
   updateBetsAndCalculateWinnings,
   createBetPlacedForPlayer,
   cashoutBetForPlayer,
+  getBetHistoryByPlayer,
 };

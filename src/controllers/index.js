@@ -9,3 +9,4 @@ module.exports.feedbackController = require('./feedback.controller');
 module.exports.partnerController = require('./partner.controller');
 module.exports.partnerBetsController = require('./partner.bets.controller');
 module.exports.playerController = require('./player.controller');
+module.exports.playerTransferRequestController = require('./playerTransferRequest.controller');

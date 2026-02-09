@@ -222,13 +222,30 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
     session.startTransaction();
 
     try {
-      const { cashierId, roundId, gameType, playerId, deviceId } = req.body;
-      let { stake } = req.body;
+      const { cashierId, roundId, gameType, deviceId } = req.body;
+      let { stake, playerId } = req.body;
+      let player;
 
-      // Fetch the player by playerId and deviceId
-      const player = await Player.findOne({ playerId, deviceId }).session(session);
-      if (!player) {
-        throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
+      // Normalize playerId: trim, lowercase if string, and resolve username if not a number
+      if (typeof playerId === 'string') {
+        playerId = playerId.trim();
+      }
+      // If playerId is not a number, treat as username (case-insensitive) or if it longer 3 digits
+      if (isNaN(Number(playerId)) || playerId.length > 3) {
+        const normalizedUsername = typeof playerId === 'string' ? playerId.trim().toLowerCase() : playerId;
+        const playerByUsername = await Player.findOne({ username: normalizedUsername })
+          .collation({ locale: 'en', strength: 2 })
+          .session(session);
+        if (!playerByUsername) {
+          throw new ApiError(httpStatus.NOT_FOUND, 'player with provided username not found');
+        }
+        player = playerByUsername;
+      } else {
+        // Fetch the player by playerId and deviceId
+        player = await Player.findOne({ playerId, deviceId }).session(session);
+        if (!player) {
+          throw new ApiError(httpStatus.NOT_FOUND, 'player with provided ID not found');
+        }
       }
       const checkFreebet = player.freebet;
       if (!player.freebet) {
@@ -1153,7 +1170,7 @@ const getFinancialReports1 = catchAsync(async (req, res) => {
 
 const getTransactionReports = catchAsync(async (req, res) => {
   try {
-    const { startDate, endDate, agentId, gameType } = req.query;
+    const { startDate, endDate, agentId, gameType, thirdParty } = req.query;
     const options = pick(req.query, ['sortBy', 'limit', 'page']);
 
     let initialAgents;
@@ -1162,12 +1179,18 @@ const getTransactionReports = catchAsync(async (req, res) => {
 
     // Fetch initial agents based on user role
     if (req.user.role === 'super') {
-      initialAgents = await userService.queryUsers({ agentId: agentId || { $exists: false }, role: 'admin' }, options);
+      initialAgents = await userService.queryUsers(
+        { agentId: agentId || { $exists: false }, role: 'admin', ...(thirdParty ? { thirdParty } : {}) },
+        options
+      );
       Object.assign(pagination, pick(initialAgents, ['page', 'limit', 'totalPages', 'totalResults']));
     } else {
       initialAgents = !agentId
         ? { results: [req.user] }
-        : await userService.queryUsers({ _id: agentId, agentId: req.user._id, role: 'admin' }, options);
+        : await userService.queryUsers(
+            { _id: agentId, agentId: req.user._id, role: 'admin', ...(thirdParty ? { thirdParty } : {}) },
+            options
+          );
     }
 
     // Exchange Rates and Primary Currency Setup
@@ -1187,7 +1210,10 @@ const getTransactionReports = catchAsync(async (req, res) => {
     // Helper functions
     const getUserHierarchy = async (parentId) => {
       if (cache.agents[parentId]) return cache.agents[parentId];
-      const agents = await userService.queryUsers({ agentId: parentId, role: 'admin' }, options);
+      const agents = await userService.queryUsers(
+        { agentId: parentId, role: 'admin', ...(thirdParty ? { thirdParty } : {}) },
+        options
+      );
       const hierarchy = {};
 
       await Promise.all(

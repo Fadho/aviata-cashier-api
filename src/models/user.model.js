@@ -66,15 +66,15 @@ const userSchema = mongoose.Schema(
       enum: roles,
       default: 'cashier',
     },
-    thirdparty: {
+    thirdParty: {
       type: Boolean,
       default: false,
     },
     endpoint: {
       type: String,
-      required() {
-        return this.thirdparty === true;
-      },
+      // required() {
+      //   return this.thirdParty === true;
+      // },
       validate(value) {
         if (value && !validator.isURL(value)) {
           throw new Error('Invalid URL');
@@ -83,15 +83,19 @@ const userSchema = mongoose.Schema(
     },
     companyName: {
       type: String,
-      // required: function() { return this.thirdparty === true; },
+      // required: function() { return this.thirdParty === true; },
       trim: true,
     },
     apiKey: {
       type: String,
-      // required: function() { return this.thirdparty === true; },
+      // required: function() { return this.thirdParty === true; },
       unique: true,
       trim: true,
       lowercase: true,
+    },
+    balance: {
+      type: Number,
+      default: 0,
     },
     currency: {
       type: String,

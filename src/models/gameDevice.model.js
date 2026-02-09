@@ -40,6 +40,12 @@ const gameDeviceSchema = mongoose.Schema(
     token: {
       type: mongoose.SchemaTypes.Number,
     },
+
+    shopAccessCode: {
+      type: String,
+      unique: true,
+      trim: true,
+    },
   },
   {
     timestamps: true,

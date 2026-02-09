@@ -4,8 +4,6 @@ const userService = require('./user.service');
 const Token = require('../models/token.model');
 const ApiError = require('../utils/ApiError');
 const { tokenTypes } = require('../config/tokens');
-const { password } = require('../validations/custom.validation');
-const { th } = require('date-fns/locale');
 
 /**
  * Login with username and password
@@ -99,23 +97,24 @@ const verifyEmail = async (verifyEmailToken) => {
  * @returns {Promise<User>}
  */
 const loginUserWithToken = async (username, currency) => {
-  //verify need for currency spontaneity, can they follow current agent structure.
-  const user = await userService.getUserById(req.user.id);
+  // verify need for currency spontaneity, can they follow current agent structure.
+  const user = await userService.getUserByUsername(username);
   if (!user) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid token');
   }
-  let getCashier = await userService.getUsers({ username, agentId: req.user.id });
+  let getCashier = await userService.getUsers({ username, agentId: user.id });
   if (!getCashier.length) {
     const userBody = {
       username,
       role: 'cashier',
-      agentId: req.user.id,
+      agentId: user.id,
       password: Math.random().toString(36).slice(-8), // generate a random 8 character password
       currency,
-      thirdparty: true,
+      thirdParty: true,
     };
     getCashier = await userService.createUser(userBody);
   } else {
+    // eslint-disable-next-line prefer-destructuring
     getCashier = getCashier[0];
   }
   return user;

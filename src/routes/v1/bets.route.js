@@ -1,6 +1,6 @@
 const express = require('express');
 const validate = require('../../middlewares/validate');
-const { auth, apiKeyAuth } = require('../../middlewares/auth');
+const { auth } = require('../../middlewares/auth');
 const { betsValidation } = require('../../validations');
 const { betsController } = require('../../controllers');
 
