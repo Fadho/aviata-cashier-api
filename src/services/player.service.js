@@ -11,6 +11,14 @@ const { Player, GameDevice } = require('../models');
  */
 
 const register = async (playerBody) => {
+  // check if email is already taken
+  if (await Player.isEmailTaken(playerBody.email)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
+  }
+  // check if username is already taken
+  if (await Player.isUsernameTaken(playerBody.username)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Username already taken');
+  }
   const player = new Player({ ...playerBody, type: 'mobile' });
   await player.save();
   return player;
@@ -20,7 +28,7 @@ const register = async (playerBody) => {
  * Login with email and password
  * @param {string} email
  * @param {string} password
- * @returns {Promise<User>}
+ * @returns {Promise<Player>}
  */
 const loginUserWithEmailAndPassword = async (email, password) => {
   const player = await Player.findOne({ email }).populate('deviceId');
