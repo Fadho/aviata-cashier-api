@@ -54,6 +54,9 @@ app.use(compression());
 
 // enable cors
 const allowedOrigins = [
+  'https://aviatorx.sbe2525.com',
+  'https://sbe2525.com',
+  /https:\/\/.*\.sbe2525\.com$/,
   'https://aviatax-mobile-build-l8pae.ondigitalocean.app',
   /https:\/\/.*\.sbegames\.com$/,
   /https:\/\/.*\.staging\.sbegames\.com$/,
