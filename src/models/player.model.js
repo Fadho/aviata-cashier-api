@@ -112,6 +112,18 @@ playerSchema.pre('save', async function (next) {
   next();
 });
 
+// isEmailTaken
+playerSchema.statics.isEmailTaken = async function (email, excludePlayerId) {
+  const player = await this.findOne({ email, _id: { $ne: excludePlayerId } });
+  return !!player;
+};
+
+// isUsernameTaken
+playerSchema.statics.isUsernameTaken = async function (username, excludePlayerId) {
+  const player = await this.findOne({ username, _id: { $ne: excludePlayerId } });
+  return !!player;
+};
+
 /**
  * @typedef Player
  */
