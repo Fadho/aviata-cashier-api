@@ -12,9 +12,9 @@ const { Player, GameDevice } = require('../models');
 
 const register = async (playerBody) => {
   // check if email is already taken
-  if (await Player.isEmailTaken(playerBody.email)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
-  }
+  // if (await Player.isEmailTaken(playerBody.email)) {
+  //   throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
+  // }
   // check if username is already taken
   if (await Player.isUsernameTaken(playerBody.username)) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Username already taken');
