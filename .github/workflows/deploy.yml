@@ -3,7 +3,7 @@ name: Deploying Cashier Server
 on:
   push:
     branches:
-      - freebet
+      - staging
 
 jobs:
   test:
@@ -22,11 +22,12 @@ jobs:
 
       - name: Deploy using SCP with password
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -o StrictHostKeyChecking=no -r ./src Dockerfile package*.json ecosystem.config.json ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/aviata-cashier-api
+          sshpass -p "${{ secrets.SSH_STAGING_PASSWORD }}" scp -o StrictHostKeyChecking=no -r ./src Dockerfile package*.json ecosystem.config.json ${{ secrets.SSH_USER }}@${{ secrets.SSH_STAGING_HOST }}:~/aviata-cashier-api
 
       - name: Build, tag and push Dockerfile
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ~/aviata-cashier-api && docker build -t cashier-service . && docker tag cashier-service registry.digitalocean.com/aviata/cashier-service && docker push registry.digitalocean.com/aviata/cashier-service"
+          sshpass -p "${{ secrets.SSH_STAGING_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_STAGING_HOST }} "cd ~/aviata-cashier-api && docker build -t cashier-service . && docker tag cashier-service registry.digitalocean.com/aviata/cashier-service && docker push registry.digitalocean.com/aviata/cashier-service"
+
       - name: Docker Compose and scale
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ~/aviata-docker && docker compose up -d cashier-service && docker compose scale cashier-service=12"
+          sshpass -p "${{ secrets.SSH_STAGING_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_STAGING_HOST }} "cd ~/aviata-docker && docker compose up -d cashier-service && docker compose scale cashier-service=12"
