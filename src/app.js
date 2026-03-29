@@ -167,9 +167,9 @@ if (config.env === 'production') {
   app.use('/cashier/v1', routes);
 } else {
   // v1 api routes
-  app.use('/v1', routes);
+  app.use('/cashier/v1', routes);
   // API docs (non-production only)
-  app.use('/v1/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.use('/cashier/v1/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 }
 
 app.get('/', (req, res) => {
