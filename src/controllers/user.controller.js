@@ -70,12 +70,24 @@ const deleteUser = catchAsync(async (req, res) => {
   res.status(httpStatus.NO_CONTENT).send();
 });
 
+const deleteAgent = catchAsync(async (req, res) => {
+  await userService.deleteAgentById(req.params.agentId, req.user);
+  res.status(httpStatus.NO_CONTENT).send();
+});
+
+const transferAgentTenantship = catchAsync(async (req, res) => {
+  const agent = await userService.transferAgentTenantship(req.params.agentId, req.body.newSuperAgentId, req.user);
+  res.status(httpStatus.OK).send(agent);
+});
+
 module.exports = {
   createUser,
   getUsers,
   getUser,
   updateUser,
   deleteUser,
+  deleteAgent,
+  transferAgentTenantship,
   getUsersWhere,
   searchForUser,
 };

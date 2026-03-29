@@ -1,5 +1,9 @@
 const httpStatus = require('http-status');
-const { User } = require('../models');
+const mongoose = require('mongoose');
+const { User, Wallets, Player, GameConfig, FinancialReport, GameReport, Token } = require('../models');
+const ApiKey = require('../models/apiKey.model');
+const PartnerLog = require('../models/partnerLogs.model');
+const TransferHistory = require('../models/transferHistory.model');
 const ApiError = require('../utils/ApiError');
 
 /**
@@ -145,6 +149,184 @@ const deleteUserById = async (userId) => {
   return user;
 };
 
+/**
+ * Delete agent and all related data by agent id.
+ * Only users with role 'agent' can be deleted via this function.
+ * The requesting user must be a super admin OR the direct superAgentId of the agent.
+ * @param {ObjectId} agentId - ID of the agent to delete
+ * @param {Object} requestingUser - The authenticated user performing the deletion
+ * @returns {Promise<void>}
+ */
+const deleteAgentById = async (agentId, requestingUser) => {
+  const agent = await User.findById(agentId);
+  if (!agent) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Agent not found');
+  }
+  if (agent.role !== 'agent') {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'User is not an agent');
+  }
+
+  // Authorization: super admins can delete any agent; other roles can only delete agents they own
+  const isSuper = requestingUser.role === 'super';
+  const isOwner =
+    agent.superAgentId && agent.superAgentId.toString() === requestingUser._id.toString();
+  if (!isSuper && !isOwner) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You do not have permission to delete this agent');
+  }
+
+  // Find all cashiers under this agent
+  const cashiers = await User.find({ agentId }, { _id: 1 });
+  const cashierIds = cashiers.map((c) => c._id);
+
+  // Delete cashier wallets and tokens
+  if (cashierIds.length > 0) {
+    await Wallets.deleteMany({ userId: { $in: cashierIds } });
+    await Token.deleteMany({ user: { $in: cashierIds } });
+    await User.deleteMany({ _id: { $in: cashierIds } });
+  }
+
+  // Delete players under this agent
+  await Player.deleteMany({ agentId });
+
+  // Delete agent wallets and auth tokens
+  await Wallets.deleteMany({ userId: agentId });
+  await Token.deleteMany({ user: agentId });
+
+  // Delete agent settings and reports
+  await GameConfig.deleteMany({ agentId });
+  await FinancialReport.deleteMany({ agentId });
+  await GameReport.deleteMany({ agentId });
+
+  // Delete API keys (for third-party/partner agents)
+  await ApiKey.deleteMany({ partnerId: agentId });
+
+  // Delete partner logs where agent appears as a partner or as the acting super agent
+  await PartnerLog.deleteMany({ $or: [{ partnerId: agentId }, { superAgentId: agentId }] });
+
+  // Delete transfer history involving this agent
+  await TransferHistory.deleteMany({ $or: [{ agent: agentId }, { target: agentId }, { superAgentId: agentId }] });
+
+  // Finally delete the agent
+  await agent.deleteOne();
+};
+
+/**
+ * Transfer an agent to a new super agent (tenant).
+ * All writes are wrapped in a MongoDB transaction so the operation is atomic.
+ * On any failure every change is rolled back automatically.
+ *
+ * Collections updated:
+ *   - User (agent itself)
+ *   - User (cashiers belonging to this agent)
+ *   - Player (players belonging to this agent)
+ *   - FinancialReport
+ *   - GameReport
+ *   - TransferHistory
+ *
+ * @param {ObjectId|string} agentId        - The agent being reassigned
+ * @param {ObjectId|string} newSuperAgentId - The new owning super agent
+ * @param {Object}          requestingUser  - The authenticated user performing the action
+ * @returns {Promise<User>} Freshly-fetched, populated agent document
+ */
+const transferAgentTenantship = async (agentId, newSuperAgentId, requestingUser) => {
+  // --- pre-flight checks (outside transaction to avoid unnecessary session overhead) ---
+
+  const agent = await User.findById(agentId);
+  if (!agent) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Agent not found');
+  }
+  if (agent.role !== 'agent') {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'User is not an agent');
+  }
+
+  // Prevent assigning an agent as its own super agent
+  if (agentId.toString() === newSuperAgentId.toString()) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'An agent cannot be its own super agent');
+  }
+
+  const newSuperAgent = await User.findById(newSuperAgentId);
+  if (!newSuperAgent) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'New super agent not found');
+  }
+  if (!['super', 'admin'].includes(newSuperAgent.role)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Target super agent must have role super or admin');
+  }
+
+  // Authorization: 'super' role can move any agent; others can only move agents they own
+  const isSuper = requestingUser.role === 'super';
+  const isCurrentOwner =
+    agent.superAgentId && agent.superAgentId.toString() === requestingUser._id.toString();
+  if (!isSuper && !isCurrentOwner) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You do not have permission to transfer this agent');
+  }
+
+  // Prevent no-op
+  if (agent.superAgentId && agent.superAgentId.toString() === newSuperAgentId.toString()) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Agent already belongs to this super agent');
+  }
+
+  // Require the agent to have an existing superAgentId so cascade filters are safe
+  if (!agent.superAgentId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Agent has no current super agent; cannot transfer an orphaned agent');
+  }
+
+  const oldSuperAgentId = agent.superAgentId;
+  const newSuperAgentObjectId = newSuperAgent._id;
+
+  // --- atomic writes ---
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    // 1. Update the agent itself
+    await User.findByIdAndUpdate(agentId, { $set: { superAgentId: newSuperAgentObjectId } }, { session });
+
+    // 2. Update cashiers that belong to this agent
+    await User.updateMany(
+      { agentId, superAgentId: oldSuperAgentId },
+      { $set: { superAgentId: newSuperAgentObjectId } },
+      { session }
+    );
+
+    // 3. Update players
+    await Player.updateMany(
+      { agentId, superAgentId: oldSuperAgentId },
+      { $set: { superAgentId: newSuperAgentObjectId } },
+      { session }
+    );
+
+    // 4. Update financial reports
+    await FinancialReport.updateMany(
+      { agentId, superAgentId: oldSuperAgentId },
+      { $set: { superAgentId: newSuperAgentObjectId } },
+      { session }
+    );
+
+    // 5. Update game reports
+    await GameReport.updateMany(
+      { agentId, superAgentId: oldSuperAgentId },
+      { $set: { superAgentId: newSuperAgentObjectId } },
+      { session }
+    );
+
+    // 6. Update transfer history entries originating from this agent
+    await TransferHistory.updateMany(
+      { agent: agentId, superAgentId: oldSuperAgentId },
+      { $set: { superAgentId: newSuperAgentObjectId } },
+      { session }
+    );
+
+    await session.commitTransaction();
+  } catch (err) {
+    await session.abortTransaction();
+    throw err;
+  } finally {
+    session.endSession();
+  }
+
+  // Return a fresh, populated document reflecting the committed state
+  return getUserById(agentId);
+};
+
 module.exports = {
   createUser,
   queryUsers,
@@ -153,6 +335,8 @@ module.exports = {
   getUserByEmail,
   updateUserById,
   deleteUserById,
+  deleteAgentById,
+  transferAgentTenantship,
   getUsersWhereClientType,
   getUserByUsername,
   getUserByRole,

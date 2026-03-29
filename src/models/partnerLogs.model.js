@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
-const Partner = require('./partner.model');
 const User = require('./user.model');
 
 const { Schema } = mongoose;
 
 // Reference to Partner and User models
+
 
 const partnerLogSchema = new Schema(
   {

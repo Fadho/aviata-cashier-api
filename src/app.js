@@ -7,6 +7,8 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const passport = require('passport');
 const httpStatus = require('http-status');
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
 const config = require('./config/config');
 const morgan = require('./config/morgan');
 const { jwtStrategy } = require('./config/passport');
@@ -15,6 +17,48 @@ const routes = require('./routes/v1');
 const { errorConverter, errorHandler } = require('./middlewares/error');
 const ApiError = require('./utils/ApiError');
 const { encryptMiddleware, decryptMiddleware } = require('./middlewares/encryption');
+
+const swaggerSpec = swaggerJsdoc({
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Aviata Cashier API',
+      version: '1.0.0',
+      description: 'API documentation for the Aviata Cashier system',
+    },
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+      schemas: {
+        Error: {
+          type: 'object',
+          properties: {
+            code: { type: 'integer' },
+            message: { type: 'string' },
+          },
+        },
+      },
+      responses: {
+        Unauthorized: {
+          description: 'Unauthorized – missing or invalid JWT token',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' },
+              example: { code: 401, message: 'Please authenticate' },
+            },
+          },
+        },
+      },
+    },
+    security: [{ bearerAuth: [] }],
+  },
+  apis: ['./src/routes/v1/*.js'],
+});
 
 const app = express();
 
@@ -124,6 +168,8 @@ if (config.env === 'production') {
 } else {
   // v1 api routes
   app.use('/v1', routes);
+  // API docs (non-production only)
+  app.use('/v1/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 }
 
 app.get('/', (req, res) => {

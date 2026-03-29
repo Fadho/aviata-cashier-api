@@ -64,12 +64,29 @@ const deleteUser = {
   }),
 };
 
+const deleteAgent = {
+  params: Joi.object().keys({
+    agentId: Joi.string().custom(objectId).required(),
+  }),
+};
+
+const transferAgentTenantship = {
+  params: Joi.object().keys({
+    agentId: Joi.string().custom(objectId).required(),
+  }),
+  body: Joi.object().keys({
+    newSuperAgentId: Joi.string().custom(objectId).required(),
+  }),
+};
+
 module.exports = {
   createUser,
   getUsers,
   getUser,
   updateUser,
   deleteUser,
+  deleteAgent,
+  transferAgentTenantship,
   getUsersWhere,
   searchForUser,
 };
