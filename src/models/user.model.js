@@ -77,8 +77,16 @@ const userSchema = mongoose.Schema(
       //   return this.thirdParty === true;
       // },
       validate(value) {
-        if (value && !validator.isURL(value)) {
-          throw new Error('Invalid URL');
+        if (value) {
+          if (!validator.isURL(value, { protocols: ['https'], require_protocol: true })) {
+            throw new Error('Endpoint must be a valid HTTPS URL');
+          }
+          // Prevent SSRF: block private, loopback, and link-local addresses
+          const { hostname } = new URL(value);
+          const privateHostPattern = /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|::1|fc00:|fd)/i;
+          if (privateHostPattern.test(hostname)) {
+            throw new Error('Endpoint must not point to a private or loopback address');
+          }
         }
       },
     },

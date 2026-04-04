@@ -53,10 +53,13 @@ const createBetPlacedForThirdParty = catchAsync(async (req, res) => {
   // balance -= stake;
   // await walletService.updateWallet(thirdParty.wallets[0]._id, { balance });
 
-  //query thirdparty debit endpoint
-  const response = await axios.post(thirdParty.endpoint + '/debit', { stake, gameType, currency });
-
-  if (response.status !== 200) {
+  // Debit third-party wallet
+  if (!thirdParty.endpoint) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Third-party agent has no configured endpoint');
+  }
+  try {
+    await axios.post(`${thirdParty.endpoint}/debit`, { stake, gameType, currency }, { timeout: 5000 });
+  } catch {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Error debiting third party wallet');
   }
 
@@ -126,10 +129,13 @@ const createBetPlacedForThirdPartyPlayer = catchAsync(async (req, res) => {
     // balance -= stake;
     // await walletService.updateWallet(thirdParty.wallets[0]._id, { balance });
 
-    //query thirdparty debit endpoint
-    const response = await axios.post(thirdParty.endpoint + '/debit', { stake, gameType, currency });
-
-    if (response.status !== 200) {
+    // Debit third-party wallet
+    if (!thirdParty.endpoint) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Third-party agent has no configured endpoint');
+    }
+    try {
+      await axios.post(`${thirdParty.endpoint}/debit`, { stake, gameType, currency }, { timeout: 5000 });
+    } catch {
       throw new ApiError(httpStatus.BAD_REQUEST, 'Error debiting third party wallet');
     }
 

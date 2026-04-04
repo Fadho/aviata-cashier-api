@@ -26,6 +26,7 @@ const financialReportService = require('../services/financialReport.service');
 
 const { Wallets, Player, User, Freebet, FreebetWinners } = require('../models');
 const GameConfig = require('../models/gameConfig.model');
+const axios = require('axios');
 
 const createBetPlaced = catchAsync(async (req, res) => {
   const { result, selections, cashierId, potentialWinnings, roundId, playerId, deviceId } = req.body;
@@ -226,6 +227,27 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       let { stake, playerId } = req.body;
       let player;
 
+      // Fetch cashier early to check third-party status before any balance deduction
+      const cashier = await User.findById(cashierId).session(session);
+      if (!cashier) {
+        throw new ApiError(httpStatus.NOT_FOUND, 'cashier with provided ID not found');
+      }
+
+      // If the cashier belongs to a third-party agent, debit the agent's external wallet first
+      if (cashier.agentId) {
+        const agent = await User.findById(cashier.agentId).session(session);
+        if (agent && agent.thirdParty) {
+          if (!agent.endpoint) {
+            throw new ApiError(httpStatus.BAD_REQUEST, 'Third-party agent has no configured endpoint');
+          }
+          try {
+            await axios.post(`${agent.endpoint}/debit`, { stake: Number(stake), gameType, currency: agent.currency }, { timeout: 5000 });
+          } catch {
+            throw new ApiError(httpStatus.BAD_REQUEST, 'Error debiting third party wallet');
+          }
+        }
+      }
+
       // Normalize playerId: trim, lowercase if string, and resolve username if not a number
       if (typeof playerId === 'string') {
         playerId = playerId.trim();
@@ -280,12 +302,6 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
         }
         await Player.findOneAndUpdate({ _id: player.id }, { freebet: false }, { session });
         financialReportService.getAndUpdateFreebets(cashierId, gameType, freebet.dropAmount);
-      }
-
-      // Fetch cashier by cashierId
-      const cashier = await User.findById(cashierId).session(session);
-      if (!cashier) {
-        throw new ApiError(httpStatus.NOT_FOUND, 'cashier with provided ID not found');
       }
 
       // Place the bet
