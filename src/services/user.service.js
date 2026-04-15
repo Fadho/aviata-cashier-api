@@ -162,7 +162,7 @@ const deleteAgentById = async (agentId, requestingUser) => {
   if (!agent) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Agent not found');
   }
-  if (agent.role !== 'agent') {
+  if (agent.role !== 'admin' || !agent.agentId) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'User is not an agent');
   }
 
@@ -235,7 +235,7 @@ const transferAgentTenantship = async (agentId, newSuperAgentId, requestingUser)
   if (!agent) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Agent not found');
   }
-  if (agent.role !== 'agent') {
+  if (agent.role !== 'admin' || !agent.agentId) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'User is not an agent');
   }
 

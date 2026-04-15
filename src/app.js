@@ -33,6 +33,12 @@ const swaggerSpec = swaggerJsdoc({
           scheme: 'bearer',
           bearerFormat: 'JWT',
         },
+        apiKeyAuth: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'x-api-key',
+          description: 'Partner API key (prefix: tw_api_)',
+        },
       },
       schemas: {
         Error: {

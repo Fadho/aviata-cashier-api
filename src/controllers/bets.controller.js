@@ -241,7 +241,11 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
             throw new ApiError(httpStatus.BAD_REQUEST, 'Third-party agent has no configured endpoint');
           }
           try {
-            await axios.post(`${agent.endpoint}/debit`, { stake: Number(stake), gameType, currency: agent.currency }, { timeout: 5000 });
+            await axios.post(
+              `${agent.endpoint}/debit`,
+              { stake: Number(stake), gameType, currency: agent.currency },
+              { timeout: 5000 }
+            );
           } catch {
             throw new ApiError(httpStatus.BAD_REQUEST, 'Error debiting third party wallet');
           }

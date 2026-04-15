@@ -24,6 +24,7 @@ const envVarsSchema = Joi.object()
     JWT_VERIFY_EMAIL_EXPIRATION_MINUTES: Joi.number()
       .default(10)
       .description('minutes after which verify email token expires'),
+    GAME_LAUNCHER_URL: Joi.string().uri().required().description('Base URL of the game launcher frontend'),
   })
   .unknown();
 
@@ -60,4 +61,5 @@ module.exports = {
     apiKey: envVars.RESEND_API_KEY,
     fromEmail: envVars.RESEND_FROM_EMAIL,
   },
+  gameLauncherUrl: envVars.GAME_LAUNCHER_URL,
 };

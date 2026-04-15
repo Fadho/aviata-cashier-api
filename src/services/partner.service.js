@@ -3,6 +3,9 @@ const ApiKey = require('../models/apiKey.model');
 const { th } = require('date-fns/locale');
 const { userService, walletService, currencyService } = require('.');
 const { default: axios } = require('axios');
+const { Currency, Wallets } = require('../models');
+const ApiError = require('../utils/ApiError');
+const httpStatus = require('http-status');
 
 /**
  * Generate a new API key for a partner
@@ -104,10 +107,58 @@ const getThirdPartyCashierDetails = async (thirdPartyId, username) => {
   return cashier.data;
 };
 
+/**
+ * Find or create a cashier by username under the given agent, sync wallet balance.
+ * @param {Object} agent - The partner/agent User document (from apiKeyAuth, i.e. req.user)
+ * @param {string} partnerCashierUsername
+ * @param {number} wallet - Balance to set (synced on every call)
+ * @returns {Promise<User>} The cashier document
+ */
+const launchGame = async (agent, partnerCashierUsername, wallet) => {
+  const username = partnerCashierUsername.trim().toLowerCase();
+
+  const cashiers = await userService.getUsers({ username, agentId: agent._id });
+
+  let cashier;
+
+  if (!cashiers.length) {
+    // Look up the currency document for wallet creation
+    const currency = await Currency.findOne({ 'country.currencyCode': agent.currency });
+    if (!currency) {
+      throw new ApiError(httpStatus.BAD_REQUEST, `Currency '${agent.currency}' not found`);
+    }
+
+    const sanitizedUsername = username.replace(/[^a-z0-9]/g, '');
+    const userBody = {
+      username,
+      name: `${agent._id}-${username}`,
+      email: `${sanitizedUsername}@${agent._id}.noreply.com`,
+      password: crypto.randomBytes(8).toString('hex'),
+      role: 'cashier',
+      agentId: agent._id,
+      superAgentId: agent.superAgentId || agent._id,
+      thirdParty: true,
+      currency: agent.currency,
+    };
+
+    cashier = await userService.createUser(userBody);
+    await walletService.createWallet(currency._id, cashier._id, wallet, true);
+    // Re-fetch to get populated wallets
+    cashier = await userService.getUserById(cashier._id);
+  } else {
+    cashier = cashiers[0];
+    // Sync the wallet balance on every call
+    await Wallets.findOneAndUpdate({ userId: cashier._id }, { balance: wallet });
+  }
+
+  return cashier;
+};
+
 module.exports = {
   generateApiKey,
   deleteApiKey,
   loginUserWithToken,
   getApiKeys,
   getThirdPartyCashierDetails,
+  launchGame,
 };

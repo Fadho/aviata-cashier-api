@@ -13,7 +13,15 @@ const getThirdPartyCashierDetails = {
   }),
 };
 
+const launchGame = {
+  body: Joi.object().keys({
+    partner_cashier_username: Joi.string().required(),
+    wallet: Joi.number().required(),
+  }),
+};
+
 module.exports = {
   removeApiKey,
   getThirdPartyCashierDetails,
+  launchGame,
 };
