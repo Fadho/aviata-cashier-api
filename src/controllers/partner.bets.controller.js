@@ -31,34 +31,24 @@ const axios = require('axios');
 const createBetPlacedForThirdParty = catchAsync(async (req, res) => {
   const { result, selections, cashierId, potentialWinnings, roundId, gameType, currency } = req.body;
   let { stake } = req.body;
-  let { thirdParty } = req.user;
+  // req.user is the partner/agent resolved by apiKeyAuth()
+  const agent = req.user;
   // Fetch the user (cashier) by ID
   const user = await userService.getUserById(cashierId);
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Cashier with provided ID not found');
   }
 
-  if (!(user.agentId === thirdParty._id)) {
+  if (!user.agentId || user.agentId.toString() !== agent._id.toString()) {
     throw new ApiError(httpStatus.FORBIDDEN, 'Unauthorized to place bet for this third party');
   }
 
-  //check third party wallet balance (agent must have a single wallet)
-  // let { balance } = Number(thirdParty.wallets[0]);
-
-  // if (isNaN(balance) || isNaN(stake) || balance < stake) {
-  //   throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount');
-  // }
-
-  // Deduct stake from third party wallet
-  // balance -= stake;
-  // await walletService.updateWallet(thirdParty.wallets[0]._id, { balance });
-
-  // Debit third-party wallet
-  if (!thirdParty.endpoint) {
+  // Debit third-party wallet via the agent's configured endpoint
+  if (!agent.endpoint) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Third-party agent has no configured endpoint');
   }
   try {
-    await axios.post(`${thirdParty.endpoint}/debit`, { stake, gameType, currency }, { timeout: 5000 });
+    await axios.post(`${agent.endpoint}/debit`, { stake, gameType, currency }, { timeout: 5000 });
   } catch {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Error debiting third party wallet');
   }
@@ -107,36 +97,22 @@ const createBetPlacedForThirdPartyPlayer = catchAsync(async (req, res) => {
   try {
     const { cashierId, roundId, gameType, playerId, deviceId, currency } = req.body;
     let { stake } = req.body;
-    let { thirdParty } = req.user;
-    // Fetch the user (cashier) by ID
+    // Fetch the cashier — no auth on this route, so resolve agent from cashier's agentId
     const user = await userService.getUserById(cashierId);
     if (!user) {
       throw new ApiError(httpStatus.NOT_FOUND, 'Cashier with provided ID not found');
     }
 
-    if (!(user.agentId === thirdParty._id)) {
-      throw new ApiError(httpStatus.FORBIDDEN, 'Unauthorized to place bet for this third party');
-    }
+    // Resolve the agent who owns this cashier
+    const agent = user.agentId ? await userService.getUserById(user.agentId) : null;
 
-    //check third party wallet balance (agent must have a single wallet)
-    // let { balance } = Number(thirdParty.wallets[0]);
-
-    // if (isNaN(balance) || isNaN(stake) || balance < stake) {
-    //   throw new ApiError(httpStatus.BAD_REQUEST, 'Insufficient funds or invalid stake amount');
-    // }
-
-    // Deduct stake from third party wallet
-    // balance -= stake;
-    // await walletService.updateWallet(thirdParty.wallets[0]._id, { balance });
-
-    // Debit third-party wallet
-    if (!thirdParty.endpoint) {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Third-party agent has no configured endpoint');
-    }
-    try {
-      await axios.post(`${thirdParty.endpoint}/debit`, { stake, gameType, currency }, { timeout: 5000 });
-    } catch {
-      throw new ApiError(httpStatus.BAD_REQUEST, 'Error debiting third party wallet');
+    // Debit the third-party wallet via the agent's configured endpoint (if present)
+    if (agent && agent.endpoint) {
+      try {
+        await axios.post(`${agent.endpoint}/debit`, { stake, gameType, currency }, { timeout: 5000 });
+      } catch {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Error debiting third party wallet');
+      }
     }
 
     // Fetch the player by playerId and deviceId
@@ -181,11 +157,8 @@ const createBetPlacedForThirdPartyPlayer = catchAsync(async (req, res) => {
       financialReportService.getAndUpdateFreebets(cashierId, gameType, freebet.dropAmount);
     }
 
-    // Fetch cashier by cashierId
-    const cashier = await User.findById(cashierId).session(session);
-    if (!cashier) {
-      throw new ApiError(httpStatus.NOT_FOUND, 'cashier with provided ID not found');
-    }
+    // Cashier is already fetched above as `user`
+    const cashier = user;
 
     // Place the bet
     const betPlaced = await betsService.createBetPlacedForPlayer(
@@ -271,8 +244,110 @@ const fetchBetPlaced = catchAsync(async (req, res) => {
   }
 });
 
+/**
+ * Cancel a ticket - verifies the ticket belongs to a cashier under the requesting partner
+ */
+const cancelTicket = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const betPlaced = await betsService.getBetPlacedById(id);
+  if (!betPlaced) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record not found');
+  }
+  // Ensure the ticket belongs to a cashier managed by this partner
+  const cashier = await userService.getUserById(betPlaced.cashierId);
+  if (!cashier || String(cashier.agentId) !== String(req.user._id)) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'Unauthorized to cancel this ticket');
+  }
+  const betCancelled = await betsService.cancelTicket(id);
+  res.status(httpStatus.OK).send(betCancelled);
+});
+
+/**
+ * Cashier financial report scoped to the requesting partner's cashiers
+ */
+const cashierReport = catchAsync(async (req, res) => {
+  const { startDate, endDate, betType, gameType, cashierId } = req.query;
+
+  if (!cashierId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'cashierId query param is required');
+  }
+
+  // Verify the cashier belongs to this partner
+  const cashier = await userService.getUserById(cashierId);
+  if (!cashier || String(cashier.agentId) !== String(req.user._id)) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'Cashier not found under this partner');
+  }
+
+  const [betHistory, players] = await Promise.all([
+    betsService.getBetHistory1(
+      { cashierId, ...(betType && { betType }), ...(gameType && { gameType }) },
+      startDate,
+      endDate
+    ),
+    Player.find({ cashierId }),
+  ]);
+
+  const cashierJackpotWinners = await jackpotService.getJackpotHistory(
+    { cashierId, ...(gameType && { gameType }), active: false },
+    startDate,
+    endDate
+  );
+
+  const totalStake = betHistory.reduce((acc, b) => acc + b.stake, 0);
+  const totalWinnings = betHistory.reduce((acc, b) => acc + b.winnings, 0);
+  const totalClosedPayout = betHistory.reduce((acc, b) => (b.payout ? acc + b.winnings : acc), 0);
+  const totalOpenPayout = betHistory.reduce((acc, b) => (!b.payout ? acc + b.winnings : acc), 0);
+  const totalPlayerWallets = players.reduce((acc, p) => acc + p.wallet, 0);
+  const totalPlayerBonus = players.reduce((acc, p) => acc + p.bonus, 0);
+
+  let jackpot1Payout = 0;
+  let jackpot2Payout = 0;
+  let jackpot3Payout = 0;
+  let jackpot1Contributions = 0;
+  let jackpot2Contributions = 0;
+  let jackpot3Contributions = 0;
+
+  cashierJackpotWinners.forEach((j) => {
+    if (j.jackpotType === 'Bronze') {
+      jackpot1Payout += j.jackpotAmount;
+      jackpot1Contributions += j.jackpotContributions;
+    } else if (j.jackpotType === 'Silver') {
+      jackpot2Payout += j.jackpotAmount;
+      jackpot2Contributions += j.jackpotContributions;
+    } else if (j.jackpotType === 'Gold') {
+      jackpot3Payout += j.jackpotAmount;
+      jackpot3Contributions += j.jackpotContributions;
+    }
+  });
+
+  res.status(httpStatus.OK).send({
+    totalWinnings,
+    totalStake,
+    numberOfBets: betHistory.length,
+    name: cashier.name,
+    profit:
+      Number(totalStake) -
+      Number(totalWinnings) -
+      Number(jackpot1Payout) -
+      Number(jackpot2Payout) -
+      Number(jackpot3Payout) -
+      Number(totalPlayerWallets) -
+      Number(totalPlayerBonus),
+    totalClosedPayout,
+    totalOpenPayout,
+    jackpot1Payout,
+    jackpot2Payout,
+    jackpot3Payout,
+    jackpot1Contributions,
+    jackpot2Contributions,
+    jackpot3Contributions,
+  });
+});
+
 module.exports = {
   createBetPlacedForThirdParty,
   createBetPlacedForThirdPartyPlayer,
   cashoutPlayerBet,
+  cancelTicket,
+  cashierReport,
 };

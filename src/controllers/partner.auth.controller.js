@@ -5,16 +5,16 @@ const config = require('../config/config');
 
 const loginUserWithToken = catchAsync(async (req, res) => {
   const { username, currency, balance } = req.body;
-  const { thirdPartyId } = req.user.id;
+  const thirdPartyId = req.user.id;
   const user = await partnerService.loginUserWithToken(username, currency, thirdPartyId);
   const tokens = await tokenService.generateAuthTokens(user);
   res.send({ user, tokens });
 });
 
 const thirdPartyCashierDetails = catchAsync(async (req, res) => {
-  const { cashier } = req.user;
   const { username } = req.body;
-  const cashierDetails = await partnerService.getThirdPartyCashierDetails(cashier.superAgentId, username);
+  // req.user is the authenticated user; use their _id as the thirdParty agent reference
+  const cashierDetails = await partnerService.getThirdPartyCashierDetails(req.user._id, username);
   res.send(cashierDetails);
 });
 

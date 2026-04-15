@@ -11,7 +11,7 @@ const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 const config = require('./config/config');
 const morgan = require('./config/morgan');
-const { jwtStrategy } = require('./config/passport');
+const { jwtStrategy, apiKeyStrategy } = require('./config/passport');
 const { authLimiter } = require('./middlewares/rateLimiter');
 const routes = require('./routes/v1');
 const { errorConverter, errorHandler } = require('./middlewares/error');
@@ -162,6 +162,7 @@ app.options('*', cors(corsOptions));
 // jwt authentication
 app.use(passport.initialize());
 passport.use('jwt', jwtStrategy);
+passport.use('api-key', apiKeyStrategy);
 
 // limit repeated failed requests to auth endpoints
 if (config.env === 'production') {

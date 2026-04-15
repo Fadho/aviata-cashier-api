@@ -168,8 +168,7 @@ const deleteAgentById = async (agentId, requestingUser) => {
 
   // Authorization: super admins can delete any agent; other roles can only delete agents they own
   const isSuper = requestingUser.role === 'super';
-  const isOwner =
-    agent.superAgentId && agent.superAgentId.toString() === requestingUser._id.toString();
+  const isOwner = agent.superAgentId && agent.superAgentId.toString() === requestingUser._id.toString();
   if (!isSuper && !isOwner) {
     throw new ApiError(httpStatus.FORBIDDEN, 'You do not have permission to delete this agent');
   }
@@ -254,8 +253,7 @@ const transferAgentTenantship = async (agentId, newSuperAgentId, requestingUser)
 
   // Authorization: 'super' role can move any agent; others can only move agents they own
   const isSuper = requestingUser.role === 'super';
-  const isCurrentOwner =
-    agent.superAgentId && agent.superAgentId.toString() === requestingUser._id.toString();
+  const isCurrentOwner = agent.superAgentId && agent.superAgentId.toString() === requestingUser._id.toString();
   if (!isSuper && !isCurrentOwner) {
     throw new ApiError(httpStatus.FORBIDDEN, 'You do not have permission to transfer this agent');
   }

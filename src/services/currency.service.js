@@ -46,7 +46,7 @@ const getCurrencyById = async (id) => {
  * @returns {Promise<Currency>}
  */
 const findByCurrencyCode = function (currencyCode) {
-  return this.findOne({ 'country.currencyCode': currencyCode });
+  return Currency.findOne({ 'country.currencyCode': currencyCode });
 };
 
 /**

@@ -9,6 +9,7 @@ const walletRoute = require('./wallet.route');
 const roundsRoute = require('./rounds.route');
 const feedbackRoute = require('./feedback.route');
 const partnerRoute = require('./partner.route');
+const partnerBetsRoute = require('./partner.bets.route');
 const playerRoute = require('./player.route');
 const playerTransferRequestRoute = require('./playerTransferRequest.route');
 
@@ -54,6 +55,10 @@ const defaultRoutes = [
   {
     path: '/partner',
     route: partnerRoute,
+  },
+  {
+    path: '/partner-bets',
+    route: partnerBetsRoute,
   },
   {
     path: '/player',
