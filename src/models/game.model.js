@@ -30,6 +30,7 @@ const gameSchema = mongoose.Schema({
   },
   gameType: {
     type: mongoose.SchemaTypes.String,
+    enum: ['aviata', 'shootout', 'aviatax', 'turbo-soccer'],
     default: 'aviata',
   },
 });

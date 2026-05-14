@@ -76,6 +76,10 @@ if (config.env !== 'test') {
 // set security HTTP headers
 app.use(helmet());
 
+// Raw body capture for HMAC-verified webhook — must come BEFORE express.json()
+// so that req.body remains a Buffer on this route (body-parsers skip if already parsed).
+app.use('/cashier/v1/turbo-soccer/webhooks/settlement', express.raw({ type: 'application/json' }));
+
 if (!config.secure) {
   // parse json request body
   app.use(express.json());
@@ -95,8 +99,13 @@ if (config.secure) {
   app.use(encryptMiddleware);
 }
 
-// sanitize request data
-app.use(xss());
+// sanitize request data — skip Buffer bodies (e.g. raw webhook payloads) so
+// xss-clean does not JSON.stringify/parse a Buffer into a plain object.
+const xssMiddleware = xss();
+app.use((req, res, next) => {
+  if (Buffer.isBuffer(req.body)) return next();
+  return xssMiddleware(req, res, next);
+});
 app.use(mongoSanitize());
 
 // gzip compression

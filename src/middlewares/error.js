@@ -28,6 +28,10 @@ const errorHandler = (err, req, res, next) => {
   const response = {
     code: statusCode,
     message,
+    // Forward machine-readable error code when present (e.g. MARKET_SUSPENDED, ODDS_CHANGED)
+    ...(err.code != null && { error_code: err.code }),
+    // Forward current_odds for ODDS_CHANGED (409) so the client can update its display
+    ...(err.currentOdds != null && { current_odds: err.currentOdds }),
     ...(config.env === 'development' && { stack: err.stack }),
   };
 

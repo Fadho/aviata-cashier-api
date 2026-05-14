@@ -12,6 +12,7 @@ const partnerRoute = require('./partner.route');
 const partnerBetsRoute = require('./partner.bets.route');
 const playerRoute = require('./player.route');
 const playerTransferRequestRoute = require('./playerTransferRequest.route');
+const turboSoccerRoute = require('./turboSoccer.route');
 
 const router = express.Router();
 
@@ -67,6 +68,10 @@ const defaultRoutes = [
   {
     path: '/playerTransferRequests',
     route: playerTransferRequestRoute,
+  },
+  {
+    path: '/turbo-soccer',
+    route: turboSoccerRoute,
   },
 ];
 

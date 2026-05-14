@@ -97,6 +97,33 @@ const ticketSchema = mongoose.Schema(
       default: false,
       required: true,
     },
+    // Turbo Soccer Pro (VF Engine) fields
+    vfBetId: {
+      type: String,
+      index: true,
+    },
+    matchId: {
+      type: String,
+    },
+    homeTeam: {
+      type: String,
+    },
+    awayTeam: {
+      type: String,
+    },
+    market: {
+      type: String,
+    },
+    selection: {
+      type: String,
+    },
+    oddsTaken: {
+      type: Number,
+    },
+    betCategory: {
+      type: String,
+      enum: ['PREMATCH', 'LIVE'],
+    },
   },
   {
     timestamps: true,

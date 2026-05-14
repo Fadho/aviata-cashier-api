@@ -46,7 +46,7 @@ const getGameConfig = async (body) => {
       gameConfig = await GameConfig.create({ agentId, gameType });
     }
 
-    if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
+    if (!['aviata', 'shootout', 'aviatax', 'turbo-soccer'].includes(gameType)) return;
 
     if (!user[0].agentId || !user[0].superAgentId) {
       const suser = await User.findOne({ role: 'super' }).select('_id');
@@ -99,7 +99,7 @@ const getGameConfig = async (body) => {
       game = await Game.create({ agentId, gameType });
     }
 
-    if (!['aviata', 'shootout', 'aviatax'].includes(gameType)) return;
+    if (!['aviata', 'shootout', 'aviatax', 'turbo-soccer'].includes(gameType)) return;
 
     if (!user[0].agentId || !user[0].superAgentId) {
       const suser = await User.findOne({ role: 'super' }).select('_id');
@@ -207,7 +207,7 @@ const getGameData = async (agentId, gameType) => {
   if (!user) {
     return;
   }
-  if (gameType !== 'aviata' && gameType !== 'shootout' && gameType !== 'aviatax') {
+  if (gameType !== 'aviata' && gameType !== 'shootout' && gameType !== 'aviatax' && gameType !== 'turbo-soccer') {
     return;
   }
   let game = await Game.findOne({ agentId, gameType }).select('-id');

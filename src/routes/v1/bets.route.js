@@ -16,7 +16,7 @@ router.route('/player').post(validate(betsValidation.createBetPlacedPlayer), bet
 router.route('/player/cashout').post(validate(betsValidation.cashoutPlayerTicket), betsController.cashoutPlayerBet);
 
 router.route('/fetch/:id').get(auth(), validate(betsValidation.getBetPlacedById), betsController.getBetPlacedById);
-router.route('/cancel/:id').get(auth(), validate(betsValidation.cancelTicket), betsController.cancelTicket);
+router.route('/cancel/:id').post(auth(), validate(betsValidation.cancelTicket), betsController.cancelTicket);
 router.route('/history').get(auth(), validate(betsValidation.getBetHistory), betsController.getBetHistory);
 
 router
@@ -46,6 +46,10 @@ router.route('/payout/:id').post(auth(), validate(betsValidation.getBetPlacedByI
 
 router.route('/game-state').get(betsController.getCurrentGameState);
 
-router.route('/populate-reports').get(betsController.populateFinancialReports);
+router.route('/game-reports').get(auth(), validate(betsValidation.getAccountingReports), betsController.getGameReports);
+
+router
+  .route('/populate-reports')
+  .get(auth(), validate(betsValidation.getAccountingReports), betsController.populateFinancialReports);
 
 module.exports = router;

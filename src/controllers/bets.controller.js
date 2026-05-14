@@ -639,23 +639,36 @@ const getCashierReport = catchAsync(async (req, res) => {
   try {
     const { startDate, endDate, gameType } = req.query;
     const cashierId = req.user.id;
-    const report = await financialReportService.getFinancialReportsByDay(cashierId, gameType, startDate, endDate);
-    report.forEach((report) => {
-      currencyReport.totalDeposit += report.totalDeposit;
-      currencyReport.totalWithdrawal += report.totalWithdrawal;
-      currencyReport.totalStake += report.totalStake;
-      currencyReport.totalWinnings += report.totalWinnings;
-      currencyReport.numberOfTransactions += report.numberOfTransactions;
-      currencyReport.numberOfBets += report.numberOfBets;
-      currencyReport.totalBonus += report.totalPlayerBonus;
-      currencyReport.profit = currencyReport.totalDeposit + currencyReport.totalWithdrawal;
-      currencyReport.profitPrimary = parseFloat((currencyReport.profit * conversionRate).toFixed(3));
-      currencyReport.playersWallet += report.totalPlayerWallets;
-      currencyReport.jackpot1Payout += report.jackpot1Payout ? report.jackpot1Payout : 0;
-      currencyReport.jackpot2Payout += report.jackpot2Payout ? report.jackpot2Payout : 0;
-      currencyReport.jackpot3Payout += report.jackpot3Payout ? report.jackpot3Payout : 0;
+    const reports = await financialReportService.getFinancialReportsByDay(cashierId, gameType, startDate, endDate);
+    const aggregated = {
+      totalDeposit: 0,
+      totalWithdrawal: 0,
+      totalStake: 0,
+      totalWinnings: 0,
+      numberOfTransactions: 0,
+      numberOfBets: 0,
+      totalBonus: 0,
+      profit: 0,
+      playersWallet: 0,
+      jackpot1Payout: 0,
+      jackpot2Payout: 0,
+      jackpot3Payout: 0,
+    };
+    reports.forEach((report) => {
+      aggregated.totalDeposit += report.totalDeposit || 0;
+      aggregated.totalWithdrawal += report.totalWithdrawal || 0;
+      aggregated.totalStake += report.totalStake || 0;
+      aggregated.totalWinnings += report.totalWinnings || 0;
+      aggregated.numberOfTransactions += report.numberOfTransactions || 0;
+      aggregated.numberOfBets += report.numberOfBets || 0;
+      aggregated.totalBonus += report.totalPlayerBonus || 0;
+      aggregated.playersWallet += report.totalPlayerWallets || 0;
+      aggregated.jackpot1Payout += report.jackpot1Payout || 0;
+      aggregated.jackpot2Payout += report.jackpot2Payout || 0;
+      aggregated.jackpot3Payout += report.jackpot3Payout || 0;
     });
-    return res.status(httpStatus.OK).send(report);
+    aggregated.profit = aggregated.totalDeposit + aggregated.totalWithdrawal;
+    return res.status(httpStatus.OK).send(aggregated);
   } catch (error) {
     throw new ApiError(httpStatus.NOT_FOUND, error.message);
   }
@@ -1270,7 +1283,7 @@ const getTransactionReports = catchAsync(async (req, res) => {
           // cashiers can only have 1 wallet
           const wallet = userWallets[0];
           // eslint-disable-next-line no-continue
-          if (wallet.currencyId) {
+          if (wallet && wallet.currencyId) {
             const { currencyCode } = wallet.currencyId.country[0];
             if (!cashierReports[cashier.name]) cashierReports[cashier.name] = {};
             if (!cashierReports[cashier.name][currencyCode]) {
@@ -1346,18 +1359,12 @@ const getBetPlacedById = catchAsync(async (req, res) => {
 });
 
 const cancelTicket = catchAsync(async (req, res) => {
-  try {
-    const { id } = req.params;
-    const betPlaced = await betsService.getBetPlacedById(id);
-    if (!betPlaced) {
-      throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record not found');
-    }
-    const betCancelled = await betsService.cancelTicket(id);
-
-    res.status(httpStatus.CREATED).send(betCancelled);
-  } catch (error) {
-    throw new ApiError(httpStatus.NOT_FOUND, error.message);
+  const { id } = req.params;
+  const betCancelled = await betsService.cancelTicket(id);
+  if (!betCancelled) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Bet Record not found');
   }
+  res.status(httpStatus.CREATED).send(betCancelled);
 });
 
 const cashoutTicket = catchAsync(async (req, res) => {
@@ -1436,7 +1443,7 @@ const populateFinancialReports = catchAsync(async (req, res) => {
     for (let d = new Date(start); d <= stop; d.setDate(d.getDate() + 1)) {
       dates.push(new Date(d)); // Store a copy of the date
     }
-    console.log('Total dates to process:', dates);
+    logger.info('Total dates to process: %s', dates.length);
 
     dates.forEach((date) => {
       cashiers.forEach((cashier) => {
@@ -1446,10 +1453,7 @@ const populateFinancialReports = catchAsync(async (req, res) => {
     });
   }
 
-  // Example usage
-  const startDate = '2025-11-01';
-  const endDate = '2025-12-30';
-  const gameType = 'aviatax';
+  const { startDate = '2025-11-01', endDate = '2025-12-30', gameType = 'aviatax' } = req.query;
 
   await iterateDateRange(startDate, endDate, gameType);
 
@@ -1525,7 +1529,7 @@ const getGameReports = catchAsync(async (req, res) => {
           // cashiers can only have 1 wallet
           const wallet = userWallets[0];
           // eslint-disable-next-line no-continue
-          if (wallet.currencyId) {
+          if (wallet && wallet.currencyId) {
             const { currencyCode } = wallet.currencyId.country[0];
             if (!cashierReports[cashier.name]) cashierReports[cashier.name] = {};
             if (!cashierReports[cashier.name][currencyCode]) {

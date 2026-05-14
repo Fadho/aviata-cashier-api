@@ -25,6 +25,10 @@ const envVarsSchema = Joi.object()
       .default(10)
       .description('minutes after which verify email token expires'),
     GAME_LAUNCHER_URL: Joi.string().uri().required().description('Base URL of the game launcher frontend'),
+    VFENGINE_BASE_URL: Joi.string().uri().required().description('Virtual Football Engine base URL'),
+    VFENGINE_JWT_SECRET: Joi.string().required().description('Shared JWT secret for VF Engine auth'),
+    VFENGINE_WEBHOOK_SECRET: Joi.string().required().description('HMAC-SHA256 secret for VF Engine settlement webhooks'),
+    VFENGINE_OPERATOR_ID: Joi.string().required().description('Operator ID included in VF Engine JWT claims'),
   })
   .unknown();
 
@@ -42,7 +46,15 @@ module.exports = {
   aviata_websocket_url: envVars.AVIATA_WEBSOCKET_URL,
   allowedOrigins: envVars.ALLOWED_ORIGINS,
   mongoose: {
-    url: envVars.MONGODB_URL + (envVars.NODE_ENV === 'test' ? '-test' : ''),
+    url: (() => {
+      if (envVars.NODE_ENV !== 'test') return envVars.MONGODB_URL;
+      // Insert '-test' before the query string so only the DB name gets the suffix,
+      // not the authSource parameter (e.g. authSource=admin must stay 'admin').
+      const qIdx = envVars.MONGODB_URL.indexOf('?');
+      return qIdx === -1
+        ? `${envVars.MONGODB_URL}-test`
+        : `${envVars.MONGODB_URL.slice(0, qIdx)}-test${envVars.MONGODB_URL.slice(qIdx)}`;
+    })(),
     options: {
       useCreateIndex: true,
       useNewUrlParser: true,
@@ -62,4 +74,10 @@ module.exports = {
     fromEmail: envVars.RESEND_FROM_EMAIL,
   },
   gameLauncherUrl: envVars.GAME_LAUNCHER_URL,
+  vfengine: {
+    baseUrl: envVars.VFENGINE_BASE_URL,
+    jwtSecret: envVars.VFENGINE_JWT_SECRET,
+    webhookSecret: envVars.VFENGINE_WEBHOOK_SECRET,
+    operatorId: envVars.VFENGINE_OPERATOR_ID,
+  },
 };

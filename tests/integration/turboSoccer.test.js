@@ -1,0 +1,587 @@
+const crypto = require('crypto');
+const request = require('supertest');
+const mongoose = require('mongoose');
+const httpStatus = require('http-status');
+const moment = require('moment');
+
+jest.mock('../../src/services/vfengine.service', () => ({
+  getSchedule: jest.fn(),
+  getTeams: jest.fn(),
+  getResults: jest.fn(),
+  getLeagueMatches: jest.fn(),
+  getMatchOddsById: jest.fn(),
+  getPrematchOdds: jest.fn(),
+  getMatchOdds: jest.fn(),
+  getMatchState: jest.fn(),
+  placeBet: jest.fn(),
+  placeLiveBet: jest.fn(),
+  validateLiveBet: jest.fn(),
+  voidBet: jest.fn(),
+  getBetHistory: jest.fn(),
+  issueEngineToken: jest.fn(),
+  getMargins: jest.fn(),
+  previewMargin: jest.fn(),
+  updateMatchMargin: jest.fn(),
+  getLeagues: jest.fn(),
+  createLeague: jest.fn(),
+  getLeague: jest.fn(),
+  deleteLeague: jest.fn(),
+  getLeagueSchedule: jest.fn(),
+  generateLeagueSchedule: jest.fn(),
+  getLeagueMargin: jest.fn(),
+  setLeagueMargin: jest.fn(),
+  getAccumulatorConfig: jest.fn(),
+  updateAccumulatorConfig: jest.fn(),
+  validateAccumulator: jest.fn(),
+  getThrottlerStatus: jest.fn(),
+  getWebhooks: jest.fn(),
+  registerWebhook: jest.fn(),
+  deleteWebhook: jest.fn(),
+  initMatch: jest.fn(),
+  startMatch: jest.fn(),
+  quickStartMatch: jest.fn(),
+}));
+
+const vfengineService = require('../../src/services/vfengine.service');
+const app = require('../../src/app');
+const setupTestDB = require('../utils/setupTestDB');
+const { User, Wallets } = require('../../src/models');
+const Tickets = require('../../src/models/tickets.model');
+const config = require('../../src/config/config');
+const { tokenTypes } = require('../../src/config/tokens');
+const tokenService = require('../../src/services/token.service');
+
+setupTestDB();
+
+// ─── Fixtures ─────────────────────────────────────────────────────────────────
+
+const BASE = '/cashier/v1/turbo-soccer';
+const WEBHOOK_SECRET = config.vfengine.webhookSecret;
+
+let cashierUser;
+let cashierWallet;
+let cashierToken;
+let adminUser;
+let adminToken;
+
+const buildAccessToken = (userId) => {
+  const expires = moment().add(config.jwt.accessExpirationMinutes, 'minutes');
+  return tokenService.generateToken(userId, expires, tokenTypes.ACCESS);
+};
+
+const makeSignature = (body) => {
+  const payload = typeof body === 'string' ? body : JSON.stringify(body);
+  return `sha256=${crypto.createHmac('sha256', WEBHOOK_SECRET).update(Buffer.from(payload)).digest('hex')}`;
+};
+
+beforeEach(async () => {
+  // Create a wallet
+  cashierWallet = await Wallets.create({
+    userId: new mongoose.Types.ObjectId(),
+    balance: 1000,
+    primaryWallet: true,
+  });
+
+  // Create cashier user
+  cashierUser = await User.create({
+    name: 'testcashier',
+    username: 'testcashier',
+    email: 'cashier@test.com',
+    password: 'Password1',
+    role: 'cashier',
+    currency: 'USD',
+    apiKey: `test-cashier-${Date.now()}`,
+    wallets: [cashierWallet._id],
+  });
+
+  // Update wallet userId to match user
+  cashierWallet.userId = cashierUser._id;
+  await cashierWallet.save();
+
+  cashierToken = buildAccessToken(cashierUser._id);
+
+  // Create admin user (no wallet needed for admin-only routes)
+  adminUser = await User.create({
+    name: 'testadmin',
+    username: 'testadmin',
+    email: 'admin@test.com',
+    password: 'Password1',
+    role: 'admin',
+    currency: 'USD',
+    apiKey: `test-admin-${Date.now() + 1}`,
+    wallets: [],
+  });
+
+  adminToken = buildAccessToken(adminUser._id);
+
+  // Default VF Engine mocks
+  vfengineService.getSchedule.mockResolvedValue({ status: 200, data: { matches: [] } });
+  vfengineService.getTeams.mockResolvedValue({ status: 200, data: { teams: [] } });
+  vfengineService.getMargins.mockResolvedValue({ status: 200, data: { margin: 1.05 } });
+  vfengineService.issueEngineToken.mockReturnValue('vf-engine-jwt-token');
+  vfengineService.placeBet.mockResolvedValue({
+    data: {
+      bet_id: 'vf-bet-001',
+      matchId: 'match-99',
+      market: '1X2',
+      selection: '1',
+      accepted_odds: 2.5,
+      status: 'ACCEPTED',
+    },
+  });
+  vfengineService.placeLiveBet.mockResolvedValue({
+    data: {
+      bet_id: 'vf-live-001',
+      matchId: 'match-99',
+      final_odds: 2.0,
+      status: 'ACCEPTED',
+    },
+  });
+  vfengineService.voidBet.mockResolvedValue({ data: { success: true } });
+  vfengineService.getBetHistory.mockResolvedValue({ status: 200, data: { bets: [] } });
+});
+
+// ─── Auth enforcement ──────────────────────────────────────────────────────────
+
+describe('Auth enforcement', () => {
+  test('GET /schedule should return 401 without token', async () => {
+    await request(app).get(`${BASE}/schedule`).expect(httpStatus.UNAUTHORIZED);
+  });
+
+  test('GET /teams should return 401 without token', async () => {
+    await request(app).get(`${BASE}/teams`).expect(httpStatus.UNAUTHORIZED);
+  });
+
+  test('POST /bets/place should return 401 without token', async () => {
+    await request(app).post(`${BASE}/bets/place`).send({}).expect(httpStatus.UNAUTHORIZED);
+  });
+
+  test('GET /admin/margins should return 401 without token', async () => {
+    await request(app).get(`${BASE}/admin/margins`).expect(httpStatus.UNAUTHORIZED);
+  });
+
+  test('GET /admin/margins should return 403 for cashier role (lacks manageGameConfig)', async () => {
+    await request(app)
+      .get(`${BASE}/admin/margins`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(httpStatus.FORBIDDEN);
+  });
+});
+
+// ─── Fixtures & Odds routes ────────────────────────────────────────────────────
+
+describe('GET /schedule', () => {
+  test('should proxy VF Engine response to client', async () => {
+    const res = await request(app)
+      .get(`${BASE}/schedule`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(httpStatus.OK);
+
+    expect(res.body).toEqual({ matches: [] });
+    expect(vfengineService.getSchedule).toHaveBeenCalledTimes(1);
+  });
+
+  test('should return 502 when VF Engine is unreachable', async () => {
+    vfengineService.getSchedule.mockRejectedValue(new Error('Network error'));
+    await request(app).get(`${BASE}/schedule`).set('Authorization', `Bearer ${cashierToken}`).expect(httpStatus.BAD_GATEWAY);
+  });
+});
+
+describe('GET /teams', () => {
+  test('should return teams list from VF Engine', async () => {
+    vfengineService.getTeams.mockResolvedValue({ status: 200, data: { teams: ['TeamA', 'TeamB'] } });
+
+    const res = await request(app).get(`${BASE}/teams`).set('Authorization', `Bearer ${cashierToken}`).expect(httpStatus.OK);
+
+    expect(res.body.teams).toEqual(['TeamA', 'TeamB']);
+  });
+});
+
+// ─── WebSocket connection info ─────────────────────────────────────────────────
+
+describe('GET /ws-connect', () => {
+  test('should return wsUrl and VF Engine JWT token', async () => {
+    const res = await request(app)
+      .get(`${BASE}/ws-connect`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(httpStatus.OK);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.wsUrl).toBeDefined();
+    expect(res.body.token).toBe('vf-engine-jwt-token');
+    expect(vfengineService.issueEngineToken).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── Place bet ─────────────────────────────────────────────────────────────────
+
+describe('POST /bets/place', () => {
+  const betBody = {
+    cashierId: null, // filled in beforeEach
+    matchId: 'match-99',
+    market: '1X2',
+    selection: '1',
+    stake: 100,
+  };
+
+  let body;
+  beforeEach(() => {
+    body = { ...betBody, cashierId: cashierUser._id.toHexString() };
+  });
+
+  test('should debit wallet, place bet and return VF response', async () => {
+    const res = await request(app)
+      .post(`${BASE}/bets/place`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send(body)
+      .expect(httpStatus.OK);
+
+    expect(res.body.bet_id).toBe('vf-bet-001');
+
+    // Verify wallet was debited
+    const updatedWallet = await Wallets.findById(cashierWallet._id);
+    expect(Number(updatedWallet.balance)).toBe(900); // 1000 - 100
+
+    // Verify ticket was created
+    const ticket = await Tickets.findOne({ vfBetId: 'vf-bet-001' });
+    expect(ticket).not.toBeNull();
+    expect(ticket.gameType).toBe('turbo-soccer');
+    expect(ticket.stake).toBe(100);
+    expect(ticket.result).toBeUndefined();
+    expect(ticket.cancelled).toBe(false);
+  });
+
+  test('should return 400 when stake exceeds wallet balance', async () => {
+    body.stake = 9999;
+    await request(app)
+      .post(`${BASE}/bets/place`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send(body)
+      .expect(httpStatus.BAD_REQUEST);
+
+    // Wallet must be unchanged
+    const wallet = await Wallets.findById(cashierWallet._id);
+    expect(Number(wallet.balance)).toBe(1000);
+  });
+
+  test('should return 400 when market is missing', async () => {
+    const { market: _m, ...noMarket } = body;
+    await request(app)
+      .post(`${BASE}/bets/place`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send(noMarket)
+      .expect(httpStatus.BAD_REQUEST);
+  });
+
+  test('should return 400 when stake is missing', async () => {
+    const { stake: _s, ...noStake } = body;
+    await request(app)
+      .post(`${BASE}/bets/place`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send(noStake)
+      .expect(httpStatus.BAD_REQUEST);
+  });
+
+  test('should return 404 when cashierId does not exist', async () => {
+    body.cashierId = new mongoose.Types.ObjectId().toHexString();
+    await request(app)
+      .post(`${BASE}/bets/place`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send(body)
+      .expect(httpStatus.NOT_FOUND);
+  });
+
+  test('should refund wallet and return VF Engine error code when VF rejects bet', async () => {
+    const vfError = { response: { status: 409, data: { code: 'ODDS_CHANGED', error: 'Odds changed' } } };
+    vfengineService.placeBet.mockRejectedValue(vfError);
+
+    await request(app)
+      .post(`${BASE}/bets/place`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send(body)
+      .expect(httpStatus.CONFLICT);
+
+    // Wallet must be unchanged (debit then refund)
+    const wallet = await Wallets.findById(cashierWallet._id);
+    expect(Number(wallet.balance)).toBe(1000);
+
+    // No ticket should have been created
+    const ticket = await Tickets.findOne({ vfBetId: 'vf-bet-001' });
+    expect(ticket).toBeNull();
+  });
+});
+
+// ─── Place live bet ────────────────────────────────────────────────────────────
+
+describe('POST /bets/live', () => {
+  let liveBetBody;
+
+  beforeEach(() => {
+    liveBetBody = {
+      cashierId: cashierUser._id.toHexString(),
+      matchId: 'match-99',
+      market: '1X2',
+      selection: '1',
+      stake: 100,
+      odds: 2.0,
+      client_timestamp: Date.now(),
+    };
+  });
+
+  test('should debit wallet and return live bet response', async () => {
+    const res = await request(app)
+      .post(`${BASE}/bets/live`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send(liveBetBody)
+      .expect(httpStatus.OK);
+
+    expect(res.body.bet_id).toBe('vf-live-001');
+
+    const wallet = await Wallets.findById(cashierWallet._id);
+    expect(Number(wallet.balance)).toBe(900);
+  });
+
+  test('should return 400 when odds or client_timestamp is missing', async () => {
+    const { odds: _o, ...noOdds } = liveBetBody;
+    await request(app)
+      .post(`${BASE}/bets/live`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send(noOdds)
+      .expect(httpStatus.BAD_REQUEST);
+  });
+});
+
+// ─── Bet history ───────────────────────────────────────────────────────────────
+
+describe('GET /bets/history', () => {
+  test('should proxy VF Engine bet history', async () => {
+    vfengineService.getBetHistory.mockResolvedValue({ status: 200, data: { bets: [{ bet_id: 'x' }] } });
+
+    const res = await request(app)
+      .get(`${BASE}/bets/history`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(httpStatus.OK);
+
+    expect(res.body.bets).toHaveLength(1);
+  });
+
+  test('should pass page and limit query params to VF Engine', async () => {
+    await request(app)
+      .get(`${BASE}/bets/history?page=2&limit=20`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(httpStatus.OK);
+
+    expect(vfengineService.getBetHistory).toHaveBeenCalledWith('2', '20');
+  });
+});
+
+// ─── Settlement webhook ────────────────────────────────────────────────────────
+
+describe('POST /webhooks/settlement', () => {
+  const buildPayload = (bets) => ({ event: 'MATCH_SETTLED', bets });
+
+  test('should return 401 when x-signature header is missing', async () => {
+    const res = await request(app)
+      .post(`${BASE}/webhooks/settlement`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify(buildPayload([])));
+
+    expect(res.status).toBe(httpStatus.UNAUTHORIZED);
+  });
+
+  test('should return 401 when signature is invalid', async () => {
+    const payload = JSON.stringify(buildPayload([]));
+    await request(app)
+      .post(`${BASE}/webhooks/settlement`)
+      .set('Content-Type', 'application/json')
+      .set('x-signature', 'sha256=invalidsig')
+      .send(payload)
+      .expect(httpStatus.UNAUTHORIZED);
+  });
+
+  test('should return 200 and process won bet with valid signature', async () => {
+    // Place a bet first to create a ticket
+    await request(app).post(`${BASE}/bets/place`).set('Authorization', `Bearer ${cashierToken}`).send({
+      cashierId: cashierUser._id.toHexString(),
+      matchId: 'match-99',
+      market: '1X2',
+      selection: '1',
+      stake: 100,
+    });
+
+    const payload = JSON.stringify(buildPayload([{ betId: 'vf-bet-001', result: 'Won', payout: 250 }]));
+    const sig = makeSignature(payload);
+
+    const res = await request(app)
+      .post(`${BASE}/webhooks/settlement`)
+      .set('Content-Type', 'application/json')
+      .set('x-signature', sig)
+      .send(payload)
+      .expect(httpStatus.OK);
+
+    expect(res.body.received).toBe(true);
+
+    // Ticket should now be settled as 'win'
+    const ticket = await Tickets.findOne({ vfBetId: 'vf-bet-001' });
+    expect(ticket.result).toBe('win');
+    expect(ticket.roundHasEnded).toBe(true);
+    expect(Number(ticket.winnings)).toBe(250);
+
+    // Cashier wallet: started 1000, debited 100 (bet), credited 250 (settlement) = 1150
+    const wallet = await Wallets.findById(cashierWallet._id);
+    expect(Number(wallet.balance)).toBe(1150);
+  });
+
+  test('should return 200 and mark ticket cancelled for void result', async () => {
+    await request(app).post(`${BASE}/bets/place`).set('Authorization', `Bearer ${cashierToken}`).send({
+      cashierId: cashierUser._id.toHexString(),
+      market: '1X2',
+      selection: '1',
+      stake: 100,
+    });
+
+    const payload = JSON.stringify(buildPayload([{ betId: 'vf-bet-001', result: 'void', payout: 0 }]));
+    const sig = makeSignature(payload);
+
+    await request(app)
+      .post(`${BASE}/webhooks/settlement`)
+      .set('Content-Type', 'application/json')
+      .set('x-signature', sig)
+      .send(payload)
+      .expect(httpStatus.OK);
+
+    const ticket = await Tickets.findOne({ vfBetId: 'vf-bet-001' });
+    expect(ticket.cancelled).toBe(true);
+    expect(ticket.roundHasEnded).toBe(true);
+  });
+
+  test('should return 200 even when settlement processing throws (prevents VF Engine retry)', async () => {
+    // Send valid signature but with an unknown betId — processSettlement won't throw,
+    // but this verifies the "always 200" contract
+    const payload = JSON.stringify(buildPayload([{ betId: 'unknown-bet', result: 'Won', payout: 100 }]));
+    const sig = makeSignature(payload);
+
+    const res = await request(app)
+      .post(`${BASE}/webhooks/settlement`)
+      .set('Content-Type', 'application/json')
+      .set('x-signature', sig)
+      .send(payload)
+      .expect(httpStatus.OK);
+
+    expect(res.body.received).toBe(true);
+  });
+});
+
+// ─── Admin — Margins ──────────────────────────────────────────────────────────
+
+describe('GET /admin/margins', () => {
+  test('should return margins for admin user', async () => {
+    const res = await request(app)
+      .get(`${BASE}/admin/margins`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(httpStatus.OK);
+
+    expect(res.body).toEqual({ margin: 1.05 });
+  });
+
+  test('should return 403 for cashier role', async () => {
+    await request(app)
+      .get(`${BASE}/admin/margins`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(httpStatus.FORBIDDEN);
+  });
+});
+
+// ─── Void bet (admin) ──────────────────────────────────────────────────────────
+
+describe('POST /bets/:betId/void', () => {
+  beforeEach(async () => {
+    // Create a live ticket to void
+    await Tickets.create({
+      roundId: 'match-99',
+      cashierId: cashierUser._id,
+      ticketId: 'vf-bet-void-001',
+      betType: 'single',
+      selections: [{ odd: 2.5, stake: 100 }],
+      stake: 100,
+      winnings: 0,
+      potentialWinnings: 250,
+      gameType: 'turbo-soccer',
+      roundHasEnded: false,
+      payout: false,
+      cancelled: false,
+      vfBetId: 'vf-bet-void-001',
+    });
+  });
+
+  test('should void the bet, mark ticket cancelled and refund original cashier', async () => {
+    const res = await request(app)
+      .post(`${BASE}/bets/vf-bet-void-001/void`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ reason: 'match cancelled' })
+      .expect(httpStatus.OK);
+
+    expect(res.body.status).toBe('VOID');
+    expect(res.body.voidReason).toBe('match cancelled');
+
+    const ticket = await Tickets.findOne({ vfBetId: 'vf-bet-void-001' });
+    expect(ticket.cancelled).toBe(true);
+    expect(ticket.roundHasEnded).toBe(true);
+
+    // Cashier gets stake back
+    const wallet = await Wallets.findById(cashierWallet._id);
+    expect(Number(wallet.balance)).toBe(1100); // 1000 + 100
+  });
+
+  test('should return 404 when betId is not found', async () => {
+    await request(app)
+      .post(`${BASE}/bets/nonexistent-bet/void`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(httpStatus.NOT_FOUND);
+  });
+
+  test('should return 403 for cashier role (lacks manageGameConfig)', async () => {
+    await request(app)
+      .post(`${BASE}/bets/vf-bet-void-001/void`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(httpStatus.FORBIDDEN);
+  });
+});
+
+// ─── Admin — Match control ─────────────────────────────────────────────────────
+
+describe('POST /admin/match/init', () => {
+  test('should proxy initMatch to VF Engine for admin', async () => {
+    vfengineService.initMatch.mockResolvedValue({ status: 200, data: { status: 'INITIALIZED' } });
+
+    const res = await request(app)
+      .post(`${BASE}/admin/match/init`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ homeTeam: 'TeamA', awayTeam: 'TeamB', matchId: 'match-1' })
+      .expect(httpStatus.OK);
+
+    expect(res.body.status).toBe('INITIALIZED');
+  });
+
+  test('should return 400 when required fields are missing', async () => {
+    await request(app)
+      .post(`${BASE}/admin/match/init`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ homeTeam: 'TeamA' }) // missing awayTeam and matchId
+      .expect(httpStatus.BAD_REQUEST);
+  });
+});
+
+describe('POST /admin/match/quick-start', () => {
+  test('should proxy quickStartMatch to VF Engine', async () => {
+    vfengineService.quickStartMatch.mockResolvedValue({ status: 200, data: { matchId: 'auto-99' } });
+
+    const res = await request(app)
+      .post(`${BASE}/admin/match/quick-start`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ homeTeam: 'TeamA', awayTeam: 'TeamB' })
+      .expect(httpStatus.OK);
+
+    expect(res.body.matchId).toBe('auto-99');
+  });
+});

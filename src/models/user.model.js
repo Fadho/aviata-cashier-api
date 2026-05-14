@@ -99,6 +99,7 @@ const userSchema = mongoose.Schema(
       type: String,
       // required: function() { return this.thirdParty === true; },
       unique: true,
+      sparse: true,
       trim: true,
       lowercase: true,
     },
