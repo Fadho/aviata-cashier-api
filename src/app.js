@@ -113,6 +113,7 @@ app.use(compression());
 
 // enable cors
 const allowedOrigins = [
+  'https://vfootball-cashier-ivgbp.ondigitalocean.app',
   'https://aviatorx.sbe2525.com',
   'https://sbe2525.com',
   /https:\/\/.*\.sbe2525\.com$/,
