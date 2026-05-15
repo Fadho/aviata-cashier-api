@@ -28,6 +28,7 @@ const proxyVf = (fn) =>
       proxyResponse(res, vfRes);
     } catch (err) {
       if (err.response) {
+        // eslint-disable-next-line prefer-destructuring
         const data = err.response.data;
         // eslint-disable-next-line no-console
         console.error('[VF Engine error]', err.response.status, JSON.stringify(data));
