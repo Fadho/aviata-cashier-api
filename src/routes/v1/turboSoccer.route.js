@@ -22,6 +22,10 @@ router.get('/match/state', auth(), ctrl.getMatchState);
 
 router.get('/ws-connect', auth(), ctrl.getWsConnectionInfo);
 
+// ─── VFootball launcher (cashier) ────────────────────────────────────────────
+
+router.get('/game-launcher', auth('placeBet'), ctrl.getVFootballGameLauncher);
+
 // ─── Settlement Webhook (HMAC verified internally, no JWT auth) ───────────────
 // MUST be registered before express.json() body-parser applies to this route.
 // express.raw() captures the raw Buffer needed for HMAC verification.

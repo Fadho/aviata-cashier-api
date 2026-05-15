@@ -70,6 +70,34 @@ The engine loads `.env` at startup using `dotenv`. If you change `JWT_SECRET`, r
 - Ensure `.env` is in the engine root.
 - If startup logs show development-bypass mode, `JWT_SECRET` was not loaded at boot time.
 
+### Cashier Game Launcher (VFootball)
+
+Use this endpoint when an authorized cashier terminal needs a ready-to-open launcher URL.
+
+```http
+GET /cashier/v1/turbo-soccer/game-launcher
+Authorization: Bearer <cashier_access_token>
+```
+
+**Access control:**
+- Allowed: users with cashier betting rights (`placeBet`) such as `cashier`
+- Rejected: authenticated roles without cashier betting rights (returns `403 Forbidden`)
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "token": "eyJhbGci...",
+  "url": "https://vfootball.example.com/player.html?token=eyJhbGci..."
+}
+```
+
+The `url` value always follows this format:
+
+`<vfootball_base_url>/player.html?token=<vfootballToken>`
+
+The `token` field is also returned separately for clients that prefer to construct their own URL.
+
 ---
 
 ## 2. Fixtures & Odds

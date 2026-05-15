@@ -213,6 +213,30 @@ describe('GET /ws-connect', () => {
   });
 });
 
+// ─── VFootball launcher URL ───────────────────────────────────────────────────
+
+describe('GET /game-launcher', () => {
+  test('should return player launcher URL with VF Engine token for authorized cashier', async () => {
+    const res = await request(app)
+      .get(`${BASE}/game-launcher`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(httpStatus.OK);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.token).toBe('vf-engine-jwt-token');
+    expect(res.body.url).toContain('player.html?token=');
+    expect(res.body.url).toContain(encodeURIComponent('vf-engine-jwt-token'));
+    expect(vfengineService.issueEngineToken).toHaveBeenCalledTimes(1);
+  });
+
+  test('should return 403 for admin role (not an authorized cashier)', async () => {
+    await request(app)
+      .get(`${BASE}/game-launcher`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(httpStatus.FORBIDDEN);
+  });
+});
+
 // ─── Place bet ─────────────────────────────────────────────────────────────────
 
 describe('POST /bets/place', () => {

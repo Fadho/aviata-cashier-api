@@ -40,6 +40,11 @@ const proxyVf = (fn) =>
     }
   });
 
+const buildVFootballLauncherUrl = (token) => {
+  const normalizedBaseUrl = config.gameLauncherUrl.endsWith('/') ? config.gameLauncherUrl : `${config.gameLauncherUrl}/`;
+  return `${normalizedBaseUrl}player.html?token=${encodeURIComponent(token)}`;
+};
+
 // ─── Fixtures & Schedule ─────────────────────────────────────────────────────
 
 const getTeams = proxyVf(() => vfengineService.getTeams());
@@ -115,6 +120,20 @@ const getWsConnectionInfo = catchAsync(async (req, res) => {
     success: true,
     wsUrl: config.vfengine.baseUrl,
     token,
+  });
+});
+
+/**
+ * Returns a launcher URL for the authenticated cashier to open VFootball.
+ */
+const getVFootballGameLauncher = catchAsync(async (req, res) => {
+  const token = vfengineService.issueEngineToken();
+  const url = buildVFootballLauncherUrl(token);
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    token,
+    url,
   });
 });
 
@@ -243,6 +262,7 @@ module.exports = {
   voidBet,
   // WS token
   getWsConnectionInfo,
+  getVFootballGameLauncher,
   // Settlement webhook
   handleSettlementWebhook,
   // Admin — margins
