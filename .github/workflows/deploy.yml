@@ -12,8 +12,6 @@ jobs:
       image: node:20
     steps:
       - uses: actions/checkout@v3
-        with:
-          node-version: 20
 
       - run: npm install
 
