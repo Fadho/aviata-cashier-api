@@ -8,6 +8,7 @@ jest.mock('../../src/services/vfengine.service', () => ({
   getSchedule: jest.fn(),
   getTeams: jest.fn(),
   getResults: jest.fn(),
+  getPublicLeagues: jest.fn(),
   getLeagueMatches: jest.fn(),
   getMatchOddsById: jest.fn(),
   getPrematchOdds: jest.fn(),
@@ -74,7 +75,29 @@ const makeSignature = (body) => {
   return `sha256=${crypto.createHmac('sha256', WEBHOOK_SECRET).update(Buffer.from(payload)).digest('hex')}`;
 };
 
+const waitFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const waitForTicket = async (vfBetId, predicate, attempts = 20, intervalMs = 50) => {
+  for (let i = 0; i < attempts; i += 1) {
+    const ticket = await Tickets.findOne({ vfBetId });
+    if (ticket && predicate(ticket)) return ticket;
+    await waitFor(intervalMs);
+  }
+  return Tickets.findOne({ vfBetId });
+};
+
+const waitForWalletBalance = async (walletId, expectedBalance, attempts = 30, intervalMs = 50) => {
+  for (let i = 0; i < attempts; i += 1) {
+    const wallet = await Wallets.findById(walletId);
+    if (wallet && Number(wallet.balance) === expectedBalance) return wallet;
+    await waitFor(intervalMs);
+  }
+  return Wallets.findById(walletId);
+};
+
 beforeEach(async () => {
+  jest.clearAllMocks();
+
   // Create a wallet
   cashierWallet = await Wallets.create({
     userId: new mongoose.Types.ObjectId(),
@@ -117,6 +140,7 @@ beforeEach(async () => {
   // Default VF Engine mocks
   vfengineService.getSchedule.mockResolvedValue({ status: 200, data: { matches: [] } });
   vfengineService.getTeams.mockResolvedValue({ status: 200, data: { teams: [] } });
+  vfengineService.getPublicLeagues.mockResolvedValue({ status: 200, data: { leagues: ['PREMIER', 'LALIGA'] } });
   vfengineService.getMargins.mockResolvedValue({ status: 200, data: { margin: 1.05 } });
   vfengineService.issueEngineToken.mockReturnValue('vf-engine-jwt-token');
   vfengineService.placeBet.mockResolvedValue({
@@ -197,6 +221,15 @@ describe('GET /teams', () => {
   });
 });
 
+describe('GET /leagues', () => {
+  test('should return available leagues from VF Engine public endpoint', async () => {
+    const res = await request(app).get(`${BASE}/leagues`).set('Authorization', `Bearer ${cashierToken}`).expect(httpStatus.OK);
+
+    expect(res.body.leagues).toEqual(['PREMIER', 'LALIGA']);
+    expect(vfengineService.getPublicLeagues).toHaveBeenCalledTimes(1);
+  });
+});
+
 // ─── WebSocket connection info ─────────────────────────────────────────────────
 
 describe('GET /ws-connect', () => {
@@ -226,7 +259,7 @@ describe('GET /game-launcher', () => {
     expect(res.body.token).toBe('vf-engine-jwt-token');
     expect(res.body.url).toContain('player.html?token=');
     expect(res.body.url).toContain(encodeURIComponent('vf-engine-jwt-token'));
-    expect(vfengineService.issueEngineToken).toHaveBeenCalledTimes(1);
+    expect(vfengineService.issueEngineToken).toHaveBeenCalled();
   });
 
   test('should return 403 for admin role (not an authorized cashier)', async () => {
@@ -446,13 +479,13 @@ describe('POST /webhooks/settlement', () => {
     expect(res.body.received).toBe(true);
 
     // Ticket should now be settled as 'win'
-    const ticket = await Tickets.findOne({ vfBetId: 'vf-bet-001' });
+    const ticket = await waitForTicket('vf-bet-001', (t) => t.roundHasEnded === true);
     expect(ticket.result).toBe('win');
     expect(ticket.roundHasEnded).toBe(true);
     expect(Number(ticket.winnings)).toBe(250);
 
     // Cashier wallet: started 1000, debited 100 (bet), credited 250 (settlement) = 1150
-    const wallet = await Wallets.findById(cashierWallet._id);
+    const wallet = await waitForWalletBalance(cashierWallet._id, 1150);
     expect(Number(wallet.balance)).toBe(1150);
   });
 
@@ -474,7 +507,7 @@ describe('POST /webhooks/settlement', () => {
       .send(payload)
       .expect(httpStatus.OK);
 
-    const ticket = await Tickets.findOne({ vfBetId: 'vf-bet-001' });
+    const ticket = await waitForTicket('vf-bet-001', (t) => t.roundHasEnded === true);
     expect(ticket.cancelled).toBe(true);
     expect(ticket.roundHasEnded).toBe(true);
   });
@@ -511,6 +544,15 @@ describe('GET /admin/margins', () => {
   test('should return 403 for cashier role', async () => {
     await request(app)
       .get(`${BASE}/admin/margins`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(httpStatus.FORBIDDEN);
+  });
+});
+
+describe('GET /admin/leagues', () => {
+  test('should return 403 for cashier role (lacks manageGameConfig)', async () => {
+    await request(app)
+      .get(`${BASE}/admin/leagues`)
       .set('Authorization', `Bearer ${cashierToken}`)
       .expect(httpStatus.FORBIDDEN);
   });

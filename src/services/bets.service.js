@@ -10,14 +10,43 @@ const { userService } = require('.');
 const financialReportService = require('./financialReport.service');
 const gameReportService = require('./gameReport.service');
 
+const safeAbortTransaction = async (session, context) => {
+  if (!session) return;
+  try {
+    if (typeof session.inTransaction === 'function' && !session.inTransaction()) {
+      return;
+    }
+    await session.abortTransaction();
+  } catch (error) {
+    logger.warn(`Transaction abort skipped in ${context}: ${error.message}`);
+  }
+};
+
 /**
- * create a new ticket
- * @param {string} result
- * @param {number} stake
- * @param {number} winnings
- * @param {ObjectId[]} selections
- * @param {ObjectId} cashierId
- * @returns {Promise<Tickets>}
+ * Create a new ticket from selections.
+ *
+ * Selections array format:
+ * Each item contains odds/stake + optional game-type-specific metadata:
+ *   {
+ *     odd: number,          // Decimal odds
+ *     stake: number,        // Stake for this selection
+ *     // Optional (turbo-soccer and similar games):
+ *     homeTeam?: string,    // Team name
+ *     awayTeam?: string,    // Team name
+ *     market?: string,      // Market code (e.g. 'match_winner')
+ *     selection?: string,   // Selection value (e.g. 'home')
+ *     oddsTaken?: number,   // Same as odd (backward compat)
+ *     betCategory?: string  // 'PREMATCH' | 'LIVE'
+ *   }
+ *
+ * @param {string} result         - Bet result status
+ * @param {number} stake          - Total stake across all selections
+ * @param {object[]} selections   - Selection items with odds/stake + optional metadata
+ * @param {ObjectId} cashierId    - Cashier user ID
+ * @param {number} potentialWinnings - Total potential payout
+ * @param {string} roundId        - Round/match identifier
+ * @param {string} gameType       - Game type (e.g. 'turbo-soccer', 'aviata')
+ * @returns {Promise<Tickets>}   - Created ticket document
  */
 const createBetPlaced = async (result, stake, selections, cashierId, potentialWinnings, roundId, gameType) => {
   const minNumber = 1000000000; // Minimum 10-digit number
@@ -35,6 +64,10 @@ const createBetPlaced = async (result, stake, selections, cashierId, potentialWi
       potentialWinnings,
       roundId,
       gameType,
+      winnings: 0,
+      payout: false,
+      cancelled: false,
+      roundHasEnded: false,
     });
   }
   return Tickets.create({
@@ -47,6 +80,10 @@ const createBetPlaced = async (result, stake, selections, cashierId, potentialWi
     potentialWinnings,
     roundId,
     gameType,
+    winnings: 0,
+    payout: false,
+    cancelled: false,
+    roundHasEnded: false,
   });
 };
 
@@ -60,9 +97,12 @@ const createBetPlaced = async (result, stake, selections, cashierId, potentialWi
  * @param {ObjectId} deviceId
  * @returns {Promise<Tickets>}
  */
-const createBetPlacedForPlayer = async (stake, freebet, gameType, roundId, cashierId, playerId, deviceId) => {
-  const session = await mongoose.startSession(); // Start a Mongoose session
-  session.startTransaction(); // Start a transaction
+const createBetPlacedForPlayer = async (stake, freebet, gameType, roundId, cashierId, playerId, deviceId, session = null) => {
+  const ownsSession = !session;
+  const dbSession = session || (await mongoose.startSession());
+  if (ownsSession) {
+    dbSession.startTransaction();
+  }
 
   try {
     const minNumber = 1000000000; // Minimum 10-digit number
@@ -82,20 +122,31 @@ const createBetPlacedForPlayer = async (stake, freebet, gameType, roundId, cashi
           playerId,
           roundId,
           deviceId,
+          selections: [],
+          winnings: 0,
+          potentialWinnings: 0,
+          payout: false,
+          cancelled: false,
+          roundHasEnded: false,
         },
       ],
-      { session }
+      { session: dbSession }
     );
 
-    // Commit the transaction
-    await session.commitTransaction();
-    session.endSession(); // End the session
+    if (ownsSession) {
+      await dbSession.commitTransaction();
+    }
 
     return ticket[0]; // Return the created ticket
   } catch (error) {
-    await session.abortTransaction(); // Abort the transaction on error
-    session.endSession();
+    if (ownsSession) {
+      await safeAbortTransaction(dbSession, 'createBetPlacedForPlayer');
+    }
     throw new Error(`Error creating ticket: ${error.message}`);
+  } finally {
+    if (ownsSession) {
+      dbSession.endSession();
+    }
   }
 };
 
@@ -338,7 +389,7 @@ async function updateBetsAndCalculateWinnings(roundId, odd) {
       break;
     } catch (error) {
       if (!transactionSuccessful) {
-        await session.abortTransaction();
+        await safeAbortTransaction(session, 'updateBetsAndCalculateWinnings');
       }
 
       if (error.code === 112) {
@@ -371,7 +422,10 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
   try {
     // Find the bet (ticket) that hasn't ended yet
     const bet = await Tickets.findOne({ _id: ticketId, roundHasEnded: false }).session(session);
-    if (!bet) return;
+    if (!bet) {
+      await safeAbortTransaction(session, 'cashoutBetForPlayer:notFound');
+      return null;
+    }
     let player;
 
     if ((isNaN(bet.playerId) || bet.playerId.length > 3) && typeof bet.playerId === 'string') {
@@ -409,7 +463,7 @@ const cashoutBetForPlayer = async (ticketId, odd) => {
     return updatedPlayer;
   } catch (error) {
     // If any error occurs, abort the transaction
-    await session.abortTransaction();
+    await safeAbortTransaction(session, 'cashoutBetForPlayer');
     throw new Error(`Error during bet cashout: ${error.message}`);
   } finally {
     session.endSession(); // End the session

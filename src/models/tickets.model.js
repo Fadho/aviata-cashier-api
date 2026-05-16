@@ -29,9 +29,28 @@ const ticketSchema = mongoose.Schema(
     },
     selections: [
       {
+        homeTeam: {
+          type: String,
+        },
+        awayTeam: {
+          type: String,
+        },
+        market: {
+          type: String,
+        },
+        selection: {
+          type: String,
+        },
         odd: {
           type: Number,
           required: true,
+        },
+        oddsTaken: {
+          type: Number,
+        },
+        betCategory: {
+          type: String,
+          enum: ['PREMATCH', 'LIVE'],
         },
         stake: {
           type: Number,
@@ -104,25 +123,6 @@ const ticketSchema = mongoose.Schema(
     },
     matchId: {
       type: String,
-    },
-    homeTeam: {
-      type: String,
-    },
-    awayTeam: {
-      type: String,
-    },
-    market: {
-      type: String,
-    },
-    selection: {
-      type: String,
-    },
-    oddsTaken: {
-      type: Number,
-    },
-    betCategory: {
-      type: String,
-      enum: ['PREMATCH', 'LIVE'],
     },
   },
   {

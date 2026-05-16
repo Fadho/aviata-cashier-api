@@ -3,7 +3,22 @@ const { objectId } = require('./custom.validation');
 
 const createBetPlaced = {
   body: Joi.object().keys({
-    selections: Joi.array().items(Joi.object().keys({ odd: Joi.number().required(), stake: Joi.number().required() })),
+    // Selections array — each item contains match/market metadata + odds/stake
+    // Base fields: odd, stake (required)
+    // Optional match metadata (turbo-soccer): homeTeam, awayTeam, market, selection, oddsTaken, betCategory
+    selections: Joi.array().items(
+      Joi.object().keys({
+        odd: Joi.number().required(),
+        stake: Joi.number().required(),
+        // Optional: game-type-specific metadata
+        homeTeam: Joi.string(),
+        awayTeam: Joi.string(),
+        market: Joi.string(),
+        selection: Joi.string(),
+        oddsTaken: Joi.number(),
+        betCategory: Joi.string().valid('PREMATCH', 'LIVE'),
+      })
+    ),
     potentialWinnings: Joi.number().required(),
     stake: Joi.number().required(),
     cashierId: Joi.string().required().custom(objectId),

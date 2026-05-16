@@ -11,22 +11,43 @@ const issueEngineToken = () => {
 };
 
 /**
- * Returns an axios instance pre-configured with the VF Engine base URL and auth header.
- * A fresh token is generated per call to avoid using expired tokens.
+ * Returns an axios instance pre-configured with the VF Engine base URL.
+ * A fresh token is injected per request to avoid using expired tokens.
  * @returns {import('axios').AxiosInstance}
  */
 const client = () =>
-  axios.create({
-    baseURL: config.vfengine.baseUrl,
-    headers: { Authorization: `Bearer ${issueEngineToken()}` },
-    timeout: 10000,
-  });
+  (() => {
+    const instance = axios.create({
+      baseURL: config.vfengine.baseUrl,
+      timeout: 10000,
+    });
+
+    // Enforce VF Engine auth token on every outbound request, even if callers pass custom headers.
+    instance.interceptors.request.use((reqConfig) => {
+      const nextConfig = reqConfig;
+      nextConfig.headers = {
+        ...(nextConfig.headers || {}),
+        Authorization: `Bearer ${issueEngineToken()}`,
+      };
+      return nextConfig;
+    });
+
+    return instance;
+  })();
 
 // ─── Fixtures & Schedule ─────────────────────────────────────────────────────
 
-const getTeams = () => client().get('/api/teams');
+const getTeams = (league) => {
+  const params = {};
+  if (league) params.league = league;
+  return client().get('/api/teams', { params });
+};
 
-const getSchedule = () => client().get('/api/schedule');
+const getSchedule = (league) => {
+  const params = {};
+  if (league) params.league = league;
+  return client().get('/api/schedule', { params });
+};
 
 const getResults = (date, startTime) => {
   const params = {};
@@ -34,6 +55,8 @@ const getResults = (date, startTime) => {
   if (startTime) params.startTime = startTime;
   return client().get('/api/results', { params });
 };
+
+const getPublicLeagues = () => client().get('/api/leagues');
 
 const initMatch = (body) => client().post('/api/match/init', body);
 
@@ -162,6 +185,7 @@ module.exports = {
   getTeams,
   getSchedule,
   getResults,
+  getPublicLeagues,
   initMatch,
   startMatch,
   quickStartMatch,

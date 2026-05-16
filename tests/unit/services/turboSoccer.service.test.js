@@ -98,10 +98,17 @@ describe('turboSoccerService.placeBet', () => {
         cashierId,
         stake: 100,
         gameType: 'turbo-soccer',
-        result: null,
         roundHasEnded: false,
         cancelled: false,
         potentialWinnings: 250, // 100 * 2.5
+        selections: expect.arrayContaining([
+          expect.objectContaining({
+            market: '1X2',
+            selection: '1',
+            oddsTaken: 2.5,
+            betCategory: 'PREMATCH',
+          }),
+        ]),
       })
     );
     expect(result).toEqual(vfBetResponse);
@@ -194,8 +201,15 @@ describe('turboSoccerService.placeLiveBet', () => {
       expect.objectContaining({
         vfBetId: 'vf-live-bet-001',
         gameType: 'turbo-soccer',
-        oddsTaken: 2.0,
         potentialWinnings: 200,
+        selections: expect.arrayContaining([
+          expect.objectContaining({
+            market: '1X2',
+            selection: '1',
+            oddsTaken: 2.0,
+            betCategory: 'LIVE',
+          }),
+        ]),
       })
     );
     expect(result).toEqual(vfLiveBetResponse);
@@ -352,7 +366,7 @@ describe('turboSoccerService.processSettlement', () => {
     });
 
     expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
-      { vfBetId: 'vf-bet-001', gameType: 'turbo-soccer' },
+      expect.objectContaining({ vfBetId: 'vf-bet-001', gameType: 'turbo-soccer' }),
       expect.objectContaining({ result: 'win', winnings: 250, roundHasEnded: true }),
       { new: true }
     );
@@ -365,7 +379,7 @@ describe('turboSoccerService.processSettlement', () => {
     });
 
     expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
-      { vfBetId: 'vf-bet-002', gameType: 'turbo-soccer' },
+      expect.objectContaining({ vfBetId: 'vf-bet-002', gameType: 'turbo-soccer' }),
       expect.objectContaining({ result: 'loss', winnings: 0, roundHasEnded: true }),
       { new: true }
     );
@@ -378,7 +392,7 @@ describe('turboSoccerService.processSettlement', () => {
     });
 
     expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
-      { vfBetId: 'vf-bet-003', gameType: 'turbo-soccer' },
+      expect.objectContaining({ vfBetId: 'vf-bet-003', gameType: 'turbo-soccer' }),
       expect.objectContaining({ cancelled: true, result: null, roundHasEnded: true }),
       { new: true }
     );

@@ -23,6 +23,7 @@ const {
 } = require('../services');
 const gameReportService = require('../services/gameReport.service');
 const financialReportService = require('../services/financialReport.service');
+const logger = require('../config/logger');
 
 const { Wallets, Player, User, Freebet, FreebetWinners } = require('../models');
 const GameConfig = require('../models/gameConfig.model');
@@ -246,7 +247,7 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
               { stake: Number(stake), gameType, currency: agent.currency },
               { timeout: 5000 }
             );
-          } catch {
+          } catch (debitError) {
             throw new ApiError(httpStatus.BAD_REQUEST, 'Error debiting third party wallet');
           }
         }
@@ -362,7 +363,11 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
       session.endSession();
       return; // success, exit loop
     } catch (error) {
-      await session.abortTransaction();
+      try {
+        await session.abortTransaction();
+      } catch (abortError) {
+        logger.warn(`Transaction abort skipped in createBetPlacedForPlayer controller: ${abortError.message}`);
+      }
       session.endSession();
       // MongoDB WriteConflict error code is 112
       if (error.code === 112 || error.message.includes('WriteConflict')) {

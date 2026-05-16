@@ -24,6 +24,7 @@ const {
 const financialReportService = require('../services/financialReport.service');
 const { Wallets, Player, User, Freebet, FreebetWinners } = require('../models');
 const axios = require('axios');
+const logger = require('../config/logger');
 
 /**
  * Create Bet Placed for third party (agent)
@@ -215,7 +216,11 @@ const createBetPlacedForThirdPartyPlayer = catchAsync(async (req, res) => {
     await session.commitTransaction();
   } catch (error) {
     // Roll back transaction if any error occurs
-    await session.abortTransaction();
+    try {
+      await session.abortTransaction();
+    } catch (abortError) {
+      logger.warn(`Transaction abort skipped in createBetPlacedForThirdPartyPlayer controller: ${abortError.message}`);
+    }
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, `Error placing bet: ${error.message}`);
   } finally {
     // End the session

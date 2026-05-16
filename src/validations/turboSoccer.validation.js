@@ -1,5 +1,34 @@
 const Joi = require('joi');
 
+const LEAGUES = ['FRANCE', 'GERMANY', 'ITALY', 'LALIGA', 'PREMIER'];
+
+const leagueQuery = Joi.object().keys({
+  league: Joi.string().valid(...LEAGUES),
+});
+
+const teams = {
+  query: leagueQuery,
+};
+
+const schedule = {
+  query: leagueQuery,
+};
+
+const leagueMatches = {
+  query: leagueQuery,
+};
+
+const matchOddsById = {
+  params: Joi.object().keys({
+    matchId: Joi.string().required(),
+  }),
+  query: leagueQuery,
+};
+
+const prematchSchedule = {
+  query: leagueQuery,
+};
+
 const placeBet = {
   body: Joi.object().keys({
     matchId: Joi.string(),
@@ -182,6 +211,11 @@ const reprintThermal = {
 };
 
 module.exports = {
+  teams,
+  schedule,
+  leagueMatches,
+  matchOddsById,
+  prematchSchedule,
   placeBet,
   placeLiveBet,
   validateLiveBet,

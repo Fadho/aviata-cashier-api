@@ -50,10 +50,21 @@ const mapVfEngineError = (err) => {
  * Debits the cashier wallet, forwards the bet to the VF Engine, and records a
  * local Ticket. Refunds the wallet automatically if the VF Engine rejects the bet.
  *
+ * Selection Structure (per selection item in ticket.selections[]):
+ * Each selection now includes match and market metadata:
+ *   - homeTeam: string      — Team name (from VF Engine response)
+ *   - awayTeam: string      — Team name (from VF Engine response)
+ *   - market: string        — Market code (e.g. 'match_winner')
+ *   - selection: string     — Selection value (e.g. 'home', 'draw', 'away')
+ *   - odd: number           — Decimal odds accepted by the engine
+ *   - oddsTaken: number     — Same as `odd` (for backward compatibility)
+ *   - betCategory: string   — 'PREMATCH' | 'LIVE' (from betBody.prematch flag)
+ *   - stake: number         — Portion of stake for this selection
+ *
  * @param {object} userWallet - Populated wallet document (user.wallets[0])
- * @param {object} betBody    - Validated request body
+ * @param {object} betBody    - Validated request body { matchId, market, selection, stake, ... }
  * @param {string} cashierId  - Cashier user ObjectId (for Ticket FK)
- * @returns {Promise<object>} - VF Engine bet response
+ * @returns {Promise<object>} - VF Engine bet response { bet_id, accepted_odds, ... }
  */
 const placeBet = async (userWallet, betBody, cashierId) => {
   const stake = Number(betBody.stake);
@@ -70,8 +81,7 @@ const placeBet = async (userWallet, betBody, cashierId) => {
 
   let vfResponse;
   try {
-    const payload = { ...betBody, client_timestamp: betBody.client_timestamp || Date.now() };
-    const { data } = await vfengineService.placeBet(payload);
+    const { data } = await vfengineService.placeBet(betBody);
     vfResponse = data;
   } catch (err) {
     // Compensating write: refund the wallet
@@ -86,7 +96,13 @@ const placeBet = async (userWallet, betBody, cashierId) => {
     betType: 'single',
     selections: [
       {
+        homeTeam: vfResponse.homeTeam || betBody.homeTeam,
+        awayTeam: vfResponse.awayTeam || betBody.awayTeam,
+        market: vfResponse.market || betBody.market,
+        selection: vfResponse.selection || betBody.selection,
         odd: vfResponse.accepted_odds,
+        oddsTaken: vfResponse.accepted_odds,
+        betCategory: betBody.prematch === false ? 'LIVE' : 'PREMATCH',
         stake,
       },
     ],
@@ -99,14 +115,6 @@ const placeBet = async (userWallet, betBody, cashierId) => {
     cancelled: false,
     vfBetId: vfResponse.bet_id,
     matchId: vfResponse.matchId || betBody.matchId,
-    homeTeam: vfResponse.homeTeam,
-    awayTeam: vfResponse.awayTeam,
-    market: vfResponse.market || betBody.market,
-    selection: vfResponse.selection || betBody.selection,
-    oddsTaken: vfResponse.accepted_odds,
-    // prematch === false explicitly means an early in-play bet via /api/bets/place;
-    // all other cases (true or omitted) are pre-match.
-    betCategory: betBody.prematch === false ? 'LIVE' : 'PREMATCH',
   });
 
   return vfResponse;
@@ -116,10 +124,13 @@ const placeBet = async (userWallet, betBody, cashierId) => {
  * Places an in-play Turbo Soccer bet via the VF Engine Grace Period Middleware.
  * Same wallet debit/refund pattern as placeBet.
  *
- * @param {object} userWallet
- * @param {object} betBody
- * @param {string} cashierId
- * @returns {Promise<object>} - VF Engine live bet response
+ * Ticket selection structure mirrors placeBet — each selection in the array includes:
+ *   - homeTeam, awayTeam, market, selection, odd, oddsTaken, betCategory, stake
+ *
+ * @param {object} userWallet - Populated wallet document
+ * @param {object} betBody    - Request body { matchId, market, selection, stake, odds, client_timestamp, ... }
+ * @param {string} cashierId  - Cashier user ObjectId
+ * @returns {Promise<object>} - VF Engine response { bet_id, final_odds, approved, ... }
  */
 const placeLiveBet = async (userWallet, betBody, cashierId) => {
   const stake = Number(betBody.stake);
@@ -143,11 +154,21 @@ const placeLiveBet = async (userWallet, betBody, cashierId) => {
     throw mapVfEngineError(err);
   }
 
-  // Grace Period Middleware can reject with approved: false (e.g. odds outside tolerance)
-  if (!vfResponse.approved) {
+  // Accept both response styles:
+  // - Grace middleware: { approved: true|false, final_odds }
+  // - Legacy/other engines: { status: 'ACCEPTED', final_odds }
+  const isRejected =
+    vfResponse.approved === false ||
+    vfResponse.status === 'REJECTED' ||
+    vfResponse.status === 'DECLINED' ||
+    vfResponse.status === 'FAILED';
+
+  if (isRejected) {
     await walletService.updateWallet(userWallet.id, balance);
     throw new ApiError(httpStatus.CONFLICT, vfResponse.message || 'Live bet not approved by engine');
   }
+
+  const finalOdds = Number(vfResponse.final_odds != null ? vfResponse.final_odds : betBody.odds);
 
   await Tickets.create({
     // Live bet responses do not include matchId; fall back to the request body value
@@ -157,24 +178,25 @@ const placeLiveBet = async (userWallet, betBody, cashierId) => {
     betType: 'single',
     selections: [
       {
-        odd: vfResponse.final_odds,
+        homeTeam: vfResponse.homeTeam || betBody.homeTeam,
+        awayTeam: vfResponse.awayTeam || betBody.awayTeam,
+        market: vfResponse.market || betBody.market,
+        selection: vfResponse.selection || betBody.selection,
+        odd: finalOdds,
+        oddsTaken: finalOdds,
+        betCategory: 'LIVE',
         stake,
       },
     ],
     stake,
     winnings: 0,
-    potentialWinnings: stake * vfResponse.final_odds,
+    potentialWinnings: stake * finalOdds,
     gameType: GAME_TYPE,
     roundHasEnded: false,
     payout: false,
     cancelled: false,
     vfBetId: vfResponse.bet_id,
     matchId: betBody.matchId,
-    // Use engine-confirmed market/selection; fall back to request values if absent
-    market: vfResponse.market || betBody.market,
-    selection: vfResponse.selection || betBody.selection,
-    oddsTaken: vfResponse.final_odds,
-    betCategory: 'LIVE',
   });
 
   return vfResponse;
@@ -239,12 +261,10 @@ const voidBet = async (vfBetId, reason) => {
  * Resolves the wallet credit amount for a single settled bet.
  * @param {string} result  - Uppercase result: 'WON' | 'LOST' | 'VOID'
  * @param {number} payout  - Engine-reported payout value
- * @param {number} stake   - Original stake (used for VOID refund)
  * @returns {number}
  */
-const resolveCreditAmount = (result, payout, stake) => {
+const resolveCreditAmount = (result, payout) => {
   if (result === 'WON') return payout;
-  if (result === 'VOID') return stake;
   return 0;
 };
 
@@ -255,13 +275,10 @@ const resolveCreditAmount = (result, payout, stake) => {
  * @returns {Promise<void>}
  */
 const applyBetSettlement = async (bet, now) => {
-  const ticket = await Tickets.findOne({ vfBetId: bet.betId, gameType: GAME_TYPE });
-  if (!ticket || ticket.roundHasEnded || ticket.cancelled) return; // unknown or already settled
-
   const result = bet.result ? bet.result.toUpperCase() : null;
   const payoutAmount = Number(bet.payout) || 0;
 
-  const update = { roundHasEnded: true };
+  const update = { roundHasEnded: true, result: null, winnings: 0 };
 
   if (result === 'WON') {
     update.result = 'win';
@@ -273,14 +290,20 @@ const applyBetSettlement = async (bet, now) => {
     update.winnings = 0;
   } else if (result === 'VOID') {
     update.cancelled = true;
-    update.winnings = ticket.stake;
+    update.result = null;
+    update.winnings = 0;
     update.payout = true;
     update.payoutDate = now;
   }
 
-  await Tickets.findByIdAndUpdate(ticket._id, update);
+  const ticket = await Tickets.findOneAndUpdate(
+    { vfBetId: bet.betId, gameType: GAME_TYPE, roundHasEnded: false, cancelled: false },
+    update,
+    { new: true }
+  );
+  if (!ticket) return; // unknown or already settled
 
-  const creditAmount = resolveCreditAmount(result, payoutAmount, Number(ticket.stake));
+  const creditAmount = resolveCreditAmount(result, payoutAmount);
   if (creditAmount > 0) {
     const cashier = await User.findById(ticket.cashierId).select('wallets').populate('wallets');
     if (cashier && cashier.wallets && cashier.wallets.length > 0) {
@@ -295,7 +318,8 @@ const processSettlement = async (payload) => {
   // VF Engine posts a SettlementWebhookPayload with event='MATCH_SETTLED' and a
   // bets[] array. Each entry: { betId, market, oddsTaken, stake, result, payout }
   // result values: 'WON' | 'LOST' | 'VOID'
-  if (payload.event !== 'MATCH_SETTLED' || !Array.isArray(payload.bets)) return;
+  if (payload.event && payload.event !== 'MATCH_SETTLED') return;
+  if (!Array.isArray(payload.bets)) return;
 
   const now = new Date();
   // Process sequentially to avoid wallet-balance races for bets belonging to the same cashier

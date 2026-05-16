@@ -1,6 +1,6 @@
 # Turbo Soccer Pro — API Integration Guide
 
-> **Version:** 3.1.0 | **Date:** 2026-05-13  
+> **Version:** 3.1.1 | **Date:** 2026-05-15  
 > **Base path:** `/cashier/v1/turbo-soccer/`  
 > All authenticated routes require a Bearer JWT obtained from `POST /cashier/v1/auth/login`.
 
@@ -104,13 +104,41 @@ The `token` field is also returned separately for clients that prefer to constru
 
 ### Get All Teams
 ```http
-GET /cashier/v1/turbo-soccer/teams
+GET /cashier/v1/turbo-soccer/teams?league=PREMIER
 ```
+
+`league` is optional. Valid values: `FRANCE`, `GERMANY`, `ITALY`, `LALIGA`, `PREMIER`.
+
+### Get Available Leagues
+```http
+GET /cashier/v1/turbo-soccer/leagues
+```
+Use this once on frontend bootstrap to discover valid `league` values dynamically.
+This route proxies VF Engine `GET /api/leagues` and is safe for cashier users.
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "leagues": ["FRANCE", "GERMANY", "ITALY", "LALIGA", "PREMIER"]
+}
+```
+
+### Frontend Bootstrap Order (recommended)
+1. Call `GET /cashier/v1/turbo-soccer/leagues` once at app start.
+2. Pick active league (saved user preference or default `PREMIER`).
+3. Open socket using token from `GET /cashier/v1/turbo-soccer/ws-connect`.
+4. Subscribe to `join_league` and request REST fallbacks:
+   - `GET /cashier/v1/turbo-soccer/matches?league=<LEAGUE>`
+   - `GET /cashier/v1/turbo-soccer/league/prematch/schedule?league=<LEAGUE>`
+
+> Do not use `GET /cashier/v1/turbo-soccer/admin/leagues` for cashier UI bootstrap. That endpoint is admin-only and returns `403 Forbidden` for cashier roles.
 
 ### Get Match Schedule (single-match engine)
 ```http
-GET /cashier/v1/turbo-soccer/schedule
+GET /cashier/v1/turbo-soccer/schedule?league=PREMIER
 ```
+`league` is optional. If omitted, default engine behavior applies.
 
 ### Get All League Matches (cashier board)
 ```http
@@ -123,6 +151,13 @@ Returns all 10 slots for the specified league with current status, score, and li
 GET /cashier/v1/turbo-soccer/matches/:matchId/odds
 ```
 `matchId` is the canonical slot ID e.g. `LEAGUE-001`.
+
+Alias endpoints are also available for direct VF naming parity:
+
+```http
+GET /cashier/v1/turbo-soccer/league/matches?league=PREMIER
+GET /cashier/v1/turbo-soccer/league/matches/:matchId/odds?league=PREMIER
+```
 
 ### Get Pre-match Schedule (REST alternative to `PREMATCH_SCHEDULE` WebSocket event)
 ```http
@@ -224,7 +259,7 @@ const socket = io(wsUrl, {
 
 | Emit | Payload | Effect |
 |---|---|---|
-| `join_cashier` | _(none)_ | Joins the `league:PREMIER` room + the `retail` room. Immediately receives `LEAGUE_SNAPSHOT`, `PREMATCH_SCHEDULE`, and (if a round is in progress) `RETAIL_SNAPSHOT`. Use for PREMIER-only cashier terminals. |
+| `join_cashier` | _(none)_ | Joins the `league:PREMIER` room + the `retail` room. Immediately receives `LEAGUE_SNAPSHOT`, `PREMATCH_SCHEDULE`, and `RETAIL_SNAPSHOT` (empty-safe bootstrap if no active runner). Use for PREMIER-only cashier terminals. |
 | `join_league` | `{ league?: string }` | Joins a specific league room (`league:PREMIER`, `league:LALIGA`, etc.). Defaults to `PREMIER` if `league` is omitted. Immediately receives `joined_league` confirmation, `LEAGUE_SNAPSHOT`, and `PREMATCH_SCHEDULE`. Can be called multiple times to subscribe to several leagues simultaneously. **Does NOT join the `retail` room** — no `RETAIL_CLOCK`, `RETAIL_PHASE_CHANGE`, or `RETAIL_SNAPSHOT`. |
 | `join_match` | `matchId: string` | Joins a single match room. Immediately receives `MATCH_UPDATE`. |
 
@@ -261,7 +296,7 @@ socket.on('ERROR', ({ code, message }) => {
 |---|---|---|
 | `LEAGUE_SNAPSHOT` | On join + after each round | Full board — all 10 slots |
 | `PREMATCH_SCHEDULE` | On join + after each round | Upcoming matchdays with pre-match odds |
-| `RETAIL_SNAPSHOT` | On join (if round in progress) | Current phase + `remainingSeconds` |
+| `RETAIL_SNAPSHOT` | On every `join_cashier` | Bootstrap payload with phase + `remainingSeconds` (empty-safe) |
 | `LEAGUE_UPDATE` | 1×/second/slot during LIVE | Live score, minute, odds, events |
 | `LEAGUE_FINAL` | Once per slot at FULL_TIME | Final result for one slot |
 
@@ -586,6 +621,7 @@ Content-Type: application/json
 
 ```http
 POST /cashier/v1/turbo-soccer/bets/live
+POST /cashier/v1/turbo-soccer/live/bet
 Content-Type: application/json
 
 {
@@ -599,6 +635,8 @@ Content-Type: application/json
   "auto_accept_changes": true
 }
 ```
+
+Both routes are supported and equivalent. Frontend may use either path.
 
 | Field | Required | Description |
 |---|---|---|
@@ -645,6 +683,7 @@ Call before showing a confirmation screen. Does **not** place a bet or debit the
 
 ```http
 POST /cashier/v1/turbo-soccer/bets/validate
+POST /cashier/v1/turbo-soccer/live/bet/validate
 Content-Type: application/json
 
 {
@@ -653,6 +692,8 @@ Content-Type: application/json
   "auto_accept_changes": false
 }
 ```
+
+Both routes are supported and equivalent. Frontend may use either path.
 
 **Response `200` — valid:** `{ "valid": true, "reason": null, "final_odds": 1.80 }`  
 **Response `200` — stale:** `{ "valid": false, "reason": "Odds have moved beyond tolerance.", "final_odds": 1.74 }`
@@ -733,7 +774,7 @@ Responds `200 { "received": true }` immediately; processing is async.
 }
 ```
 
-> `result` is uppercase: `"WON"` | `"LOST"` | `"VOID"`. For `WON` the cashier wallet is credited `payout`; for `VOID` the original `stake` is refunded.
+> `result` is uppercase: `"WON"` | `"LOST"` | `"VOID"`. For `WON` the cashier wallet is credited `payout`. For `VOID`, the ticket is marked cancelled with no additional settlement credit.
 
 ---
 
@@ -753,8 +794,10 @@ Responds `200 { "received": true }` immediately; processing is async.
 | 400 | `MARKET_CLOSED` | Market outcome already determined | — |
 | 400 | — | Insufficient funds / invalid stake | — |
 | 403 | `MARKET_SUSPENDED` | Market locked (goal/red card/penalty/kickoff) | — |
+| 403 | — | Authenticated but not authorized (for example cashier calling admin routes) | — |
 | 404 | — | Cashier or wallet not found | — |
 | 409 | `ODDS_CHANGED` | Odds drifted; update display then re-submit | `current_odds` |
+| 502 | — | VF Engine unreachable from cashier API | — |
 | 503 | `NO_ACTIVE_MATCH` | No active match for this slot | — |
 
 ---

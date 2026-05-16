@@ -8,15 +8,22 @@ const router = express.Router();
 
 // ─── Fixtures & Odds (authenticated) ─────────────────────────────────────────
 
-router.get('/schedule', auth(), ctrl.getSchedule);
-router.get('/teams', auth(), ctrl.getTeams);
+router.get('/schedule', auth(), validate(v.schedule), ctrl.getSchedule);
+router.get('/teams', auth(), validate(v.teams), ctrl.getTeams);
 router.get('/results', auth(), validate(v.getResults), ctrl.getResults);
-router.get('/matches', auth(), ctrl.getLeagueMatches);
-router.get('/matches/:matchId/odds', auth(), ctrl.getMatchOddsById);
-router.get('/league/prematch/schedule', auth(), ctrl.getPrematchSchedule);
+router.get('/matches', auth(), validate(v.leagueMatches), ctrl.getLeagueMatches);
+router.get('/matches/:matchId/odds', auth(), validate(v.matchOddsById), ctrl.getMatchOddsById);
+router.get('/league/prematch/schedule', auth(), validate(v.prematchSchedule), ctrl.getPrematchSchedule);
 router.get('/prematch/odds', auth(), ctrl.getPrematchOdds);
 router.get('/match/odds', auth(), ctrl.getMatchOdds);
 router.get('/match/state', auth(), ctrl.getMatchState);
+router.get('/leagues', auth(), ctrl.getAvailableLeagues);
+
+// Alias paths for direct parity with VF Engine naming
+router.get('/league/matches', auth(), validate(v.leagueMatches), ctrl.getLeagueMatches);
+router.get('/league/matches/:matchId/odds', auth(), validate(v.matchOddsById), ctrl.getMatchOddsById);
+router.post('/live/bet', auth(), validate(v.placeLiveBet), ctrl.placeLiveBet);
+router.post('/live/bet/validate', auth(), validate(v.validateLiveBet), ctrl.validateLiveBet);
 
 // ─── WebSocket connection info ────────────────────────────────────────────────
 

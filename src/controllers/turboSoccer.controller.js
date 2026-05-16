@@ -16,6 +16,13 @@ const turboSoccerService = require('../services/turboSoccer.service');
  */
 const proxyResponse = (res, vfRes) => res.status(vfRes.status).json(vfRes.data);
 
+const formatEngineRoute = (axiosConfig = {}, fallbackMethod = 'GET') => {
+  const method = (axiosConfig.method || fallbackMethod || 'GET').toUpperCase();
+  const base = axiosConfig.baseURL || '';
+  const url = axiosConfig.url || '';
+  return `${method} ${base}${url}`.trim();
+};
+
 /**
  * Wraps a vfengineService call, maps axios errors to ApiErrors, and proxies the result.
  */
@@ -23,20 +30,31 @@ const proxyVf = (fn) =>
   catchAsync(async (req, res) => {
     try {
       const vfRes = await fn(req);
+      const cashierRoute = `${req.method} ${req.originalUrl}`;
+      const engineRoute = formatEngineRoute(vfRes.config, req.method);
       // eslint-disable-next-line no-console
-      console.log('[VF Engine response]', vfRes.status, JSON.stringify(vfRes.data));
+      console.log('[VF Engine response]', cashierRoute, engineRoute, vfRes.status, JSON.stringify(vfRes.data));
       proxyResponse(res, vfRes);
     } catch (err) {
+      const cashierRoute = `${req.method} ${req.originalUrl}`;
+      const engineRoute = formatEngineRoute(err.config, req.method);
       if (err.response) {
         // eslint-disable-next-line prefer-destructuring
         const data = err.response.data;
         // eslint-disable-next-line no-console
-        console.error('[VF Engine error]', err.response.status, JSON.stringify(data));
+        console.error('[VF Engine error]', cashierRoute, engineRoute, err.response.status, JSON.stringify(data));
         const message = (data && (data.error || data.message)) || 'VF Engine error';
         throw new ApiError(err.response.status, message);
       }
+      const unreachableDetails = {
+        message: err.message || 'No error message from axios',
+        code: err.code || 'UNKNOWN',
+        syscall: err.syscall || '',
+        address: err.address || '',
+        port: err.port || '',
+      };
       // eslint-disable-next-line no-console
-      console.error('[VF Engine unreachable]', err.message);
+      console.error('[VF Engine unreachable]', cashierRoute, engineRoute, JSON.stringify(unreachableDetails));
       throw new ApiError(httpStatus.BAD_GATEWAY, 'VF Engine is unreachable');
     }
   });
@@ -48,11 +66,13 @@ const buildVFootballLauncherUrl = (token) => {
 
 // ─── Fixtures & Schedule ─────────────────────────────────────────────────────
 
-const getTeams = proxyVf(() => vfengineService.getTeams());
+const getTeams = proxyVf((req) => vfengineService.getTeams(req.query.league));
 
-const getSchedule = proxyVf(() => vfengineService.getSchedule());
+const getSchedule = proxyVf((req) => vfengineService.getSchedule(req.query.league));
 
 const getResults = proxyVf((req) => vfengineService.getResults(req.query.date, req.query.startTime));
+
+const getAvailableLeagues = proxyVf(() => vfengineService.getPublicLeagues());
 
 const getLeagueMatches = proxyVf((req) => vfengineService.getLeagueMatches(req.query.league));
 
@@ -249,6 +269,7 @@ module.exports = {
   getTeams,
   getSchedule,
   getResults,
+  getAvailableLeagues,
   getLeagueMatches,
   getMatchOddsById,
   getPrematchSchedule,
