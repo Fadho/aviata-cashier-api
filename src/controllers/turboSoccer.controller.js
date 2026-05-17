@@ -3,6 +3,7 @@ const httpStatus = require('http-status');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 const config = require('../config/config');
+const logger = require('../config/logger');
 const { userService, walletService } = require('../services');
 const vfengineService = require('../services/vfengine.service');
 const turboSoccerService = require('../services/turboSoccer.service');
@@ -39,6 +40,15 @@ const proxyVf = (fn) =>
       if (err.response) {
         // eslint-disable-next-line prefer-destructuring
         const data = err.response.data;
+        logger.error(
+          '[VF Engine error] cashierRoute=%s engineRoute=%s status=%s reason=%s code=%s payload=%j',
+          cashierRoute,
+          engineRoute,
+          err.response.status,
+          (data && (data.error || data.message)) || err.message || 'Unknown VF Engine error',
+          (data && data.code) || err.code || 'UNKNOWN',
+          data || {}
+        );
         const message = (data && (data.error || data.message)) || 'VF Engine error';
         const apiErr = new ApiError(err.response.status, message, true, '', data && data.code ? data.code : null);
         if (data && data.current_odds != null) {
@@ -53,6 +63,13 @@ const proxyVf = (fn) =>
         address: err.address || '',
         port: err.port || '',
       };
+      logger.error(
+        '[VF Engine unreachable] cashierRoute=%s engineRoute=%s reason=%s details=%j',
+        cashierRoute,
+        engineRoute,
+        unreachableDetails.message,
+        unreachableDetails
+      );
       throw new ApiError(httpStatus.BAD_GATEWAY, 'VF Engine is unreachable');
     }
   });
