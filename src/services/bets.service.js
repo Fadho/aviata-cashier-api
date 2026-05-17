@@ -97,7 +97,16 @@ const createBetPlaced = async (result, stake, selections, cashierId, potentialWi
  * @param {ObjectId} deviceId
  * @returns {Promise<Tickets>}
  */
-const createBetPlacedForPlayer = async (stake, freebet, gameType, roundId, cashierId, playerId, deviceId, session = null) => {
+const createBetPlacedForPlayer = async (
+  stake,
+  freebet,
+  gameType,
+  roundId,
+  cashierId,
+  playerId,
+  deviceId,
+  session = null
+) => {
   const ownsSession = !session;
   const dbSession = session || (await mongoose.startSession());
   if (ownsSession) {

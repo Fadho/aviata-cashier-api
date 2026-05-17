@@ -29,19 +29,45 @@ const prematchSchedule = {
   query: leagueQuery,
 };
 
+const multiSelectionLeg = Joi.object().keys({
+  matchId: Joi.string().required(),
+  market: Joi.string().required(),
+  selection: Joi.string().required(),
+  requested_odds: Joi.number(),
+  homeTeam: Joi.string(),
+  awayTeam: Joi.string(),
+  client_timestamp: Joi.number().integer(),
+});
+
+const placeBetCommon = {
+  stake: Joi.number().positive().required(),
+  cashierId: Joi.string().required(),
+  userId: Joi.string(),
+  client_timestamp: Joi.number().integer(),
+  auto_accept_changes: Joi.boolean(),
+  prematch: Joi.boolean(),
+};
+
+const placeBetSingleSchema = Joi.object().keys({
+  ...placeBetCommon,
+  matchId: Joi.string().required(),
+  market: Joi.string().required(),
+  selection: Joi.string().required(),
+  requested_odds: Joi.number(),
+  selections: Joi.any().forbidden(),
+});
+
+const placeBetMultiSchema = Joi.object().keys({
+  ...placeBetCommon,
+  selections: Joi.array().items(multiSelectionLeg).min(1).required(),
+  matchId: Joi.string(),
+  market: Joi.string(),
+  selection: Joi.string(),
+  requested_odds: Joi.number(),
+});
+
 const placeBet = {
-  body: Joi.object().keys({
-    matchId: Joi.string(),
-    market: Joi.string().required(),
-    selection: Joi.string().required(),
-    stake: Joi.number().positive().required(),
-    requested_odds: Joi.number(),
-    cashierId: Joi.string().required(),
-    userId: Joi.string(),
-    client_timestamp: Joi.number().integer(),
-    auto_accept_changes: Joi.boolean(),
-    prematch: Joi.boolean(),
-  }),
+  body: Joi.alternatives().try(placeBetSingleSchema, placeBetMultiSchema),
 };
 
 const placeLiveBet = {
@@ -108,6 +134,10 @@ const createLeague = {
     matchIntervalMinutes: Joi.number().integer().min(1),
     margin: Joi.number().min(1.0).max(1.3),
   }),
+};
+
+const leagueProgression = {
+  query: leagueQuery,
 };
 
 const setLeagueMargin = {
@@ -225,6 +255,7 @@ module.exports = {
   updateMatchMargin,
   createLeague,
   setLeagueMargin,
+  leagueProgression,
   previewMargin,
   validateAccumulator,
   registerWebhook,

@@ -11,6 +11,7 @@ jest.mock('../../src/services/vfengine.service', () => ({
   getPublicLeagues: jest.fn(),
   getLeagueMatches: jest.fn(),
   getMatchOddsById: jest.fn(),
+  getPrematchSchedule: jest.fn(),
   getPrematchOdds: jest.fn(),
   getMatchOdds: jest.fn(),
   getMatchState: jest.fn(),
@@ -24,6 +25,8 @@ jest.mock('../../src/services/vfengine.service', () => ({
   previewMargin: jest.fn(),
   updateMatchMargin: jest.fn(),
   getLeagues: jest.fn(),
+  getLeagueProgression: jest.fn(),
+  persistLeagueProgression: jest.fn(),
   createLeague: jest.fn(),
   getLeague: jest.fn(),
   deleteLeague: jest.fn(),
@@ -223,7 +226,10 @@ describe('GET /teams', () => {
 
 describe('GET /leagues', () => {
   test('should return available leagues from VF Engine public endpoint', async () => {
-    const res = await request(app).get(`${BASE}/leagues`).set('Authorization', `Bearer ${cashierToken}`).expect(httpStatus.OK);
+    const res = await request(app)
+      .get(`${BASE}/leagues`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(httpStatus.OK);
 
     expect(res.body.leagues).toEqual(['PREMIER', 'LALIGA']);
     expect(vfengineService.getPublicLeagues).toHaveBeenCalledTimes(1);
@@ -366,6 +372,68 @@ describe('POST /bets/place', () => {
     const ticket = await Tickets.findOne({ vfBetId: 'vf-bet-001' });
     expect(ticket).toBeNull();
   });
+
+  test('should accept multi-selection payload and create a multiple ticket', async () => {
+    vfengineService.placeBet.mockResolvedValue({
+      data: {
+        success: true,
+        type: 'ACCUMULATOR',
+        bet_id: 'vf-acca-001',
+        totalOdds: 3.6,
+        potentialReturn: 360,
+        selections: [
+          {
+            matchId: 'LEAGUE-001',
+            market: 'match_winner',
+            selection: 'home',
+            accepted_odds: 2.0,
+          },
+          {
+            matchId: 'LEAGUE-002',
+            market: 'btts',
+            selection: 'GG',
+            accepted_odds: 1.8,
+          },
+        ],
+      },
+    });
+
+    const payload = {
+      cashierId: cashierUser._id.toHexString(),
+      stake: 100,
+      auto_accept_changes: true,
+      selections: [
+        {
+          matchId: 'LEAGUE-001',
+          market: 'match_winner',
+          selection: 'home',
+          requested_odds: 2.0,
+        },
+        {
+          matchId: 'LEAGUE-002',
+          market: 'btts',
+          selection: 'GG',
+          requested_odds: 1.8,
+        },
+      ],
+    };
+
+    const res = await request(app)
+      .post(`${BASE}/bets/place`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send(payload)
+      .expect(httpStatus.OK);
+
+    expect(res.body.bet_id).toBe('vf-acca-001');
+
+    const updatedWallet = await Wallets.findById(cashierWallet._id);
+    expect(Number(updatedWallet.balance)).toBe(900);
+
+    const ticket = await Tickets.findOne({ vfBetId: 'vf-acca-001' });
+    expect(ticket).not.toBeNull();
+    expect(ticket.betType).toBe('multiple');
+    expect(ticket.selections).toHaveLength(2);
+  });
 });
 
 // ─── Place live bet ────────────────────────────────────────────────────────────
@@ -432,6 +500,39 @@ describe('GET /bets/history', () => {
   });
 });
 
+describe('Admin league progression routes', () => {
+  test('GET /admin/leagues/progression should proxy VF Engine progression snapshot', async () => {
+    vfengineService.getLeagueProgression.mockResolvedValue({
+      status: 200,
+      data: { success: true, leagues: [{ league: 'PREMIER', slotCount: 10 }] },
+    });
+
+    const res = await request(app)
+      .get(`${BASE}/admin/leagues/progression?league=PREMIER`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(httpStatus.OK);
+
+    expect(res.body.success).toBe(true);
+    expect(vfengineService.getLeagueProgression).toHaveBeenCalledWith('PREMIER');
+  });
+
+  test('POST /admin/leagues/progression/persist should force persistence via VF Engine', async () => {
+    vfengineService.persistLeagueProgression.mockResolvedValue({
+      status: 200,
+      data: { success: true, persisted: true },
+    });
+
+    const res = await request(app)
+      .post(`${BASE}/admin/leagues/progression/persist`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({})
+      .expect(httpStatus.OK);
+
+    expect(res.body.persisted).toBe(true);
+    expect(vfengineService.persistLeagueProgression).toHaveBeenCalledTimes(1);
+  });
+});
+
 // ─── Settlement webhook ────────────────────────────────────────────────────────
 
 describe('POST /webhooks/settlement', () => {
@@ -492,6 +593,7 @@ describe('POST /webhooks/settlement', () => {
   test('should return 200 and mark ticket cancelled for void result', async () => {
     await request(app).post(`${BASE}/bets/place`).set('Authorization', `Bearer ${cashierToken}`).send({
       cashierId: cashierUser._id.toHexString(),
+      matchId: 'match-99',
       market: '1X2',
       selection: '1',
       stake: 100,

@@ -117,6 +117,14 @@ const updateMatchMargin = (matchId, margin) =>
 
 const getLeagues = () => client().get('/api/admin/leagues');
 
+const getLeagueProgression = (league) => {
+  const params = {};
+  if (league) params.league = league;
+  return client().get('/api/admin/leagues/progression', { params });
+};
+
+const persistLeagueProgression = () => client().post('/api/admin/leagues/progression/persist');
+
 const createLeague = (body) => client().post('/api/admin/leagues', body);
 
 const getLeague = (id) => client().get(`/api/admin/leagues/${encodeURIComponent(id)}`);
@@ -222,6 +230,8 @@ module.exports = {
   validateAccumulator,
   // Admin — throttler
   getThrottlerStatus,
+  getLeagueProgression,
+  persistLeagueProgression,
   // Admin — webhooks
   getWebhooks,
   registerWebhook,

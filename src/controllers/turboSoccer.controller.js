@@ -44,7 +44,11 @@ const proxyVf = (fn) =>
         // eslint-disable-next-line no-console
         console.error('[VF Engine error]', cashierRoute, engineRoute, err.response.status, JSON.stringify(data));
         const message = (data && (data.error || data.message)) || 'VF Engine error';
-        throw new ApiError(err.response.status, message);
+        const apiErr = new ApiError(err.response.status, message, true, '', data && data.code ? data.code : null);
+        if (data && data.current_odds != null) {
+          apiErr.currentOdds = data.current_odds;
+        }
+        throw apiErr;
       }
       const unreachableDetails = {
         message: err.message || 'No error message from axios',
@@ -226,6 +230,10 @@ const getLeagueMargin = proxyVf((req) => vfengineService.getLeagueMargin(req.par
 
 const setLeagueMargin = proxyVf((req) => vfengineService.setLeagueMargin(req.params.id, req.body.margin));
 
+const getLeagueProgression = proxyVf((req) => vfengineService.getLeagueProgression(req.query.league));
+
+const persistLeagueProgression = proxyVf(() => vfengineService.persistLeagueProgression());
+
 // ─── Admin — Accumulator ──────────────────────────────────────────────────────
 
 const getAccumulatorConfig = proxyVf(() => vfengineService.getAccumulatorConfig());
@@ -300,6 +308,8 @@ module.exports = {
   generateLeagueSchedule,
   getLeagueMargin,
   setLeagueMargin,
+  getLeagueProgression,
+  persistLeagueProgression,
   // Admin — accumulator
   getAccumulatorConfig,
   updateAccumulatorConfig,

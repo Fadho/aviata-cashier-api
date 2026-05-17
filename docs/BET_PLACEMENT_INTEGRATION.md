@@ -1,19 +1,192 @@
-/**
- * BET PLACEMENT INTEGRATION GUIDE
- * ================================
- *
- * This guide demonstrates how to use the updated bet placement APIs
- * with the new per-selection field structure (homeTeam, awayTeam, market, selection, oddsTaken, betCategory).
- *
- * SCHEMA CHANGES:
- * ---------------
- * The Tickets model now stores turbo soccer metadata (homeTeam, awayTeam, market, selection,
- * oddsTaken, betCategory) at the selection level, not the ticket level:
- *
- * BEFORE:
- *   {
- *     _id: ObjectId,
- *     stake: 100,
- *     selections: [ { odd: 1.95, stake: 100 } ],
- *     homeTeam: 'Arsenal',       // <-- TICKET LEVEL
-n *     awayTeam: 'Chelsea',       // <-- TICKET LEVEL\n *     market: 'match_winner',    // <-- TICKET LEVEL\n *     selection: 'home',         // <-- TICKET LEVEL\n *     oddsTaken: 1.95,           // <-- TICKET LEVEL\n *     betCategory: 'PREMATCH'    // <-- TICKET LEVEL\n *   }\n *\n * AFTER:\n *   {\n *     _id: ObjectId,\n *     stake: 100,\n *     selections: [ \n *       { \n *         odd: 1.95, \n *         stake: 100,\n *         homeTeam: 'Arsenal',     // <-- SELECTION LEVEL\n *         awayTeam: 'Chelsea',     // <-- SELECTION LEVEL\n *         market: 'match_winner',  // <-- SELECTION LEVEL\n *         selection: 'home',       // <-- SELECTION LEVEL\n *         oddsTaken: 1.95,         // <-- SELECTION LEVEL\n *         betCategory: 'PREMATCH'  // <-- SELECTION LEVEL\n *       } \n *     ]\n *   }\n *\n */\n\n/**\n * RETAIL SERVICE BET PLACEMENT\n * =============================\n *\n * When the retail service receives a bet placement request from a cashier or punter,\n * it builds selection objects with all relevant metadata before passing to the cashier API.\n *\n * EXAMPLE 1: Single-leg pre-match bet\n * -----------------------------------\n */\n\n// Retail service code (Node.js, using axios)\nconst axios = require('axios');\nconst jwt = require('jsonwebtoken');\nconst { buildTurboSoccerSelection } = require('./src/utils/selectionBuilder');\n\n// Helper: Issue a token for the cashier API\nfunction issueCashierToken(cashierId) {\n  return jwt.sign(\n    { cashierId, operatorId: process.env.OPERATOR_ID },\n    process.env.CASHIER_API_JWT_SECRET,\n    { expiresIn: '8h' }\n  );\n}\n\nconst cashierApi = axios.create({\n  baseURL: process.env.CASHIER_API_BASE_URL,\n  headers: { Authorization: `Bearer ${issueCashierToken('CASHIER-001')}` }\n});\n\n/**\n * Place a single pre-match bet.\n * The retail service constructs a selection object with all metadata\n * and sends it to the cashier API.\n */\nasync function placePrematchBet({\n  homeTeam,\n  awayTeam,\n  market,\n  selection,\n  odd,\n  stake,\n  cashierId,\n  roundId,\n}) {\n  // 1. Build the selection object with turbo soccer metadata\n  const selectionItem = buildTurboSoccerSelection({\n    homeTeam,\n    awayTeam,\n    market,\n    selection,\n    odd,\n    stake,\n    betCategory: 'PREMATCH',\n  });\n\n  // 2. Build the ticket payload\n  const payload = {\n    selections: [selectionItem],\n    stake,\n    potentialWinnings: stake * odd,\n    cashierId,\n    roundId,\n    gameType: 'turbo-soccer',\n  };\n\n  // 3. Send to cashier API\n  const res = await cashierApi.post('/v1/turbo-soccer/bets/place', payload);\n  return res.data; // { bet_id, accepted_odds, status, ... }\n}\n\n// Usage:\nawait placePrematchBet({\n  homeTeam: 'Arsenal FC',\n  awayTeam: 'Wolverhampton',\n  market: 'match_winner',\n  selection: 'draw',\n  odd: 4.35,\n  stake: 500,\n  cashierId: 'TERM-001',\n  roundId: 'LEAGUE-001',\n});\n\n/**\n * EXAMPLE 2: Multi-leg accumulator\n * --------------------------------\n */\n\nconst { buildTurboSoccerTicket } = require('./src/utils/selectionBuilder');\n\nasync function placeAccumulator({\n  legs,       // Array of { homeTeam, awayTeam, market, selection, odd, stake }\n  cashierId,\n  roundId,\n}) {\n  // Build the complete ticket with all legs\n  const payload = buildTurboSoccerTicket(legs, {\n    cashierId,\n    roundId,\n    betCategory: 'PREMATCH',\n  });\n\n  const res = await cashierApi.post('/v1/turbo-soccer/bets/place', payload);\n  return res.data;\n}\n\n// Usage:\nawait placeAccumulator({\n  legs: [\n    {\n      homeTeam: 'Arsenal FC',\n      awayTeam: 'Wolverhampton',\n      market: 'match_winner',\n      selection: 'home',\n      odd: 1.95,\n      stake: 100,\n    },\n    {\n      homeTeam: 'Chelsea',\n      awayTeam: 'Manchester City',\n      market: 'match_winner',\n      selection: 'away',\n      odd: 2.15,\n      stake: 100,\n    },\n  ],\n  cashierId: 'TERM-001',\n  roundId: 'LEAGUE-002',\n});\n\n/**\n * EXAMPLE 3: In-play bet with grace period\n * ----------------------------------------\n * In-play bets use the grace period flow: validate → accept/reject.\n */\n\nasync function placeInPlayBet({\n  homeTeam,\n  awayTeam,\n  market,\n  selection,\n  odd,\n  stake,\n  clientTimestamp,\n  cashierId,\n  roundId,\n}) {\n  const selectionItem = buildTurboSoccerSelection({\n    homeTeam,\n    awayTeam,\n    market,\n    selection,\n    odd,\n    stake,\n    betCategory: 'LIVE',\n  });\n\n  const payload = {\n    selections: [selectionItem],\n    stake,\n    potentialWinnings: stake * odd,\n    cashierId,\n    roundId,\n    gameType: 'turbo-soccer',\n    client_timestamp: clientTimestamp,\n    auto_accept_changes: true, // Accept odds shifts within tolerance\n  };\n\n  const res = await cashierApi.post('/v1/turbo-soccer/bets/live', payload);\n  \n  if (!res.data.approved) {\n    throw new Error(`Bet not approved: ${res.data.message}`);\n  }\n  \n  return res.data; // { bet_id, final_odds, approved, ... }\n}\n\n/**\n * RESPONSE STRUCTURE\n * ==================\n *\n * When you retrieve a ticket from the API, the selection-level metadata\n * is now accessible in each selection object:\n *\n * GET /v1/bets/{ticketId}\n *\n * {\n *   \"_id\": \"507f1f77bcf86cd799439011\",\n *   \"ticketId\": \"1234567890\",\n *   \"cashierId\": \"TERM-001\",\n *   \"stake\": 100,\n *   \"potentialWinnings\": 435,\n *   \"selections\": [\n *     {\n *       \"odd\": 4.35,\n *       \"oddsTaken\": 4.35,\n *       \"stake\": 100,\n *       \"homeTeam\": \"Arsenal FC\",\n *       \"awayTeam\": \"Wolverhampton\",\n *       \"market\": \"match_winner\",\n *       \"selection\": \"draw\",\n *       \"betCategory\": \"PREMATCH\"\n *     }\n *   ],\n *   \"betType\": \"single\",\n *   \"gameType\": \"turbo-soccer\",\n *   \"roundId\": \"LEAGUE-001\",\n *   \"result\": null,\n *   \"roundHasEnded\": false,\n *   \"cancelled\": false,\n *   \"createdAt\": \"2026-05-16T10:30:00Z\",\n *   \"updatedAt\": \"2026-05-16T10:30:00Z\"\n * }\n *\n */\n\n/**\n * PRINTING / DISPLAY\n * ==================\n *\n * When rendering a bet slip or ticket, access the metadata from selections[0] (for single bets)\n * or iterate selections[] for accumulators:\n */\n\nfunction formatTicketForPrint(ticket) {\n  if (ticket.betType === 'single') {\n    const sel = ticket.selections[0];\n    return {\n      match: `${sel.homeTeam} vs ${sel.awayTeam}`,\n      market: sel.market,\n      selection: sel.selection,\n      odds: sel.oddsTaken,\n      stake: sel.stake,\n      category: sel.betCategory,\n    };\n  }\n\n  // Multiple legs\n  return {\n    legs: ticket.selections.map((sel) => ({\n      match: `${sel.homeTeam} vs ${sel.awayTeam}`,\n      market: sel.market,\n      selection: sel.selection,\n      odds: sel.oddsTaken,\n      stake: sel.stake,\n    })),\n    totalOdds: ticket.selections.reduce((p, s) => p * s.oddsTaken, 1),\n    totalStake: ticket.stake,\n    potentialReturn: ticket.potentialWinnings,\n  };\n}\n\n/**\n * BACKWARD COMPATIBILITY\n * ======================\n *\n * The `oddsTaken` field is populated for every selection alongside `odd`.\n * Use `oddsTaken` when displaying to users; use `odd` for mathematical calculations.\n * Both reference the same value.\n *\n */\n\nmodule.exports = {\n  placePrematchBet,\n  placeAccumulator,\n  placeInPlayBet,\n  formatTicketForPrint,\n  issueCashierToken,\n};\n
+# Bet Placement Integration Guide
+
+This guide documents cashier-side integration for Turbo Soccer bet placement endpoints under:
+
+- /cashier/v1/turbo-soccer
+
+All requests require Authorization: Bearer <access_token>.
+
+## 1. Endpoint Summary
+
+- POST /bets/place
+- POST /bets/live
+- POST /bets/validate
+- GET /bets/history
+- POST /bets/:betId/void
+
+## 2. Pre-match or General Placement: POST /bets/place
+
+The endpoint supports two request modes.
+
+1. Single-selection mode
+2. Multi-selection mode (accumulator)
+
+### 2.1 Single-selection payload
+
+Required fields:
+
+- cashierId
+- stake
+- matchId
+- market
+- selection
+
+Optional fields:
+
+- requested_odds
+- userId
+- client_timestamp
+- auto_accept_changes
+- prematch
+
+Example:
+
+```json
+{
+  "cashierId": "665f1a2b3c4d5e6f7a8b9c0d",
+  "matchId": "LEAGUE-001",
+  "market": "match_winner",
+  "selection": "home",
+  "stake": 500,
+  "requested_odds": 1.95,
+  "client_timestamp": 1746624000000,
+  "auto_accept_changes": true
+}
+```
+
+### 2.2 Multi-selection payload
+
+Required fields:
+
+- cashierId
+- stake
+- selections[]
+
+Per-leg required fields:
+
+- matchId
+- market
+- selection
+
+Per-leg optional fields:
+
+- requested_odds
+- homeTeam
+- awayTeam
+- client_timestamp
+
+Example:
+
+```json
+{
+  "cashierId": "665f1a2b3c4d5e6f7a8b9c0d",
+  "stake": 500,
+  "auto_accept_changes": true,
+  "selections": [
+    {
+      "matchId": "LEAGUE-001",
+      "market": "match_winner",
+      "selection": "home",
+      "requested_odds": 1.95,
+      "homeTeam": "Manchester City",
+      "awayTeam": "Liverpool FC"
+    },
+    {
+      "matchId": "LEAGUE-004",
+      "market": "btts",
+      "selection": "GG",
+      "requested_odds": 1.82,
+      "homeTeam": "Arsenal",
+      "awayTeam": "Chelsea"
+    }
+  ]
+}
+```
+
+## 3. Live Placement: POST /bets/live
+
+Required fields:
+
+- cashierId
+- stake
+- market
+- selection
+- odds
+- client_timestamp
+
+Optional fields:
+
+- matchId
+- auto_accept_changes
+- userId
+
+Example:
+
+```json
+{
+  "cashierId": "665f1a2b3c4d5e6f7a8b9c0d",
+  "matchId": "LEAGUE-003",
+  "market": "next_goal",
+  "selection": "home",
+  "stake": 200,
+  "odds": 2.1,
+  "client_timestamp": 1746624005000,
+  "auto_accept_changes": true
+}
+```
+
+## 4. Live Pre-flight Validation: POST /bets/validate
+
+This endpoint validates live odds drift and does not place a bet.
+
+Example:
+
+```json
+{
+  "odds": 2.1,
+  "client_timestamp": 1746624005000,
+  "auto_accept_changes": false
+}
+```
+
+## 5. Ticket Metadata Stored Locally
+
+When a bet is accepted and persisted, selection-level metadata is stored in Tickets.selections[]:
+
+- homeTeam
+- awayTeam
+- market
+- selection
+- odd
+- oddsTaken
+- betCategory
+- stake
+
+For single bets, betType is single.
+For accumulator requests, betType is multiple.
+
+## 6. Failure and Recovery Behavior
+
+### Engine-level rejects
+
+- MARKET_SUSPENDED -> HTTP 403
+- MARKET_CLOSED -> HTTP 400
+- ODDS_CHANGED -> HTTP 409 with current_odds
+- NO_ACTIVE_MATCH -> HTTP 503
+
+### Local consistency protection
+
+If the engine accepts a bet but local ticket persistence fails, the cashier wallet debit is rolled back and the API returns HTTP 500.
+
+Error message:
+
+- Bet accepted by engine but could not be recorded locally; wallet has been restored
+- Live bet accepted by engine but could not be recorded locally; wallet has been restored
+
+## 7. Practical Integration Notes
+
+1. For /bets/place single mode, always send matchId.
+2. For /bets/place multi mode, always send matchId per leg in selections[].
+3. Prefer fixture identity from schedule data when available; LEAGUE-* IDs are accepted for compatibility.
+4. Disable bet submission while markets are suspended or odds payload is null.
+5. Treat HTTP 409 ODDS_CHANGED as a recoverable UI flow: refresh shown odds, then resubmit.

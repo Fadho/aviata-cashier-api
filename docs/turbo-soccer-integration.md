@@ -1,6 +1,6 @@
 # Turbo Soccer Pro — API Integration Guide
 
-> **Version:** 3.1.1 | **Date:** 2026-05-15  
+> **Version:** 1.6.2 | **Date:** 2026-05-13  
 > **Base path:** `/cashier/v1/turbo-soccer/`  
 > All authenticated routes require a Bearer JWT obtained from `POST /cashier/v1/auth/login`.
 
@@ -193,7 +193,7 @@ Returns upcoming matchdays with fixture pairs and pre-match odds at `timeDecay =
 
 **Response `503`:** `{ "success": false, "error": "League not started" }`
 
-> **`matchId` rule:** always use the `matchId` from `fixtures[].matchId` in this response or the `PREMATCH_SCHEDULE` WebSocket event. Never construct or guess a match ID — it is the canonical `LEAGUE-*` slot ID assigned by the engine.
+> **Identity rule:** for settlement-grade identity prefer the scheduled fixture ID (`fixtureId`, alias `gameId`) when present. `LEAGUE-*` slot IDs remain valid for backward compatibility and display routing.
 
 ### Get Pre-match Odds by Teams (arbitrary pairing)
 ```http
@@ -584,13 +584,40 @@ Content-Type: application/json
 }
 ```
 
+`/bets/place` accepts both payload formats:
+- Single-selection (shown above): top-level `matchId`, `market`, `selection`
+- Multi-selection accumulator: `selections[]` where each leg has `matchId`, `market`, `selection`, and optional per-leg metadata
+
+**Multi-selection example:**
+```json
+{
+  "cashierId": "665f1a2b3c4d5e6f7a8b9c0d",
+  "stake": 500,
+  "auto_accept_changes": true,
+  "selections": [
+    {
+      "matchId": "LEAGUE-001",
+      "market": "match_winner",
+      "selection": "home",
+      "requested_odds": 1.95
+    },
+    {
+      "matchId": "LEAGUE-004",
+      "market": "btts",
+      "selection": "GG",
+      "requested_odds": 1.82
+    }
+  ]
+}
+```
+
 | Field | Required | Description |
 |---|---|---|
 | `cashierId` | ✓ | MongoDB ObjectId of the logged-in cashier. Stake debited from this cashier's wallet. |
 | `market` | ✓ | Market key — see [§20 Market Identifiers](#20-market-identifiers-quick-reference) |
 | `selection` | ✓ | Selection value — see §20 |
 | `stake` | ✓ | Positive number in operator currency units |
-| `matchId` | Cond. | Required unless match context is singular. Canonical slot ID e.g. `LEAGUE-001`. **Must be taken from `fixtures[].matchId` in `PREMATCH_SCHEDULE` or `GET /league/prematch/schedule`.** |
+| `matchId` | Cond. | Required in single-selection mode. In multi-selection mode use `selections[].matchId`. Fixture IDs are canonical; `LEAGUE-*` slot IDs are accepted for backward compatibility. |
 | `requested_odds` | | Client-side odds snapshot for drift detection |
 | `prematch` | | Omit for `LEAGUE-*` slots (auto-detected). Set `false` only for early in-play bets via this endpoint. |
 | `auto_accept_changes` | | Accept minor drift automatically |
@@ -797,6 +824,7 @@ Responds `200 { "received": true }` immediately; processing is async.
 | 403 | — | Authenticated but not authorized (for example cashier calling admin routes) | — |
 | 404 | — | Cashier or wallet not found | — |
 | 409 | `ODDS_CHANGED` | Odds drifted; update display then re-submit | `current_odds` |
+| 500 | — | Engine accepted the bet but local ticket persistence failed; wallet rollback applied | — |
 | 502 | — | VF Engine unreachable from cashier API | — |
 | 503 | `NO_ACTIVE_MATCH` | No active match for this slot | — |
 
@@ -963,6 +991,8 @@ PUT  /cashier/v1/turbo-soccer/admin/match/:matchId/margin
 
 ```http
 GET    /cashier/v1/turbo-soccer/admin/leagues
+GET    /cashier/v1/turbo-soccer/admin/leagues/progression?league=PREMIER
+POST   /cashier/v1/turbo-soccer/admin/leagues/progression/persist
 POST   /cashier/v1/turbo-soccer/admin/leagues
 GET    /cashier/v1/turbo-soccer/admin/leagues/:id
 DELETE /cashier/v1/turbo-soccer/admin/leagues/:id
@@ -971,6 +1001,9 @@ PUT    /cashier/v1/turbo-soccer/admin/leagues/:id/margin   Body: { "margin": 1.0
 GET    /cashier/v1/turbo-soccer/admin/leagues/:id/schedule
 POST   /cashier/v1/turbo-soccer/admin/leagues/:id/schedule  (generate round-robin)
 ```
+
+`GET /admin/leagues/progression` returns the current league progression snapshot (season, matchday, slot-level fixture mapping).  
+`POST /admin/leagues/progression/persist` forces the in-memory progression snapshot to disk and returns the refreshed snapshot.
 
 **Create league body:**
 ```json

@@ -56,6 +56,8 @@ router.put('/admin/match/:matchId/margin', auth('manageGameConfig'), validate(v.
 // ─── Admin — Leagues ──────────────────────────────────────────────────────────
 
 router.get('/admin/leagues', auth('manageGameConfig'), ctrl.getLeagues);
+router.get('/admin/leagues/progression', auth('manageGameConfig'), validate(v.leagueProgression), ctrl.getLeagueProgression);
+router.post('/admin/leagues/progression/persist', auth('manageGameConfig'), ctrl.persistLeagueProgression);
 router.post('/admin/leagues', auth('manageGameConfig'), validate(v.createLeague), ctrl.createLeague);
 router.get('/admin/leagues/:id', auth('manageGameConfig'), ctrl.getLeague);
 router.delete('/admin/leagues/:id', auth('manageGameConfig'), ctrl.deleteLeague);

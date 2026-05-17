@@ -180,6 +180,59 @@ describe('turboSoccerService.placeBet', () => {
 
     expect(Tickets.create).toHaveBeenCalledWith(expect.objectContaining({ roundId: 'vf-turbo' }));
   });
+
+  test('should refund wallet if local ticket persistence fails after engine acceptance', async () => {
+    Tickets.create.mockRejectedValue(new Error('db write failed'));
+
+    const wallet = makeWallet(500);
+    const err = await turboSoccerService.placeBet(wallet, placeBetBody, cashierId).catch((e) => e);
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.statusCode).toBe(httpStatus.INTERNAL_SERVER_ERROR);
+    // debit then rollback
+    expect(walletService.updateWallet).toHaveBeenNthCalledWith(1, walletId, 400);
+    expect(walletService.updateWallet).toHaveBeenNthCalledWith(2, walletId, 500);
+  });
+
+  test('should persist a multiple ticket when selections[] payload is used', async () => {
+    const multiBetBody = {
+      cashierId,
+      stake: 100,
+      selections: [
+        { matchId: 'LEAGUE-001', market: 'match_winner', selection: 'home', requested_odds: 2.0 },
+        { matchId: 'LEAGUE-002', market: 'btts', selection: 'GG', requested_odds: 1.8 },
+      ],
+    };
+
+    vfengineService.placeBet.mockResolvedValue({
+      data: {
+        bet_id: 'vf-acca-001',
+        totalOdds: 3.6,
+        potentialReturn: 360,
+        selections: [
+          { matchId: 'LEAGUE-001', market: 'match_winner', selection: 'home', accepted_odds: 2.0 },
+          { matchId: 'LEAGUE-002', market: 'btts', selection: 'GG', accepted_odds: 1.8 },
+        ],
+      },
+    });
+
+    const result = await turboSoccerService.placeBet(makeWallet(500), multiBetBody, cashierId);
+
+    expect(result.bet_id).toBe('vf-acca-001');
+    expect(walletService.updateWallet).toHaveBeenNthCalledWith(1, walletId, 400);
+    expect(Tickets.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vfBetId: 'vf-acca-001',
+        betType: 'multiple',
+        roundId: 'LEAGUE-001',
+        potentialWinnings: 360,
+        selections: expect.arrayContaining([
+          expect.objectContaining({ market: 'match_winner', selection: 'home', oddsTaken: 2.0 }),
+          expect.objectContaining({ market: 'btts', selection: 'GG', oddsTaken: 1.8 }),
+        ]),
+      })
+    );
+  });
 });
 
 // ─── placeLiveBet ─────────────────────────────────────────────────────────────
@@ -229,6 +282,17 @@ describe('turboSoccerService.placeLiveBet', () => {
     await expect(turboSoccerService.placeLiveBet(makeWallet(500), placeLiveBetBody, cashierId)).rejects.toThrow(ApiError);
     expect(walletService.updateWallet).toHaveBeenCalledTimes(2);
     expect(Tickets.create).not.toHaveBeenCalled();
+  });
+
+  test('should refund wallet if local live ticket persistence fails after engine acceptance', async () => {
+    Tickets.create.mockRejectedValue(new Error('db write failed'));
+
+    const err = await turboSoccerService.placeLiveBet(makeWallet(500), placeLiveBetBody, cashierId).catch((e) => e);
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.statusCode).toBe(httpStatus.INTERNAL_SERVER_ERROR);
+    expect(walletService.updateWallet).toHaveBeenNthCalledWith(1, walletId, 400);
+    expect(walletService.updateWallet).toHaveBeenNthCalledWith(2, walletId, 500);
   });
 });
 
