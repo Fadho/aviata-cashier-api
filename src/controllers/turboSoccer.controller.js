@@ -32,8 +32,6 @@ const proxyVf = (fn) =>
       const vfRes = await fn(req);
       const cashierRoute = `${req.method} ${req.originalUrl}`;
       const engineRoute = formatEngineRoute(vfRes.config, req.method);
-      // eslint-disable-next-line no-console
-      console.log('[VF Engine response]', cashierRoute, engineRoute, vfRes.status, JSON.stringify(vfRes.data));
       proxyResponse(res, vfRes);
     } catch (err) {
       const cashierRoute = `${req.method} ${req.originalUrl}`;
@@ -41,8 +39,6 @@ const proxyVf = (fn) =>
       if (err.response) {
         // eslint-disable-next-line prefer-destructuring
         const data = err.response.data;
-        // eslint-disable-next-line no-console
-        console.error('[VF Engine error]', cashierRoute, engineRoute, err.response.status, JSON.stringify(data));
         const message = (data && (data.error || data.message)) || 'VF Engine error';
         const apiErr = new ApiError(err.response.status, message, true, '', data && data.code ? data.code : null);
         if (data && data.current_odds != null) {
@@ -57,8 +53,6 @@ const proxyVf = (fn) =>
         address: err.address || '',
         port: err.port || '',
       };
-      // eslint-disable-next-line no-console
-      console.error('[VF Engine unreachable]', cashierRoute, engineRoute, JSON.stringify(unreachableDetails));
       throw new ApiError(httpStatus.BAD_GATEWAY, 'VF Engine is unreachable');
     }
   });
@@ -198,10 +192,7 @@ const handleSettlementWebhook = (req, res) => {
   // Respond immediately to prevent VF Engine retry loops; process asynchronously
   res.status(httpStatus.OK).json({ received: true });
 
-  turboSoccerService.processSettlement(payload).catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error('[TurboSoccer settlement error]', err.message);
-  });
+  turboSoccerService.processSettlement(payload).catch(() => {});
 };
 
 // ─── Admin — Margins ──────────────────────────────────────────────────────────

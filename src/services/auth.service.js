@@ -136,8 +136,6 @@ const redirectClient = async (user, url) => {
   if (!allowedDomains.includes(urlObj.origin)) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid URL');
   }
-  // Log the redirection event
-  console.log(`User ${user.id} is being redirected to ${url}`);
   // In a real application, you might return the URL or perform the redirection on the client side
   return;
 };

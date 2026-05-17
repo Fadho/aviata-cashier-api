@@ -67,7 +67,6 @@ const dropFreebet = async (id, deviceId, playerId) => {
         freebetAmount,
       });
     } catch (axiosError) {
-      console.error(`WebSocket server call failed:`, axiosError);
       throw new Error('Failed to notify WebSocket server');
     }
 
@@ -78,7 +77,6 @@ const dropFreebet = async (id, deviceId, playerId) => {
   } catch (error) {
     // Rollback the transaction in case of any errors
     await session.abortTransaction();
-    console.error(`Error in dropFreebet:`, error);
     throw new Error('Error processing freebet drop');
   } finally {
     // End the session to free up resources
@@ -209,13 +207,9 @@ const getUpdatedFreebetHistory = async (filter, cashierId, startDate, endDate) =
 
 const getAgentFreebets = async (agentId, gameType) => {
   const freebet = await Freebet.findOne({ agentId, gameType });
-  console.log('Fetched freebet for agentId:', agentId, 'gameType:', gameType, 'freebet:', freebet);
   if (freebet) return freebet;
-  console.log('No freebet found, creating one for agentId:', agentId, 'gameType:', gameType);
 
   const user = await User.find({ _id: agentId }).select('_id agentId superAgentId role');
-
-  console.log('User details for agentId:', agentId, 'user:', user);
 
   if (user[0].role === 'super') {
     // Create default jackpots

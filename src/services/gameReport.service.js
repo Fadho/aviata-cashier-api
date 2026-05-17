@@ -327,7 +327,7 @@ const getAndUpdateStakeByDay = async (cashierId, startDate, endDate, gameType) =
 
     // return gameReport;
   } catch (error) {
-    console.error('Error in getAndUpdateStakeByDay:', error);
+    // error
   }
 };
 
@@ -374,7 +374,7 @@ const getAndUpdateTotalTransactionsByDay = async (cashierId, startDate, endDate)
       { new: true }
     );
   } catch (error) {
-    console.error('Error in getAndUpdateTotalTransactionsByDay:', error);
+    // error
   }
 };
 

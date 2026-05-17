@@ -59,7 +59,6 @@ const withRetryTransaction = async (transactionFn, maxRetries = 3) => {
       await session.abortTransaction(); // Abort if an error occurs
       if (error.hasErrorLabel('TransientTransactionError') && retries < maxRetries) {
         retries += 1;
-        console.log(`Transaction aborted. Retrying transaction (${retries}/${maxRetries})...`);
       } else {
         throw error; // Throw error if not retryable or max retries exceeded
       }
@@ -210,7 +209,6 @@ const closeGame = async (superAgentId, roundId, odd) => {
     const success = await updateBetsAndCalculateWinnings(roundId, odd);
 
     if (!success) {
-      console.error(`Failed to update bets for round ${roundId}.`);
       return;
     }
 
@@ -232,12 +230,11 @@ const closeGame = async (superAgentId, roundId, odd) => {
       await session.commitTransaction();
     } catch (err) {
       await session.abortTransaction();
-      console.error(`Failed to mark round ${roundId} as ended.`, err);
     } finally {
       session.endSession();
     }
   } catch (error) {
-    console.error(`Error closing round ${roundId}:`, error);
+    // error
   }
 };
 
