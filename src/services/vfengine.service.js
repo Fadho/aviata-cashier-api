@@ -94,11 +94,18 @@ const getPrematchSchedule = (league) => {
 
 // ─── Bets ─────────────────────────────────────────────────────────────────────
 
-const placeBet = (body) => client().post('/api/bets/place', body);
+const engineTimestamp = () => Date.now() + (config.vfengine.clockOffsetMs || 0);
 
-const placeLiveBet = (body) => client().post('/api/live/bet', body);
+const placeBet = (body) => client().post('/api/bets/place', { ...body, client_timestamp: engineTimestamp() });
 
-const validateLiveBet = (body) => client().post('/api/live/bet/validate', body);
+const placeLiveBet = (body) => client().post('/api/live/bet', { ...body, client_timestamp: engineTimestamp() });
+
+const validateLiveBet = (body) =>
+  client().post('/api/live/bet/validate', {
+    odds: body.odds,
+    auto_accept_changes: body.auto_accept_changes,
+    client_timestamp: engineTimestamp(),
+  });
 
 const getBetHistory = (page, limit) => client().get('/api/bets/history', { params: { page, limit } });
 

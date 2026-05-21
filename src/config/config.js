@@ -29,6 +29,12 @@ const envVarsSchema = Joi.object()
     VFENGINE_JWT_SECRET: Joi.string().required().description('Shared JWT secret for VF Engine auth'),
     VFENGINE_WEBHOOK_SECRET: Joi.string().required().description('HMAC-SHA256 secret for VF Engine settlement webhooks'),
     VFENGINE_OPERATOR_ID: Joi.string().required().description('Operator ID included in VF Engine JWT claims'),
+    VFENGINE_CLOCK_OFFSET_MS: Joi.number()
+      .integer()
+      .default(0)
+      .description(
+        'Clock offset in ms to add to client_timestamp when forwarding to VF Engine (use to compensate for server clock skew)'
+      ),
   })
   .unknown();
 
@@ -37,6 +43,30 @@ const { value: envVars, error } = envVarsSchema.prefs({ errors: { label: 'key' }
 if (error) {
   throw new Error(`Config validation error: ${error.message}`);
 }
+
+/**
+ * Validates webhook secret configuration.
+ * Called at server startup to fail fast if misconfigured.
+ *
+ * @throws {Error} if secret is invalid
+ */
+const validateWebhookSecret = () => {
+  const secret = envVars.VFENGINE_WEBHOOK_SECRET;
+
+  if (!secret || secret.trim() === '') {
+    throw new Error('VFENGINE_WEBHOOK_SECRET is not configured (empty or whitespace)');
+  }
+
+  if (secret.length < 32) {
+    throw new Error(`VFENGINE_WEBHOOK_SECRET must be at least 32 characters (current: ${secret.length})`);
+  }
+
+  // Allow alphanumeric, dash, underscore, and common special characters used in secrets
+  // eslint-disable-next-line no-useless-escape
+  if (!/^[a-zA-Z0-9\-_!@#$%^&*+=.,:;/?\\|~`]+$/.test(secret)) {
+    throw new Error('VFENGINE_WEBHOOK_SECRET contains invalid characters');
+  }
+};
 
 module.exports = {
   env: envVars.NODE_ENV,
@@ -79,5 +109,7 @@ module.exports = {
     jwtSecret: envVars.VFENGINE_JWT_SECRET,
     webhookSecret: envVars.VFENGINE_WEBHOOK_SECRET,
     operatorId: envVars.VFENGINE_OPERATOR_ID,
+    clockOffsetMs: envVars.VFENGINE_CLOCK_OFFSET_MS,
   },
+  validateWebhookSecret,
 };

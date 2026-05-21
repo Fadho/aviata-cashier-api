@@ -240,6 +240,46 @@ const reprintThermal = {
   body: thermalPayload,
 };
 
+// ─── Settlement Webhook ──────────────────────────────────────────────────────
+
+const settlementWebhookPayload = {
+  body: Joi.object().keys({
+    event: Joi.string().valid('MATCH_SETTLED').required(),
+    matchId: Joi.string().required(),
+    homeTeam: Joi.string(),
+    awayTeam: Joi.string(),
+    finalScore: Joi.object().keys({
+      home: Joi.number().integer().required(),
+      away: Joi.number().integer().required(),
+    }),
+    settledAt: Joi.date().iso(),
+    leagueName: Joi.string()
+      .uppercase()
+      .valid(...LEAGUES)
+      .allow(null),
+    fixtureId: Joi.string(),
+    summary: Joi.object().keys({
+      settled: Joi.number().integer(),
+      won: Joi.number().integer(),
+      lost: Joi.number().integer(),
+      voided: Joi.number().integer(),
+    }),
+    bets: Joi.array()
+      .items(
+        Joi.object().keys({
+          betId: Joi.string().required(),
+          market: Joi.string(),
+          selection: Joi.string(),
+          oddsTaken: Joi.number(),
+          stake: Joi.number().required(),
+          result: Joi.string().valid('WON', 'LOST', 'VOID').insensitive().required(),
+          payout: Joi.number().min(0).required(),
+        })
+      )
+      .required(),
+  }),
+};
+
 module.exports = {
   teams,
   schedule,
@@ -265,4 +305,6 @@ module.exports = {
   printTicket,
   printThermal,
   reprintThermal,
+  // Settlement Webhook
+  settlementWebhookPayload,
 };

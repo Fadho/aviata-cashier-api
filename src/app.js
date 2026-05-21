@@ -11,12 +11,22 @@ const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 const config = require('./config/config');
 const morgan = require('./config/morgan');
+const logger = require('./config/logger');
 const { jwtStrategy, apiKeyStrategy } = require('./config/passport');
 const { authLimiter } = require('./middlewares/rateLimiter');
 const routes = require('./routes/v1');
 const { errorConverter, errorHandler } = require('./middlewares/error');
 const ApiError = require('./utils/ApiError');
 const { encryptMiddleware, decryptMiddleware } = require('./middlewares/encryption');
+
+// Validate webhook secret at startup
+try {
+  config.validateWebhookSecret();
+  logger.info('✓ Webhook secret validated at startup');
+} catch (err) {
+  logger.error('✗ Webhook secret validation failed:', err.message);
+  process.exit(1);
+}
 
 const swaggerSpec = swaggerJsdoc({
   definition: {

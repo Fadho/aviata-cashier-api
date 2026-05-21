@@ -2,6 +2,7 @@ const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const walletService = require('./wallet.service');
 const vfengineService = require('./vfengine.service');
+const logger = require('../config/logger');
 const Tickets = require('../models/tickets.model');
 const User = require('../models/user.model');
 
@@ -362,11 +363,15 @@ const resolveCreditAmount = (result, payout) => {
 
 /**
  * Applies a single bet outcome to the local Ticket and credits the wallet if needed.
+ * Includes logging for wallet credit failures and settlement tracking.
+ *
  * @param {{ betId: string, result: string, payout: number }} bet
  * @param {Date} now
- * @returns {Promise<void>}
+ * @param {string} leagueName - League name for audit trail
+ * @param {object} metrics - Settlement metrics accumulator
+ * @returns {Promise<{ success: boolean, error?: string }>}
  */
-const applyBetSettlement = async (bet, now) => {
+const applyBetSettlement = async (bet, now, leagueName, metrics = {}) => {
   const result = bet.result ? bet.result.toUpperCase() : null;
   const payoutAmount = Number(bet.payout) || 0;
 
@@ -377,15 +382,21 @@ const applyBetSettlement = async (bet, now) => {
     update.winnings = payoutAmount;
     update.payout = true;
     update.payoutDate = now;
+    // eslint-disable-next-line no-param-reassign
+    metrics.wonCount = (metrics.wonCount || 0) + 1;
   } else if (result === 'LOST') {
     update.result = 'loss';
     update.winnings = 0;
+    // eslint-disable-next-line no-param-reassign
+    metrics.lostCount = (metrics.lostCount || 0) + 1;
   } else if (result === 'VOID') {
     update.cancelled = true;
     update.result = null;
     update.winnings = 0;
     update.payout = true;
     update.payoutDate = now;
+    // eslint-disable-next-line no-param-reassign
+    metrics.voidedCount = (metrics.voidedCount || 0) + 1;
   }
 
   const ticket = await Tickets.findOneAndUpdate(
@@ -393,29 +404,169 @@ const applyBetSettlement = async (bet, now) => {
     update,
     { new: true }
   );
-  if (!ticket) return; // unknown or already settled
+
+  if (!ticket) {
+    // Bet not found or already settled
+    // eslint-disable-next-line no-param-reassign
+    metrics.skippedCount = (metrics.skippedCount || 0) + 1;
+    return { success: false, reason: 'already_settled' };
+  }
 
   const creditAmount = resolveCreditAmount(result, payoutAmount);
   if (creditAmount > 0) {
-    const cashier = await User.findById(ticket.cashierId).select('wallets').populate('wallets');
-    if (cashier && cashier.wallets && cashier.wallets.length > 0) {
+    try {
+      const cashier = await User.findById(ticket.cashierId).select('wallets').populate('wallets');
+
+      if (!cashier || !cashier.wallets || cashier.wallets.length === 0) {
+        logger.warn('[TurboSoccerSettlement] Wallet not found for cashier', {
+          vfBetId: bet.betId,
+          cashierId: ticket.cashierId,
+          leagueName,
+          creditAmount,
+          result,
+        });
+        // eslint-disable-next-line no-param-reassign
+        metrics.walletNotFoundCount = (metrics.walletNotFoundCount || 0) + 1;
+        return { success: false, reason: 'wallet_not_found' };
+      }
+
       const cashierWallet = cashier.wallets[0];
       const currentBalance = Number(cashierWallet.balance);
       await walletService.updateWallet(cashierWallet.id, currentBalance + creditAmount);
+
+      // eslint-disable-next-line no-param-reassign
+      metrics.walletsUpdated = (metrics.walletsUpdated || new Set()).add(ticket.cashierId.toString());
+      // eslint-disable-next-line no-param-reassign
+      metrics.totalCreditedAmount = (metrics.totalCreditedAmount || 0) + creditAmount;
+
+      return { success: true };
+    } catch (err) {
+      logger.error('[TurboSoccerSettlement] Failed to credit wallet', {
+        vfBetId: bet.betId,
+        cashierId: ticket.cashierId,
+        leagueName,
+        creditAmount,
+        error: err.message,
+      });
+      // eslint-disable-next-line no-param-reassign
+      metrics.creditErrorCount = (metrics.creditErrorCount || 0) + 1;
+      return { success: false, reason: 'credit_failed', error: err.message };
     }
   }
+
+  return { success: true };
 };
 
+/**
+ * Processes a settlement payload pushed by the VF Engine webhook.
+ * Idempotent — skips bets that have already been settled.
+ * Validates payload structure, logs settlement events, tracks metrics.
+ * Updates local Ticket statuses, credits WON wallets, and logs outcome.
+ *
+ * @param {object} payload - SettlementWebhookPayload from the VF Engine
+ * @returns {Promise<{ success: boolean, metrics: object, error?: string }>}
+ */
 const processSettlement = async (payload) => {
-  // VF Engine posts a SettlementWebhookPayload with event='MATCH_SETTLED' and a
-  // bets[] array. Each entry: { betId, market, oddsTaken, stake, result, payout }
-  // result values: 'WON' | 'LOST' | 'VOID'
-  if (payload.event && payload.event !== 'MATCH_SETTLED') return;
-  if (!Array.isArray(payload.bets)) return;
+  // Validate payload structure
+  if (!payload || typeof payload !== 'object') {
+    logger.error('[TurboSoccerSettlement] Invalid payload type', { payload });
+    return { success: false, error: 'Invalid payload' };
+  }
+
+  // Check event type
+  if (payload.event && payload.event !== 'MATCH_SETTLED') {
+    logger.warn('[TurboSoccerSettlement] Ignoring non-MATCH_SETTLED event', { event: payload.event });
+    return { success: false, reason: 'wrong_event' };
+  }
+
+  // Validate bets array
+  if (!Array.isArray(payload.bets) || payload.bets.length === 0) {
+    logger.warn('[TurboSoccerSettlement] No bets in payload', {
+      matchId: payload.matchId,
+      hasBets: Array.isArray(payload.bets),
+      betCount: Array.isArray(payload.bets) ? payload.bets.length : 0,
+    });
+    return { success: false, reason: 'no_bets' };
+  }
+
+  // Extract league name (from payload or null)
+  const leagueName = payload.leagueName || null;
+
+  // Initialize metrics
+  const metrics = {
+    totalBets: payload.bets.length,
+    wonCount: 0,
+    lostCount: 0,
+    voidedCount: 0,
+    skippedCount: 0,
+    walletsUpdated: new Set(),
+    totalCreditedAmount: 0,
+    walletNotFoundCount: 0,
+    creditErrorCount: 0,
+  };
+
+  logger.info('[TurboSoccerSettlement] Processing started', {
+    matchId: payload.matchId,
+    fixtureId: payload.fixtureId,
+    leagueName,
+    totalBets: payload.bets.length,
+    finalScore: payload.finalScore,
+  });
 
   const now = new Date();
+
   // Process sequentially to avoid wallet-balance races for bets belonging to the same cashier
-  await payload.bets.reduce((chain, bet) => chain.then(() => applyBetSettlement(bet, now)), Promise.resolve());
+  try {
+    await payload.bets.reduce(
+      (chain, bet) =>
+        chain.then(async () => {
+          try {
+            await applyBetSettlement(bet, now, leagueName, metrics);
+          } catch (err) {
+            logger.error('[TurboSoccerSettlement] Error processing bet', {
+              vfBetId: bet.betId,
+              leagueName,
+              error: err.message,
+            });
+            // eslint-disable-next-line no-param-reassign
+            metrics.creditErrorCount = (metrics.creditErrorCount || 0) + 1;
+          }
+        }),
+      Promise.resolve()
+    );
+  } catch (err) {
+    logger.error('[TurboSoccerSettlement] Settlement processing aborted', {
+      matchId: payload.matchId,
+      leagueName,
+      error: err.message,
+      processedBets: metrics.wonCount + metrics.lostCount + metrics.voidedCount,
+    });
+    return { success: false, error: err.message, metrics };
+  }
+
+  // Log settlement completion with full audit trail
+  logger.info('[TurboSoccerSettlement] Settlement complete', {
+    matchId: payload.matchId,
+    fixtureId: payload.fixtureId,
+    leagueName,
+    finalScore: payload.finalScore,
+    timestamp: now.toISOString(),
+    betsProcessed: {
+      total: metrics.totalBets,
+      won: metrics.wonCount || 0,
+      lost: metrics.lostCount || 0,
+      voided: metrics.voidedCount || 0,
+      skipped: metrics.skippedCount || 0,
+    },
+    walletsImpacted: {
+      uniqueCashiers: (metrics.walletsUpdated ? metrics.walletsUpdated.size : 0) || 0,
+      totalCredited: metrics.totalCreditedAmount || 0,
+      notFoundErrors: metrics.walletNotFoundCount || 0,
+      creditErrors: metrics.creditErrorCount || 0,
+    },
+  });
+
+  return { success: true, metrics };
 };
 
 module.exports = {

@@ -429,6 +429,48 @@ To maintain a consistent coding style across different IDEs, the project contain
 
 Contributions are more than welcome! Please check out the [contributing guide](CONTRIBUTING.md).
 
+## Turbo Soccer Integration (VF Engine)
+
+This application provides a complete REST API integration with the Virtual Football (VF) Engine for sports betting operations. The core functionality includes bet placement, live odds management, and settlement processing.
+
+### Settlement Webhook
+
+The settlement webhook (`POST /cashier/v1/turbo-soccer/webhooks/settlement`) processes match outcomes from the VF Engine with comprehensive logging and audit trail capabilities.
+
+**Key Features:**
+- **HMAC-SHA256 Signature Verification**: All webhooks are verified using `VFENGINE_WEBHOOK_SECRET` (minimum 32 characters)
+- **Startup Validation**: Webhook secret is validated at server initialization; invalid config causes process exit
+- **Idempotent Processing**: Already-settled bets are safely skipped; replayed webhooks don't double-credit wallets
+- **Sequential Processing**: Prevents wallet race conditions when one cashier has multiple bets
+- **Full Audit Trail**: Settlement start/complete events logged with detailed metrics (won/lost/voided counts, unique cashiers affected, total credits)
+- **League Tracking**: Optional `leagueName` field captured for settlement queries and reporting
+- **Error Logging**: Wallet credit failures, signature mismatches, and invalid payloads all logged with context
+
+**Environment Configuration:**
+```bash
+# Required in .env
+VFENGINE_WEBHOOK_SECRET=your-32-char-minimum-secret-key
+VFENGINE_BASE_URL=https://vfengine.yourdomain.com
+VFENGINE_JWT_SECRET=shared-jwt-secret-with-engine
+VFENGINE_OPERATOR_ID=your-operator-id
+```
+
+**Webhook Payload Validation:**
+The settlement payload is validated against a strict Joi schema matching VF Engine specification:
+- `event` must be `"MATCH_SETTLED"`
+- `bets` array with required `betId`, `result` (WON|LOST|VOID), and `payout` (≥0)
+- Optional league name (FRANCE|GERMANY|ITALY|LALIGA|PREMIER)
+- Case-insensitive result handling
+
+**Logging Context:**
+All settlement events are logged with structured JSON including:
+- Match identifiers (`matchId`, `fixtureId`)
+- League context (`leagueName`)
+- Outcome metrics (won, lost, voided, skipped counts)
+- Wallet impact (unique cashiers updated, total credited, error counts)
+
+**For detailed API documentation**, see [docs/turbo-soccer-integration.md](docs/turbo-soccer-integration.md) (Section 9: Settlement Webhook).
+
 ## Inspirations
 
 - [danielfsousa/express-rest-es2017-boilerplate](https://github.com/danielfsousa/express-rest-es2017-boilerplate)

@@ -124,6 +124,13 @@ const ticketSchema = mongoose.Schema(
     matchId: {
       type: String,
     },
+    leagueName: {
+      type: String,
+      uppercase: true,
+      enum: ['FRANCE', 'GERMANY', 'ITALY', 'LALIGA', 'PREMIER'],
+      sparse: true,
+      index: true,
+    },
   },
   {
     timestamps: true,

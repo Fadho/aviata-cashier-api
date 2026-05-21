@@ -31,8 +31,6 @@ const proxyVf = (fn) =>
   catchAsync(async (req, res) => {
     try {
       const vfRes = await fn(req);
-      const cashierRoute = `${req.method} ${req.originalUrl}`;
-      const engineRoute = formatEngineRoute(vfRes.config, req.method);
       proxyResponse(res, vfRes);
     } catch (err) {
       const cashierRoute = `${req.method} ${req.originalUrl}`;
@@ -183,6 +181,7 @@ const getVFootballGameLauncher = catchAsync(async (req, res) => {
 const handleSettlementWebhook = (req, res) => {
   const signature = req.headers['x-signature'];
   if (!signature) {
+    logger.warn('[SettlementWebhook] Missing signature header');
     return res.status(httpStatus.UNAUTHORIZED).json({ success: false, error: 'Missing signature' });
   }
 
@@ -196,6 +195,7 @@ const handleSettlementWebhook = (req, res) => {
   }
 
   if (!valid) {
+    logger.warn('[SettlementWebhook] Invalid signature', { signature });
     return res.status(httpStatus.UNAUTHORIZED).json({ success: false, error: 'Invalid signature' });
   }
 
@@ -203,13 +203,29 @@ const handleSettlementWebhook = (req, res) => {
   try {
     payload = JSON.parse(req.body.toString());
   } catch (_) {
+    logger.error('[SettlementWebhook] Failed to parse JSON payload');
     return res.status(httpStatus.BAD_REQUEST).json({ success: false, error: 'Invalid JSON payload' });
   }
+
+  logger.info('[SettlementWebhook] Received valid settlement webhook', {
+    matchId: payload.matchId,
+    fixtureId: payload.fixtureId,
+    leagueName: payload.leagueName,
+    betCount: Array.isArray(payload.bets) ? payload.bets.length : 0,
+  });
 
   // Respond immediately to prevent VF Engine retry loops; process asynchronously
   res.status(httpStatus.OK).json({ received: true });
 
-  turboSoccerService.processSettlement(payload).catch(() => {});
+  // Process settlement asynchronously with error logging
+  turboSoccerService.processSettlement(payload).catch((err) => {
+    logger.error('[SettlementWebhook] Unexpected error during settlement processing', {
+      matchId: payload.matchId,
+      leagueName: payload.leagueName,
+      error: err.message,
+      stack: err.stack,
+    });
+  });
 };
 
 // ─── Admin — Margins ──────────────────────────────────────────────────────────

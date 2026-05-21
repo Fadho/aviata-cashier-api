@@ -1,6 +1,6 @@
 # Turbo Soccer Pro — API Integration Guide
 
-> **Version:** 1.6.2 | **Date:** 2026-05-13  
+> **Version:** 1.7.0 | **Date:** 2026-05-20  
 > **Base path:** `/cashier/v1/turbo-soccer/`  
 > All authenticated routes require a Bearer JWT obtained from `POST /cashier/v1/auth/login`.
 
@@ -225,7 +225,7 @@ GET /cashier/v1/turbo-soccer/results?startTime=2026-05-13T10:00:00Z
 
 ## 3. WebSocket Integration
 
-The VF Engine uses **Socket.io v4**. Obtain a short-lived engine JWT from the cashier API then connect directly from the terminal:
+The VF Engine uses **Socket.io v4**. Obtain an 8-hour engine JWT from the cashier API then connect directly from the terminal:
 
 ```http
 GET /cashier/v1/turbo-soccer/ws-connect
@@ -621,7 +621,7 @@ Content-Type: application/json
 | `requested_odds` | | Client-side odds snapshot for drift detection |
 | `prematch` | | Omit for `LEAGUE-*` slots (auto-detected). Set `false` only for early in-play bets via this endpoint. |
 | `auto_accept_changes` | | Accept minor drift automatically |
-| `client_timestamp` | | Unix ms — injected automatically if omitted |
+| `client_timestamp` | | Unix ms — send `Date.now()` at slip-construction time; omitting it disables Grace Period drift detection on the VF Engine side |
 
 **Success `200`:**
 ```json
@@ -773,27 +773,77 @@ The VF Engine posts to this endpoint after each match settles. **No JWT required
 ```
 POST /cashier/v1/turbo-soccer/webhooks/settlement
 X-Signature: sha256=<hmac_hex>
+Content-Type: application/json
 ```
 
 Responds `200 { "received": true }` immediately; processing is async.
 
-**Payload shape:**
+### 9.1 Webhook Secret Configuration
+
+The `VFENGINE_WEBHOOK_SECRET` environment variable is **required** and validated at server startup:
+
+```bash
+# .env
+VFENGINE_WEBHOOK_SECRET=your-secret-key-minimum-32-characters-long
+```
+
+**Validation Rules:**
+- Non-empty (fails if empty or whitespace)
+- Minimum 32 characters
+- Alphanumeric + common special characters only (`!@#$%^&*+=.,:;/?|~`)
+
+**Startup Behavior:**
+- Secret validated during app initialization
+- If invalid, process exits with code 1 and logs error message
+- Prevents runtime webhook signature failures from misconfiguration
+
+### 9.2 Payload Schema
+
+The settlement payload is validated against the following schema:
+
+```json
+{
+  "event": "MATCH_SETTLED",
+  "matchId": "string (required)",
+  "fixtureId": "string (optional)",
+  "finalScore": {
+    "home": "integer (optional)",
+    "away": "integer (optional)"
+  },
+  "leagueName": "enum: FRANCE|GERMANY|ITALY|LALIGA|PREMIER (optional)",
+  "bets": [
+    {
+      "betId": "string (required)",
+      "result": "WON|LOST|VOID (required, case-insensitive)",
+      "payout": "number >= 0 (required)",
+      "market": "string (optional)",
+      "selection": "string (optional)",
+      "stake": "number (optional)",
+      "oddsTaken": "number (optional)"
+    }
+  ]
+}
+```
+
+### 9.3 Payload Shape (Example)
+
 ```json
 {
   "event": "MATCH_SETTLED",
   "matchId": "LEAGUE-001",
+  "fixtureId": "VFL-L01-S01-R012",
   "homeTeam": "Manchester City",
   "awayTeam": "Liverpool FC",
   "finalScore": { "home": 2, "away": 1 },
+  "leagueName": "PREMIER",
   "settledAt": "2026-05-13T14:32:05.000Z",
-  "summary": { "settled": 47, "won": 21, "lost": 24, "voided": 2 },
   "bets": [
     {
       "betId": "BET-1746624051234-AB12C",
       "market": "match_winner",
       "selection": "home",
-      "oddsTaken": 1.85,
       "stake": 100,
+      "oddsTaken": 1.85,
       "result": "WON",
       "payout": 185.00
     }
@@ -801,7 +851,90 @@ Responds `200 { "received": true }` immediately; processing is async.
 }
 ```
 
-> `result` is uppercase: `"WON"` | `"LOST"` | `"VOID"`. For `WON` the cashier wallet is credited `payout`. For `VOID`, the ticket is marked cancelled with no additional settlement credit.
+**Field Notes:**
+- `event`: Must be `"MATCH_SETTLED"` (unknown events are logged but not processed)
+- `result`: Case-insensitive; converted to uppercase internally
+- `leagueName`: Optional; used for audit trail and settlement queries (persisted in local Ticket record)
+- For `WON`: cashier wallet is credited `payout` amount
+- For `VOID`: ticket is marked cancelled with no wallet credit
+- For `LOST`: no wallet change
+
+### 9.4 Settlement Processing & Idempotency
+
+Settlement is **idempotent**:
+- Bets already marked `roundHasEnded: true` and `cancelled: false` are skipped
+- Replayed webhooks for same match don't double-credit wallets
+- Sequential processing prevents wallet race conditions when one cashier has multiple bets in the settlement
+
+### 9.5 Logging & Audit Trail
+
+All settlement events are logged with full context for debugging and auditing:
+
+**Settlement Start Log:**
+```json
+{
+  "level": "info",
+  "message": "[TurboSoccerSettlement] Processing started",
+  "matchId": "LEAGUE-001",
+  "fixtureId": "VFL-L01-S01-R012",
+  "leagueName": "PREMIER",
+  "totalBets": 47
+}
+```
+
+**Settlement Complete Log (Audit Trail):**
+```json
+{
+  "level": "info",
+  "message": "[TurboSoccerSettlement] Settlement complete",
+  "matchId": "LEAGUE-001",
+  "fixtureId": "VFL-L01-S01-R012",
+  "leagueName": "PREMIER",
+  "timestamp": "2026-05-13T14:32:05.000Z",
+  "betsProcessed": {
+    "total": 47,
+    "won": 21,
+    "lost": 24,
+    "voided": 2,
+    "skipped": 0
+  },
+  "walletsImpacted": {
+    "uniqueCashiers": 12,
+    "totalCredited": 4250.50,
+    "notFoundErrors": 0,
+    "creditErrors": 0
+  }
+}
+```
+
+**Error Logs:** Wallet credit failures, signature mismatches, and invalid payloads all logged with full context.
+
+### 9.6 Webhook Signature Verification
+
+The `X-Signature` header is verified using HMAC-SHA256 timing-safe comparison:
+
+```
+X-Signature: sha256=<hex_encoded_signature>
+```
+
+**Verification Steps:**
+1. Extract signature from header (part after `sha256=`)
+2. Compute HMAC-SHA256 of raw request body using `VFENGINE_WEBHOOK_SECRET`
+3. Compare using timing-safe equal function
+4. Log warning if signature missing or invalid; respond 401
+
+### 9.7 Response Behavior
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{ "received": true }
+```
+
+- Always responds `200` immediately regardless of payload validity
+- Processing errors logged but don't affect HTTP response
+- This allows VF Engine to continue without retry logic
 
 ---
 
@@ -866,7 +999,7 @@ Content-Type: application/json
 | `auto_accept_changes` | | Accept up to 5% odds drift automatically |
 
 > **Pre-match legs:** set `match_status: "PRE_MATCH"` (or `"PREMATCH"` / `"PRE"`) on a selection to bypass the grace period check. The `bet_type` in the response will be `"PREMATCH"`.  
-> **`matchId` must always be the canonical `LEAGUE-*` slot ID** — read from `fixtures[].matchId` in `PREMATCH_SCHEDULE` or `GET /league/prematch/schedule`.
+> **`matchId` identity:** use the scheduled fixture ID (`fixtureId` / `gameId`, e.g. `"VFL-L01-S01-R012"`) as `matchId` for settlement-grade identity — this is the canonical form recommended throughout this guide. The `LEAGUE-*` slot ID (from `fixtures[].matchId` in `PREMATCH_SCHEDULE` or `GET /league/prematch/schedule`) is also accepted by the VF Engine and remains stable within a season, but is a display/routing identifier rather than a settlement-grade one.
 
 **All responses return HTTP 200.**
 

@@ -149,7 +149,59 @@ Example:
 }
 ```
 
-## 5. Ticket Metadata Stored Locally
+## 5. Bet History: GET /bets/history
+
+Returns the bet history from the VF Engine. Any authenticated user may call this.
+
+**Query parameters:**
+
+| Parameter | Type | Constraints | Default |
+|---|---|---|---|
+| `page` | integer | ≥ 1 | engine default |
+| `limit` | integer | 1 – 100 | engine default |
+
+Example:
+
+```http
+GET /cashier/v1/turbo-soccer/bets/history?page=1&limit=20
+Authorization: Bearer <access_token>
+```
+
+Response shape is passed through directly from the VF Engine.
+
+---
+
+## 6. Void Bet: POST /bets/:betId/void
+
+> Requires `admin` or `super` role (`manageGameConfig`).
+
+**Path parameter:** `betId` — the VF Engine bet ID returned in the `placeBet` / `placeLiveBet` response.
+
+**Body:**
+
+| Field | Required | Description |
+|---|---|---|
+| `reason` | No | Human-readable void reason forwarded to the VF Engine |
+
+Example:
+
+```json
+{
+  "reason": "Operator error — incorrect odds displayed"
+}
+```
+
+**What happens locally on void:**
+1. The matching `Tickets` record is found by `betId`.
+2. VF Engine is called to void the bet.
+3. The local ticket is marked `cancelled: true`, `payout: true`.
+4. The original stake is refunded to the cashier's wallet.
+
+**Response `200`:** passes through the VF Engine void result.
+
+---
+
+## 7. Ticket Metadata Stored Locally
 
 When a bet is accepted and persisted, selection-level metadata is stored in Tickets.selections[]:
 
@@ -165,7 +217,7 @@ When a bet is accepted and persisted, selection-level metadata is stored in Tick
 For single bets, betType is single.
 For accumulator requests, betType is multiple.
 
-## 6. Failure and Recovery Behavior
+## 8. Failure and Recovery Behavior
 
 ### Engine-level rejects
 
@@ -183,7 +235,7 @@ Error message:
 - Bet accepted by engine but could not be recorded locally; wallet has been restored
 - Live bet accepted by engine but could not be recorded locally; wallet has been restored
 
-## 7. Practical Integration Notes
+## 9. Practical Integration Notes
 
 1. For /bets/place single mode, always send matchId.
 2. For /bets/place multi mode, always send matchId per leg in selections[].
