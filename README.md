@@ -451,6 +451,7 @@ The settlement webhook (`POST /cashier/v1/turbo-soccer/webhooks/settlement`) pro
 # Required in .env
 VFENGINE_WEBHOOK_SECRET=your-32-char-minimum-secret-key
 VFENGINE_BASE_URL=https://vfengine.yourdomain.com
+# Optional; if omitted, JWT_SECRET is used for VF Engine token signing
 VFENGINE_JWT_SECRET=shared-jwt-secret-with-engine
 VFENGINE_OPERATOR_ID=your-operator-id
 ```

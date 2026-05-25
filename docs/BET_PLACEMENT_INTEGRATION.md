@@ -242,3 +242,33 @@ Error message:
 3. Prefer fixture identity from schedule data when available; LEAGUE-* IDs are accepted for compatibility.
 4. Disable bet submission while markets are suspended or odds payload is null.
 5. Treat HTTP 409 ODDS_CHANGED as a recoverable UI flow: refresh shown odds, then resubmit.
+
+## 10. Settlement Webhook Contract (Runtime)
+
+Settlement is applied asynchronously via:
+
+- POST /cashier/v1/turbo-soccer/webhooks/settlement
+
+Current runtime behavior supports both payload forms:
+
+1. Canonical: tickets_graded[] (preferred)
+2. Legacy migration: bets[]
+
+Supported events:
+
+- MATCH_SETTLED
+- MARKET_SETTLED
+- settlement.complete (alias)
+- market.settlement.complete (alias)
+
+Ticket identifier resolution order per settled entry:
+
+- ticket_hash -> ticketHash -> betId -> ticketId -> vfBetId
+
+Status and payout rules:
+
+- Accepted status values: WON, LOST, VOID (case-insensitive)
+- Unknown status values are skipped safely
+- Negative payout values are clamped to 0
+
+For full payload examples and logging details, see docs/turbo-soccer-integration.md section 9.

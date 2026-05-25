@@ -207,11 +207,19 @@ const handleSettlementWebhook = (req, res) => {
     return res.status(httpStatus.BAD_REQUEST).json({ success: false, error: 'Invalid JSON payload' });
   }
 
+  let betCount = 0;
+  if (Array.isArray(payload.tickets_graded)) {
+    betCount = payload.tickets_graded.length;
+  } else if (Array.isArray(payload.bets)) {
+    betCount = payload.bets.length;
+  }
+
   logger.info('[SettlementWebhook] Received valid settlement webhook', {
+    event: payload.event,
     matchId: payload.matchId,
-    fixtureId: payload.fixtureId,
+    fixtureId: payload.fixtureId || payload.fixture_id,
     leagueName: payload.leagueName,
-    betCount: Array.isArray(payload.bets) ? payload.bets.length : 0,
+    betCount,
   });
 
   // Respond immediately to prevent VF Engine retry loops; process asynchronously

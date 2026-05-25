@@ -414,23 +414,27 @@ describe('turboSoccerService.processSettlement', () => {
     walletService.updateWallet.mockResolvedValue({});
   });
 
-  test('should return immediately when bets is not an array', async () => {
-    await turboSoccerService.processSettlement({ bets: null });
+  test('should return immediately when settlement payload has no graded tickets', async () => {
+    await turboSoccerService.processSettlement({ event: 'MATCH_SETTLED', tickets_graded: null });
     expect(Tickets.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
-  test('should return immediately for an empty bets array', async () => {
-    await turboSoccerService.processSettlement({ bets: [] });
+  test('should return immediately for an empty tickets_graded array', async () => {
+    await turboSoccerService.processSettlement({ event: 'MATCH_SETTLED', tickets_graded: [] });
     expect(Tickets.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
   test('should update ticket to win and credit cashier wallet for a won bet', async () => {
     await turboSoccerService.processSettlement({
-      bets: [{ betId: 'vf-bet-001', result: 'Won', payout: 250 }],
+      event: 'MATCH_SETTLED',
+      tickets_graded: [{ ticket_hash: 'vf-bet-001', status: 'Won', payout_amount: 250 }],
     });
 
     expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ vfBetId: 'vf-bet-001', gameType: 'turbo-soccer' }),
+      expect.objectContaining({
+        gameType: 'turbo-soccer',
+        $or: [{ vfBetId: 'vf-bet-001' }, { ticketId: 'vf-bet-001' }],
+      }),
       expect.objectContaining({ result: 'win', winnings: 250, roundHasEnded: true }),
       { new: true }
     );
@@ -439,11 +443,15 @@ describe('turboSoccerService.processSettlement', () => {
 
   test('should update ticket to loss and NOT credit wallet for a lost bet', async () => {
     await turboSoccerService.processSettlement({
-      bets: [{ betId: 'vf-bet-002', result: 'Lost', payout: 0 }],
+      event: 'MATCH_SETTLED',
+      tickets_graded: [{ ticket_hash: 'vf-bet-002', status: 'Lost', payout_amount: 0 }],
     });
 
     expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ vfBetId: 'vf-bet-002', gameType: 'turbo-soccer' }),
+      expect.objectContaining({
+        gameType: 'turbo-soccer',
+        $or: [{ vfBetId: 'vf-bet-002' }, { ticketId: 'vf-bet-002' }],
+      }),
       expect.objectContaining({ result: 'loss', winnings: 0, roundHasEnded: true }),
       { new: true }
     );
@@ -452,11 +460,15 @@ describe('turboSoccerService.processSettlement', () => {
 
   test('should mark ticket cancelled for a void result', async () => {
     await turboSoccerService.processSettlement({
-      bets: [{ betId: 'vf-bet-003', result: 'void', payout: 0 }],
+      event: 'MATCH_SETTLED',
+      tickets_graded: [{ ticket_hash: 'vf-bet-003', status: 'void', payout_amount: 0 }],
     });
 
     expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ vfBetId: 'vf-bet-003', gameType: 'turbo-soccer' }),
+      expect.objectContaining({
+        gameType: 'turbo-soccer',
+        $or: [{ vfBetId: 'vf-bet-003' }, { ticketId: 'vf-bet-003' }],
+      }),
       expect.objectContaining({ cancelled: true, result: null, roundHasEnded: true }),
       { new: true }
     );
@@ -466,7 +478,8 @@ describe('turboSoccerService.processSettlement', () => {
   test('should skip wallet credit when ticket is not found', async () => {
     Tickets.findOneAndUpdate.mockResolvedValue(null);
     await turboSoccerService.processSettlement({
-      bets: [{ betId: 'unknown-bet', result: 'Won', payout: 100 }],
+      event: 'MATCH_SETTLED',
+      tickets_graded: [{ ticket_hash: 'unknown-bet', status: 'Won', payout_amount: 100 }],
     });
     expect(walletService.updateWallet).not.toHaveBeenCalled();
   });
@@ -474,15 +487,16 @@ describe('turboSoccerService.processSettlement', () => {
   test('should process multiple bets sequentially', async () => {
     const callOrder = [];
     Tickets.findOneAndUpdate.mockImplementation((filter) => {
-      callOrder.push(filter.vfBetId);
+      callOrder.push(filter.$or[0].vfBetId);
       return Promise.resolve({ ...wonTicket });
     });
 
     await turboSoccerService.processSettlement({
-      bets: [
-        { betId: 'bet-A', result: 'Lost', payout: 0 },
-        { betId: 'bet-B', result: 'Lost', payout: 0 },
-        { betId: 'bet-C', result: 'Lost', payout: 0 },
+      event: 'MATCH_SETTLED',
+      tickets_graded: [
+        { ticket_hash: 'bet-A', status: 'Lost', payout_amount: 0 },
+        { ticket_hash: 'bet-B', status: 'Lost', payout_amount: 0 },
+        { ticket_hash: 'bet-C', status: 'Lost', payout_amount: 0 },
       ],
     });
 
@@ -491,7 +505,8 @@ describe('turboSoccerService.processSettlement', () => {
 
   test('should handle case-insensitive result strings', async () => {
     await turboSoccerService.processSettlement({
-      bets: [{ betId: 'vf-bet-004', result: 'WON', payout: 50 }],
+      event: 'MATCH_SETTLED',
+      tickets_graded: [{ ticket_hash: 'vf-bet-004', status: 'WON', payout_amount: 50 }],
     });
     expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
       expect.anything(),
@@ -500,14 +515,70 @@ describe('turboSoccerService.processSettlement', () => {
     );
   });
 
-  test('should handle null result in payload gracefully', async () => {
+  test('should skip entries with missing ticket reference', async () => {
     await turboSoccerService.processSettlement({
-      bets: [{ betId: 'vf-bet-005', result: null, payout: 0 }],
+      event: 'MATCH_SETTLED',
+      tickets_graded: [{ status: 'WON', payout_amount: 50 }],
     });
+    expect(Tickets.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  test('should still support legacy bets[] payload during migration', async () => {
+    await turboSoccerService.processSettlement({
+      event: 'MATCH_SETTLED',
+      bets: [{ betId: 'vf-bet-legacy', result: 'WON', payout: 120 }],
+    });
+
     expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ result: null, roundHasEnded: true }),
-      expect.anything()
+      expect.objectContaining({
+        gameType: 'turbo-soccer',
+        $or: [{ vfBetId: 'vf-bet-legacy' }, { ticketId: 'vf-bet-legacy' }],
+      }),
+      expect.objectContaining({ result: 'win', winnings: 120, roundHasEnded: true }),
+      { new: true }
     );
+  });
+
+  test('should process canonical MARKET_SETTLED event when ticket identifiers are provided', async () => {
+    await turboSoccerService.processSettlement({
+      event: 'MARKET_SETTLED',
+      tickets_graded: [{ ticket_hash: 'vf-bet-market', status: 'LOST', payout_amount: 0 }],
+    });
+
+    expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gameType: 'turbo-soccer',
+        $or: [{ vfBetId: 'vf-bet-market' }, { ticketId: 'vf-bet-market' }],
+      }),
+      expect.objectContaining({ result: 'loss', winnings: 0, roundHasEnded: true }),
+      { new: true }
+    );
+  });
+
+  test('should skip entries with unsupported status values', async () => {
+    await turboSoccerService.processSettlement({
+      event: 'MATCH_SETTLED',
+      tickets_graded: [{ ticket_hash: 'vf-bet-bad-status', status: 'PENDING', payout_amount: 50 }],
+    });
+
+    expect(Tickets.findOneAndUpdate).not.toHaveBeenCalled();
+    expect(walletService.updateWallet).not.toHaveBeenCalled();
+  });
+
+  test('should clamp negative payout values to zero and avoid wallet credit', async () => {
+    await turboSoccerService.processSettlement({
+      event: 'MATCH_SETTLED',
+      tickets_graded: [{ ticket_hash: 'vf-bet-negative', status: 'WON', payout_amount: -50 }],
+    });
+
+    expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gameType: 'turbo-soccer',
+        $or: [{ vfBetId: 'vf-bet-negative' }, { ticketId: 'vf-bet-negative' }],
+      }),
+      expect.objectContaining({ result: 'win', winnings: 0, roundHasEnded: true }),
+      { new: true }
+    );
+    expect(walletService.updateWallet).not.toHaveBeenCalled();
   });
 });

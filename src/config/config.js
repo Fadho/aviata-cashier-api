@@ -26,7 +26,10 @@ const envVarsSchema = Joi.object()
       .description('minutes after which verify email token expires'),
     GAME_LAUNCHER_URL: Joi.string().uri().required().description('Base URL of the game launcher frontend'),
     VFENGINE_BASE_URL: Joi.string().uri().required().description('Virtual Football Engine base URL'),
-    VFENGINE_JWT_SECRET: Joi.string().required().description('Shared JWT secret for VF Engine auth'),
+    VFENGINE_JWT_SECRET: Joi.string()
+      .allow('')
+      .optional()
+      .description('Optional explicit JWT secret for VF Engine auth; falls back to JWT_SECRET when omitted'),
     VFENGINE_WEBHOOK_SECRET: Joi.string().required().description('HMAC-SHA256 secret for VF Engine settlement webhooks'),
     VFENGINE_OPERATOR_ID: Joi.string().required().description('Operator ID included in VF Engine JWT claims'),
     VFENGINE_CLOCK_OFFSET_MS: Joi.number()
@@ -106,7 +109,7 @@ module.exports = {
   gameLauncherUrl: envVars.GAME_LAUNCHER_URL,
   vfengine: {
     baseUrl: envVars.VFENGINE_BASE_URL,
-    jwtSecret: envVars.VFENGINE_JWT_SECRET,
+    jwtSecret: envVars.VFENGINE_JWT_SECRET || envVars.JWT_SECRET,
     webhookSecret: envVars.VFENGINE_WEBHOOK_SECRET,
     operatorId: envVars.VFENGINE_OPERATOR_ID,
     clockOffsetMs: envVars.VFENGINE_CLOCK_OFFSET_MS,

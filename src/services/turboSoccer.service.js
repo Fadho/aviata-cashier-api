@@ -361,19 +361,106 @@ const resolveCreditAmount = (result, payout) => {
   return 0;
 };
 
+const SETTLEMENT_EVENT_ALIASES = {
+  MATCH_SETTLED: 'MATCH_SETTLED',
+  MARKET_SETTLED: 'MARKET_SETTLED',
+  'settlement.complete': 'MATCH_SETTLED',
+  'market.settlement.complete': 'MARKET_SETTLED',
+};
+
+const normalizeSettlementEvent = (event) => {
+  if (!event) return null;
+  const normalized = SETTLEMENT_EVENT_ALIASES[event];
+  if (normalized) return normalized;
+  const upper = String(event).toUpperCase();
+  return SETTLEMENT_EVENT_ALIASES[upper] || null;
+};
+
+const firstDefined = (...values) => values.find((value) => value !== undefined && value !== null);
+
+const normalizeSettlementResult = (rawResult) => {
+  if (!rawResult) return null;
+  const result = String(rawResult).toUpperCase();
+  if (result === 'WIN') return 'WON';
+  if (result === 'LOSS' || result === 'LOSE') return 'LOST';
+  return result;
+};
+
+const normalizeSettledTicket = (ticket) => {
+  const ticketRef = firstDefined(ticket.ticket_hash, ticket.ticketHash, ticket.betId, ticket.ticketId, ticket.vfBetId);
+  const result = normalizeSettlementResult(firstDefined(ticket.status, ticket.result));
+  const payout = Number(firstDefined(ticket.payout_amount, ticket.payoutAmount, ticket.payout, 0)) || 0;
+
+  return {
+    ticketRef: ticketRef != null ? String(ticketRef) : null,
+    result,
+    payout,
+  };
+};
+
+const normalizeSettlementPayload = (payload) => {
+  if (!payload || typeof payload !== 'object') {
+    return { valid: false, reason: 'invalid_payload' };
+  }
+
+  const event = normalizeSettlementEvent(payload.event);
+  if (!event) {
+    return { valid: false, reason: 'wrong_event', event: payload.event };
+  }
+
+  let rawTickets = [];
+  if (Array.isArray(payload.tickets_graded)) {
+    rawTickets = payload.tickets_graded;
+  } else if (Array.isArray(payload.bets)) {
+    rawTickets = payload.bets;
+  }
+
+  if (rawTickets.length === 0) {
+    return {
+      valid: false,
+      reason: 'no_bets',
+      event,
+      matchId: firstDefined(payload.matchId, payload.fixtureId, payload.fixture_id),
+    };
+  }
+
+  return {
+    valid: true,
+    event,
+    matchId: firstDefined(payload.matchId, payload.fixtureId, payload.fixture_id),
+    fixtureId: firstDefined(payload.fixtureId, payload.fixture_id, payload.matchId),
+    leagueName: payload.leagueName || null,
+    finalScore: firstDefined(payload.finalScore, payload.final_score),
+    settledAt: firstDefined(payload.settledAt, payload.resolutionTime, payload.resolution_time),
+    gradedTickets: rawTickets.map((ticket) => normalizeSettledTicket(ticket)),
+  };
+};
+
 /**
  * Applies a single bet outcome to the local Ticket and credits the wallet if needed.
  * Includes logging for wallet credit failures and settlement tracking.
  *
- * @param {{ betId: string, result: string, payout: number }} bet
+ * @param {{ ticketRef: string, result: string, payout: number }} bet
  * @param {Date} now
  * @param {string} leagueName - League name for audit trail
  * @param {object} metrics - Settlement metrics accumulator
  * @returns {Promise<{ success: boolean, error?: string }>}
  */
 const applyBetSettlement = async (bet, now, leagueName, metrics = {}) => {
-  const result = bet.result ? bet.result.toUpperCase() : null;
-  const payoutAmount = Number(bet.payout) || 0;
+  const result = normalizeSettlementResult(bet.result);
+  const payoutAmount = Math.max(0, Number(bet.payout) || 0);
+
+  if (!bet.ticketRef) {
+    // eslint-disable-next-line no-param-reassign
+    metrics.skippedCount = (metrics.skippedCount || 0) + 1;
+    return { success: false, reason: 'missing_ticket_reference' };
+  }
+
+  if (!['WON', 'LOST', 'VOID'].includes(result)) {
+    // eslint-disable-next-line no-param-reassign
+    metrics.skippedCount = (metrics.skippedCount || 0) + 1;
+    return { success: false, reason: 'unsupported_result' };
+  }
 
   const update = { roundHasEnded: true, result: null, winnings: 0 };
 
@@ -400,7 +487,12 @@ const applyBetSettlement = async (bet, now, leagueName, metrics = {}) => {
   }
 
   const ticket = await Tickets.findOneAndUpdate(
-    { vfBetId: bet.betId, gameType: GAME_TYPE, roundHasEnded: false, cancelled: false },
+    {
+      gameType: GAME_TYPE,
+      roundHasEnded: false,
+      cancelled: false,
+      $or: [{ vfBetId: bet.ticketRef }, { ticketId: bet.ticketRef }],
+    },
     update,
     { new: true }
   );
@@ -419,7 +511,7 @@ const applyBetSettlement = async (bet, now, leagueName, metrics = {}) => {
 
       if (!cashier || !cashier.wallets || cashier.wallets.length === 0) {
         logger.warn('[TurboSoccerSettlement] Wallet not found for cashier', {
-          vfBetId: bet.betId,
+          ticketRef: bet.ticketRef,
           cashierId: ticket.cashierId,
           leagueName,
           creditAmount,
@@ -442,7 +534,7 @@ const applyBetSettlement = async (bet, now, leagueName, metrics = {}) => {
       return { success: true };
     } catch (err) {
       logger.error('[TurboSoccerSettlement] Failed to credit wallet', {
-        vfBetId: bet.betId,
+        ticketRef: bet.ticketRef,
         cashierId: ticket.cashierId,
         leagueName,
         creditAmount,
@@ -467,34 +559,27 @@ const applyBetSettlement = async (bet, now, leagueName, metrics = {}) => {
  * @returns {Promise<{ success: boolean, metrics: object, error?: string }>}
  */
 const processSettlement = async (payload) => {
-  // Validate payload structure
-  if (!payload || typeof payload !== 'object') {
-    logger.error('[TurboSoccerSettlement] Invalid payload type', { payload });
-    return { success: false, error: 'Invalid payload' };
-  }
+  const normalized = normalizeSettlementPayload(payload);
+  if (!normalized.valid) {
+    if (normalized.reason === 'invalid_payload') {
+      logger.error('[TurboSoccerSettlement] Invalid payload type', { payload });
+      return { success: false, error: 'Invalid payload' };
+    }
+    if (normalized.reason === 'wrong_event') {
+      logger.warn('[TurboSoccerSettlement] Ignoring unsupported settlement event', { event: normalized.event });
+      return { success: false, reason: 'wrong_event' };
+    }
 
-  // Check event type
-  if (payload.event && payload.event !== 'MATCH_SETTLED') {
-    logger.warn('[TurboSoccerSettlement] Ignoring non-MATCH_SETTLED event', { event: payload.event });
-    return { success: false, reason: 'wrong_event' };
-  }
-
-  // Validate bets array
-  if (!Array.isArray(payload.bets) || payload.bets.length === 0) {
-    logger.warn('[TurboSoccerSettlement] No bets in payload', {
-      matchId: payload.matchId,
-      hasBets: Array.isArray(payload.bets),
-      betCount: Array.isArray(payload.bets) ? payload.bets.length : 0,
+    logger.warn('[TurboSoccerSettlement] No graded tickets in payload', {
+      matchId: normalized.matchId,
+      reason: normalized.reason,
     });
     return { success: false, reason: 'no_bets' };
   }
 
-  // Extract league name (from payload or null)
-  const leagueName = payload.leagueName || null;
-
   // Initialize metrics
   const metrics = {
-    totalBets: payload.bets.length,
+    totalBets: normalized.gradedTickets.length,
     wonCount: 0,
     lostCount: 0,
     voidedCount: 0,
@@ -506,26 +591,28 @@ const processSettlement = async (payload) => {
   };
 
   logger.info('[TurboSoccerSettlement] Processing started', {
-    matchId: payload.matchId,
-    fixtureId: payload.fixtureId,
-    leagueName,
-    totalBets: payload.bets.length,
-    finalScore: payload.finalScore,
+    event: normalized.event,
+    matchId: normalized.matchId,
+    fixtureId: normalized.fixtureId,
+    leagueName: normalized.leagueName,
+    totalBets: normalized.gradedTickets.length,
+    finalScore: normalized.finalScore,
+    settledAt: normalized.settledAt || null,
   });
 
   const now = new Date();
 
   // Process sequentially to avoid wallet-balance races for bets belonging to the same cashier
   try {
-    await payload.bets.reduce(
+    await normalized.gradedTickets.reduce(
       (chain, bet) =>
         chain.then(async () => {
           try {
-            await applyBetSettlement(bet, now, leagueName, metrics);
+            await applyBetSettlement(bet, now, normalized.leagueName, metrics);
           } catch (err) {
             logger.error('[TurboSoccerSettlement] Error processing bet', {
-              vfBetId: bet.betId,
-              leagueName,
+              ticketRef: bet.ticketRef,
+              leagueName: normalized.leagueName,
               error: err.message,
             });
             // eslint-disable-next-line no-param-reassign
@@ -536,8 +623,8 @@ const processSettlement = async (payload) => {
     );
   } catch (err) {
     logger.error('[TurboSoccerSettlement] Settlement processing aborted', {
-      matchId: payload.matchId,
-      leagueName,
+      matchId: normalized.matchId,
+      leagueName: normalized.leagueName,
       error: err.message,
       processedBets: metrics.wonCount + metrics.lostCount + metrics.voidedCount,
     });
@@ -546,10 +633,11 @@ const processSettlement = async (payload) => {
 
   // Log settlement completion with full audit trail
   logger.info('[TurboSoccerSettlement] Settlement complete', {
-    matchId: payload.matchId,
-    fixtureId: payload.fixtureId,
-    leagueName,
-    finalScore: payload.finalScore,
+    event: normalized.event,
+    matchId: normalized.matchId,
+    fixtureId: normalized.fixtureId,
+    leagueName: normalized.leagueName,
+    finalScore: normalized.finalScore,
     timestamp: now.toISOString(),
     betsProcessed: {
       total: metrics.totalBets,

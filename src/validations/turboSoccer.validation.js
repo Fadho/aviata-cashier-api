@@ -243,29 +243,51 @@ const reprintThermal = {
 // ─── Settlement Webhook ──────────────────────────────────────────────────────
 
 const settlementWebhookPayload = {
-  body: Joi.object().keys({
-    event: Joi.string().valid('MATCH_SETTLED').required(),
-    matchId: Joi.string().required(),
-    homeTeam: Joi.string(),
-    awayTeam: Joi.string(),
-    finalScore: Joi.object().keys({
-      home: Joi.number().integer().required(),
-      away: Joi.number().integer().required(),
-    }),
-    settledAt: Joi.date().iso(),
-    leagueName: Joi.string()
-      .uppercase()
-      .valid(...LEAGUES)
-      .allow(null),
-    fixtureId: Joi.string(),
-    summary: Joi.object().keys({
-      settled: Joi.number().integer(),
-      won: Joi.number().integer(),
-      lost: Joi.number().integer(),
-      voided: Joi.number().integer(),
-    }),
-    bets: Joi.array()
-      .items(
+  body: Joi.object()
+    .keys({
+      event: Joi.string()
+        .valid('MATCH_SETTLED', 'MARKET_SETTLED', 'settlement.complete', 'market.settlement.complete')
+        .required(),
+      matchId: Joi.string(),
+      fixture_id: Joi.string(),
+      fixtureId: Joi.string(),
+      homeTeam: Joi.string(),
+      awayTeam: Joi.string(),
+      final_score: Joi.string(),
+      finalScore: Joi.object().keys({
+        home: Joi.number().integer().required(),
+        away: Joi.number().integer().required(),
+      }),
+      settledAt: Joi.date().iso(),
+      resolution_time: Joi.date().iso(),
+      resolutionTime: Joi.date().iso(),
+      market_id: Joi.string(),
+      marketId: Joi.string(),
+      winning_selection: Joi.string(),
+      winningSelection: Joi.string(),
+      leagueName: Joi.string()
+        .uppercase()
+        .valid(...LEAGUES)
+        .allow(null),
+      summary: Joi.object().keys({
+        settled: Joi.number().integer(),
+        won: Joi.number().integer(),
+        lost: Joi.number().integer(),
+        voided: Joi.number().integer(),
+      }),
+      tickets_graded: Joi.array().items(
+        Joi.object().keys({
+          ticket_hash: Joi.string(),
+          ticketHash: Joi.string(),
+          ticketId: Joi.string(),
+          betId: Joi.string(),
+          status: Joi.string().valid('WON', 'LOST', 'VOID', 'win', 'loss', 'void').insensitive().required(),
+          payout_amount: Joi.number().min(0),
+          payoutAmount: Joi.number().min(0),
+          payout: Joi.number().min(0),
+        })
+      ),
+      bets: Joi.array().items(
         Joi.object().keys({
           betId: Joi.string().required(),
           market: Joi.string(),
@@ -275,9 +297,10 @@ const settlementWebhookPayload = {
           result: Joi.string().valid('WON', 'LOST', 'VOID').insensitive().required(),
           payout: Joi.number().min(0).required(),
         })
-      )
-      .required(),
-  }),
+      ),
+    })
+    .or('matchId', 'fixture_id', 'fixtureId')
+    .or('tickets_graded', 'bets'),
 };
 
 module.exports = {

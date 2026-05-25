@@ -536,7 +536,7 @@ describe('Admin league progression routes', () => {
 // ─── Settlement webhook ────────────────────────────────────────────────────────
 
 describe('POST /webhooks/settlement', () => {
-  const buildPayload = (bets) => ({ event: 'MATCH_SETTLED', bets });
+  const buildPayload = (ticketsGraded, event = 'MATCH_SETTLED') => ({ event, tickets_graded: ticketsGraded });
 
   test('should return 401 when x-signature header is missing', async () => {
     const res = await request(app)
@@ -567,7 +567,7 @@ describe('POST /webhooks/settlement', () => {
       stake: 100,
     });
 
-    const payload = JSON.stringify(buildPayload([{ betId: 'vf-bet-001', result: 'Won', payout: 250 }]));
+    const payload = JSON.stringify(buildPayload([{ ticket_hash: 'vf-bet-001', status: 'Won', payout_amount: 250 }]));
     const sig = makeSignature(payload);
 
     const res = await request(app)
@@ -599,7 +599,7 @@ describe('POST /webhooks/settlement', () => {
       stake: 100,
     });
 
-    const payload = JSON.stringify(buildPayload([{ betId: 'vf-bet-001', result: 'void', payout: 0 }]));
+    const payload = JSON.stringify(buildPayload([{ ticket_hash: 'vf-bet-001', status: 'void', payout_amount: 0 }]));
     const sig = makeSignature(payload);
 
     await request(app)
@@ -617,7 +617,7 @@ describe('POST /webhooks/settlement', () => {
   test('should return 200 even when settlement processing throws (prevents VF Engine retry)', async () => {
     // Send valid signature but with an unknown betId — processSettlement won't throw,
     // but this verifies the "always 200" contract
-    const payload = JSON.stringify(buildPayload([{ betId: 'unknown-bet', result: 'Won', payout: 100 }]));
+    const payload = JSON.stringify(buildPayload([{ ticket_hash: 'unknown-bet', status: 'Won', payout_amount: 100 }]));
     const sig = makeSignature(payload);
 
     const res = await request(app)

@@ -797,53 +797,48 @@ VFENGINE_WEBHOOK_SECRET=your-secret-key-minimum-32-characters-long
 - If invalid, process exits with code 1 and logs error message
 - Prevents runtime webhook signature failures from misconfiguration
 
-### 9.2 Payload Schema
+### 9.2 Accepted Payload Forms
 
-The settlement payload is validated against the following schema:
+The webhook handler accepts canonical VF payloads and legacy migration payloads.
+
+**Supported events:**
+- `MATCH_SETTLED`
+- `MARKET_SETTLED`
+- `settlement.complete` (alias of `MATCH_SETTLED`)
+- `market.settlement.complete` (alias of `MARKET_SETTLED`)
+
+**Canonical (preferred):** `tickets_graded[]`
 
 ```json
 {
   "event": "MATCH_SETTLED",
-  "matchId": "string (required)",
-  "fixtureId": "string (optional)",
-  "finalScore": {
-    "home": "integer (optional)",
-    "away": "integer (optional)"
-  },
-  "leagueName": "enum: FRANCE|GERMANY|ITALY|LALIGA|PREMIER (optional)",
-  "bets": [
+  "fixture_id": "VFL-L01-S01-R012",
+  "matchId": "LEAGUE-001",
+  "final_score": "2-1",
+  "resolution_time": "2026-05-13T14:32:05.000Z",
+  "leagueName": "PREMIER",
+  "tickets_graded": [
     {
-      "betId": "string (required)",
-      "result": "WON|LOST|VOID (required, case-insensitive)",
-      "payout": "number >= 0 (required)",
-      "market": "string (optional)",
-      "selection": "string (optional)",
-      "stake": "number (optional)",
-      "oddsTaken": "number (optional)"
+      "ticket_hash": "BET-1746624051234-AB12C",
+      "status": "WON",
+      "payout_amount": 185.00
     }
   ]
 }
 ```
 
-### 9.3 Payload Shape (Example)
+**Migration-compatible (still supported):** `bets[]`
 
 ```json
 {
   "event": "MATCH_SETTLED",
   "matchId": "LEAGUE-001",
   "fixtureId": "VFL-L01-S01-R012",
-  "homeTeam": "Manchester City",
-  "awayTeam": "Liverpool FC",
   "finalScore": { "home": 2, "away": 1 },
   "leagueName": "PREMIER",
-  "settledAt": "2026-05-13T14:32:05.000Z",
   "bets": [
     {
       "betId": "BET-1746624051234-AB12C",
-      "market": "match_winner",
-      "selection": "home",
-      "stake": 100,
-      "oddsTaken": 1.85,
       "result": "WON",
       "payout": 185.00
     }
@@ -851,20 +846,33 @@ The settlement payload is validated against the following schema:
 }
 ```
 
-**Field Notes:**
-- `event`: Must be `"MATCH_SETTLED"` (unknown events are logged but not processed)
-- `result`: Case-insensitive; converted to uppercase internally
-- `leagueName`: Optional; used for audit trail and settlement queries (persisted in local Ticket record)
-- For `WON`: cashier wallet is credited `payout` amount
-- For `VOID`: ticket is marked cancelled with no wallet credit
-- For `LOST`: no wallet change
+### 9.3 Processing Rules
+
+**Identifier resolution (per settled entry):**
+- Canonical order: `ticket_hash`, `ticketHash`, `betId`, `ticketId`, `vfBetId`
+- Local ticket lookup uses both `vfBetId` and `ticketId`
+
+**Outcome handling:**
+- Accepted statuses: `WON`, `LOST`, `VOID` (case-insensitive)
+- Unsupported statuses are skipped safely
+- Negative payout values are clamped to `0`
+
+**Wallet effects:**
+- `WON`: credit wallet by payout amount
+- `LOST`: no wallet credit
+- `VOID`: mark ticket cancelled, no wallet credit
+
+**Runtime note:**
+- Webhook endpoint uses HMAC verification + runtime normalization.
+- The Joi schema in `turboSoccer.validation.js` documents the accepted shape, but raw webhook handling remains the enforcement path.
 
 ### 9.4 Settlement Processing & Idempotency
 
 Settlement is **idempotent**:
-- Bets already marked `roundHasEnded: true` and `cancelled: false` are skipped
-- Replayed webhooks for same match don't double-credit wallets
-- Sequential processing prevents wallet race conditions when one cashier has multiple bets in the settlement
+- Only open Turbo Soccer tickets are updated: `gameType='turbo-soccer'`, `roundHasEnded=false`, `cancelled=false`
+- Replayed webhooks for the same ticket do not double-credit wallets
+- Unknown/missing ticket references are skipped
+- Sequential processing prevents wallet race conditions when one cashier has multiple entries in one webhook
 
 ### 9.5 Logging & Audit Trail
 
@@ -875,10 +883,12 @@ All settlement events are logged with full context for debugging and auditing:
 {
   "level": "info",
   "message": "[TurboSoccerSettlement] Processing started",
+  "event": "MATCH_SETTLED",
   "matchId": "LEAGUE-001",
   "fixtureId": "VFL-L01-S01-R012",
   "leagueName": "PREMIER",
-  "totalBets": 47
+  "totalBets": 47,
+  "settledAt": "2026-05-13T14:32:05.000Z"
 }
 ```
 
@@ -887,6 +897,7 @@ All settlement events are logged with full context for debugging and auditing:
 {
   "level": "info",
   "message": "[TurboSoccerSettlement] Settlement complete",
+  "event": "MATCH_SETTLED",
   "matchId": "LEAGUE-001",
   "fixtureId": "VFL-L01-S01-R012",
   "leagueName": "PREMIER",
