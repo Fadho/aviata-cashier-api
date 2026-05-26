@@ -19,7 +19,18 @@ All requests require Authorization: Bearer <access_token>.
 The endpoint supports two request modes.
 
 1. Single-selection mode
-2. Multi-selection mode (accumulator)
+2. Multi-selection mode (`accumulator` or `combinator`)
+
+`type` is optional:
+
+- If omitted and 1 leg is provided, type defaults to `single`.
+- If omitted and 2+ legs are provided, type defaults to `accumulator`.
+
+Type rules:
+
+- `single` requires exactly 1 selection.
+- `accumulator` requires at least 2 selections.
+- `combinator` requires at least 2 selections.
 
 ### 2.1 Single-selection payload
 
@@ -33,6 +44,7 @@ Required fields:
 
 Optional fields:
 
+- type (`single`, `accumulator`, `combinator`)
 - requested_odds
 - userId
 - client_timestamp
@@ -62,6 +74,10 @@ Required fields:
 - stake
 - selections[]
 
+Optional fields:
+
+- type (`single`, `accumulator`, `combinator`)
+
 Per-leg required fields:
 
 - matchId
@@ -74,6 +90,7 @@ Per-leg optional fields:
 - homeTeam
 - awayTeam
 - client_timestamp
+- any additional partner metadata fields (forwarded to VF Engine as-is)
 
 Example:
 
@@ -102,6 +119,39 @@ Example:
   ]
 }
 ```
+
+Combinator example:
+
+```json
+{
+  "cashierId": "665f1a2b3c4d5e6f7a8b9c0d",
+  "type": "combinator",
+  "stake": 500,
+  "selections": [
+    {
+      "matchId": "LEAGUE-001",
+      "market": "match_winner",
+      "selection": "home",
+      "requested_odds": 1.95
+    },
+    {
+      "matchId": "LEAGUE-004",
+      "market": "btts",
+      "selection": "GG",
+      "requested_odds": 1.82
+    }
+  ]
+}
+```
+
+### 2.3 Combo-market selections
+
+`/bets/place` supports combination-style single-leg combo markets. Use:
+
+- `combo_result_ou25` with selections such as `1 & Over`, `X & Under`, `2 & Over`
+- `combo_result_btts` with selections such as `1 & GG`, `X & NG`, `2 & GG`
+
+Selection keys are case-sensitive and must match the odds packet labels exactly.
 
 ## 3. Live Placement: POST /bets/live
 

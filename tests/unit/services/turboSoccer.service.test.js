@@ -97,6 +97,7 @@ describe('turboSoccerService.placeBet', () => {
         vfBetId: 'vf-bet-001',
         cashierId,
         stake: 100,
+        vfBetType: 'single',
         gameType: 'turbo-soccer',
         roundHasEnded: false,
         cancelled: false,
@@ -224,11 +225,52 @@ describe('turboSoccerService.placeBet', () => {
       expect.objectContaining({
         vfBetId: 'vf-acca-001',
         betType: 'multiple',
+        vfBetType: 'accumulator',
         roundId: 'LEAGUE-001',
         potentialWinnings: 360,
         selections: expect.arrayContaining([
           expect.objectContaining({ market: 'match_winner', selection: 'home', oddsTaken: 2.0 }),
           expect.objectContaining({ market: 'btts', selection: 'GG', oddsTaken: 1.8 }),
+        ]),
+      })
+    );
+  });
+
+  test('should persist combinator vfBetType and engine-provided per-leg stake', async () => {
+    const combinatorBody = {
+      cashierId,
+      type: 'combinator',
+      stake: 100,
+      selections: [
+        { matchId: 'LEAGUE-001', market: 'match_winner', selection: 'home', requested_odds: 2.0 },
+        { matchId: 'LEAGUE-002', market: 'btts', selection: 'GG', requested_odds: 1.8 },
+      ],
+    };
+
+    vfengineService.placeBet.mockResolvedValue({
+      data: {
+        bet_id: 'vf-combi-001',
+        type: 'combinator',
+        totalOdds: 1.9,
+        potentialReturn: 95,
+        selections: [
+          { matchId: 'LEAGUE-001', market: 'match_winner', selection: 'home', accepted_odds: 2.0, stake: 50 },
+          { matchId: 'LEAGUE-002', market: 'btts', selection: 'GG', accepted_odds: 1.8, stake: 50 },
+        ],
+      },
+    });
+
+    await turboSoccerService.placeBet(makeWallet(500), combinatorBody, cashierId);
+
+    expect(Tickets.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vfBetId: 'vf-combi-001',
+        betType: 'multiple',
+        vfBetType: 'combinator',
+        roundId: 'LEAGUE-001',
+        selections: expect.arrayContaining([
+          expect.objectContaining({ market: 'match_winner', selection: 'home', stake: 50 }),
+          expect.objectContaining({ market: 'btts', selection: 'GG', stake: 50 }),
         ]),
       })
     );

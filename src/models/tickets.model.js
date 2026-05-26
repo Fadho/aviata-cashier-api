@@ -27,6 +27,12 @@ const ticketSchema = mongoose.Schema(
       enum: ['single', 'multiple'],
       required: true,
     },
+    vfBetType: {
+      type: String,
+      lowercase: true,
+      enum: ['single', 'accumulator', 'combinator'],
+      sparse: true,
+    },
     selections: [
       {
         homeTeam: {

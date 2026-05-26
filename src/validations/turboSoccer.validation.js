@@ -37,7 +37,7 @@ const multiSelectionLeg = Joi.object().keys({
   homeTeam: Joi.string(),
   awayTeam: Joi.string(),
   client_timestamp: Joi.number().integer(),
-});
+}).unknown(true);
 
 const placeBetCommon = {
   stake: Joi.number().positive().required(),
@@ -46,16 +46,20 @@ const placeBetCommon = {
   client_timestamp: Joi.number().integer(),
   auto_accept_changes: Joi.boolean(),
   prematch: Joi.boolean(),
+  type: Joi.string().lowercase().valid('single', 'accumulator', 'combinator'),
 };
 
 const placeBetSingleSchema = Joi.object().keys({
   ...placeBetCommon,
+  type: Joi.string().lowercase().valid('single'),
   matchId: Joi.string().required(),
   market: Joi.string().required(),
   selection: Joi.string().required(),
   requested_odds: Joi.number(),
+  homeTeam: Joi.string(),
+  awayTeam: Joi.string(),
   selections: Joi.any().forbidden(),
-});
+}).unknown(true);
 
 const placeBetMultiSchema = Joi.object().keys({
   ...placeBetCommon,
@@ -64,10 +68,29 @@ const placeBetMultiSchema = Joi.object().keys({
   market: Joi.string(),
   selection: Joi.string(),
   requested_odds: Joi.number(),
-});
+}).unknown(true);
+
+const validateSelectionTypeRules = (value, helpers) => {
+  const count = Array.isArray(value.selections) ? value.selections.length : 0;
+  if (!count) return value;
+
+  const resolvedType = value.type || (count === 1 ? 'single' : 'accumulator');
+
+  if (resolvedType === 'single' && count !== 1) {
+    return helpers.error('any.invalid', { message: 'single requires exactly 1 selection' });
+  }
+
+  if ((resolvedType === 'accumulator' || resolvedType === 'combinator') && count < 2) {
+    return helpers.error('any.invalid', {
+      message: `${resolvedType} requires at least 2 selections`,
+    });
+  }
+
+  return value;
+};
 
 const placeBet = {
-  body: Joi.alternatives().try(placeBetSingleSchema, placeBetMultiSchema),
+  body: Joi.alternatives().try(placeBetSingleSchema, placeBetMultiSchema.custom(validateSelectionTypeRules)),
 };
 
 const placeLiveBet = {

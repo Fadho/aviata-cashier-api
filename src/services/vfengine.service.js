@@ -95,6 +95,10 @@ const getPrematchSchedule = (league) => {
 // ─── Bets ─────────────────────────────────────────────────────────────────────
 
 const resolveEngineTimestamp = (clientTimestamp) => {
+  if (clientTimestamp == null) {
+    return undefined;
+  }
+
   const offset = Number(config.vfengine.clockOffsetMs || 0);
   const parsed = Number(clientTimestamp);
 
@@ -102,27 +106,37 @@ const resolveEngineTimestamp = (clientTimestamp) => {
     return Math.round(parsed + offset);
   }
 
-  return Date.now() + offset;
+  return undefined;
 };
 
-const placeBet = (body) =>
-  client().post('/api/bets/place', {
-    ...body,
-    client_timestamp: resolveEngineTimestamp(body && body.client_timestamp),
-  });
+const withResolvedTimestamp = (payload = {}) => {
+  const clientTimestamp = resolveEngineTimestamp(payload.client_timestamp);
+  if (clientTimestamp == null) {
+    return { ...payload };
+  }
 
-const placeLiveBet = (body) =>
-  client().post('/api/live/bet', {
-    ...body,
-    client_timestamp: resolveEngineTimestamp(body && body.client_timestamp),
-  });
+  return {
+    ...payload,
+    client_timestamp: clientTimestamp,
+  };
+};
 
-const validateLiveBet = (body) =>
-  client().post('/api/live/bet/validate', {
+const placeBet = (body) => client().post('/api/bets/place', withResolvedTimestamp(body));
+
+const placeLiveBet = (body) => client().post('/api/live/bet', withResolvedTimestamp(body));
+
+const validateLiveBet = (body) => {
+  const payload = {
     odds: body.odds,
     auto_accept_changes: body.auto_accept_changes,
-    client_timestamp: resolveEngineTimestamp(body && body.client_timestamp),
-  });
+  };
+  const clientTimestamp = resolveEngineTimestamp(body && body.client_timestamp);
+  if (clientTimestamp != null) {
+    payload.client_timestamp = clientTimestamp;
+  }
+
+  return client().post('/api/live/bet/validate', payload);
+};
 
 const getBetHistory = (page, limit) => client().get('/api/bets/history', { params: { page, limit } });
 

@@ -434,6 +434,145 @@ describe('POST /bets/place', () => {
     expect(ticket.betType).toBe('multiple');
     expect(ticket.selections).toHaveLength(2);
   });
+
+  test('should accept and forward additional leg metadata for /bets/place multi payloads', async () => {
+    vfengineService.placeBet.mockResolvedValue({
+      data: {
+        success: true,
+        type: 'accumulator',
+        bet_id: 'vf-acca-meta-001',
+        totalOdds: 7.56,
+        potentialReturn: 3780,
+        selections: [
+          {
+            matchId: 'VFL-L01-S01-R012-M01',
+            market: 'combo_result_ou25',
+            selection: '1 & Over',
+            accepted_odds: 4.2,
+          },
+          {
+            matchId: 'LEAGUE-004',
+            market: 'btts',
+            selection: 'GG',
+            accepted_odds: 1.8,
+          },
+        ],
+      },
+    });
+
+    const payload = {
+      cashierId: cashierUser._id.toHexString(),
+      stake: 500,
+      auto_accept_changes: true,
+      userId: 'PLAYER-123',
+      selections: [
+        {
+          matchId: 'VFL-L01-S01-R012-M01',
+          fixtureId: 'VFL-L01-S01-R012-M01',
+          gameId: 'VFL-L01-S01-R012-M01',
+          market: 'combo_result_ou25',
+          selection: '1 & Over',
+          requested_odds: 4.2,
+          leagueName: 'PREMIER',
+          leagueRoom: 'league:PREMIER',
+        },
+        {
+          matchId: 'LEAGUE-004',
+          market: 'btts',
+          selection: 'GG',
+          requested_odds: 1.8,
+          extraMeta: {
+            source: 'cashier-ui',
+          },
+        },
+      ],
+    };
+
+    const res = await request(app)
+      .post(`${BASE}/bets/place`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send(payload)
+      .expect(httpStatus.OK);
+
+    expect(res.body.bet_id).toBe('vf-acca-meta-001');
+    expect(vfengineService.placeBet).toHaveBeenCalledWith(payload);
+  });
+
+  test('should return 400 when type=accumulator is used with a single leg', async () => {
+    const payload = {
+      cashierId: cashierUser._id.toHexString(),
+      type: 'accumulator',
+      stake: 100,
+      selections: [{ matchId: 'LEAGUE-001', market: 'match_winner', selection: 'home', requested_odds: 2.0 }],
+    };
+
+    await request(app)
+      .post(`${BASE}/bets/place`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send(payload)
+      .expect(httpStatus.BAD_REQUEST);
+  });
+
+  test('should persist vfBetType=combinator and per-leg stakes when combinator is accepted', async () => {
+    vfengineService.placeBet.mockResolvedValue({
+      data: {
+        success: true,
+        type: 'combinator',
+        bet_id: 'vf-combi-001',
+        totalOdds: 1.9,
+        potentialReturn: 95,
+        selections: [
+          {
+            matchId: 'LEAGUE-001',
+            market: 'match_winner',
+            selection: 'home',
+            accepted_odds: 2.0,
+            stake: 50,
+          },
+          {
+            matchId: 'LEAGUE-002',
+            market: 'btts',
+            selection: 'GG',
+            accepted_odds: 1.8,
+            stake: 50,
+          },
+        ],
+      },
+    });
+
+    const payload = {
+      cashierId: cashierUser._id.toHexString(),
+      type: 'combinator',
+      stake: 100,
+      selections: [
+        {
+          matchId: 'LEAGUE-001',
+          market: 'match_winner',
+          selection: 'home',
+          requested_odds: 2.0,
+        },
+        {
+          matchId: 'LEAGUE-002',
+          market: 'btts',
+          selection: 'GG',
+          requested_odds: 1.8,
+        },
+      ],
+    };
+
+    await request(app)
+      .post(`${BASE}/bets/place`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send(payload)
+      .expect(httpStatus.OK);
+
+    const ticket = await Tickets.findOne({ vfBetId: 'vf-combi-001' });
+    expect(ticket).not.toBeNull();
+    expect(ticket.betType).toBe('multiple');
+    expect(ticket.vfBetType).toBe('combinator');
+    expect(ticket.selections[0].stake).toBe(50);
+    expect(ticket.selections[1].stake).toBe(50);
+  });
 });
 
 // ─── Place live bet ────────────────────────────────────────────────────────────

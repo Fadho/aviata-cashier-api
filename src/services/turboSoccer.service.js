@@ -8,6 +8,33 @@ const User = require('../models/user.model');
 
 const GAME_TYPE = 'turbo-soccer';
 
+const normalizeBetType = (value) => {
+  if (!value) return null;
+  const normalized = String(value).toLowerCase();
+  if (normalized === 'single' || normalized === 'accumulator' || normalized === 'combinator') {
+    return normalized;
+  }
+  return null;
+};
+
+const resolveBetType = (betBody, vfResponse, selectionCount) => {
+  const requestedType = normalizeBetType(betBody.type);
+  if (requestedType) return requestedType;
+
+  const responseType = normalizeBetType(vfResponse.type);
+  if (responseType) return responseType;
+
+  return selectionCount > 1 ? 'accumulator' : 'single';
+};
+
+const toTicketBetType = (betType) => (betType === 'single' ? 'single' : 'multiple');
+
+const getRoundFallback = (betType) => {
+  if (betType === 'combinator') return 'vf-turbo-combinator';
+  if (betType === 'accumulator') return 'vf-turbo-acca';
+  return 'vf-turbo';
+};
+
 const resolveAcceptedOdds = (source, fallbackOdds) => {
   if (source && source.accepted_odds != null) return Number(source.accepted_odds);
   if (source && source.final_odds != null) return Number(source.final_odds);
@@ -46,6 +73,7 @@ const toTicketSelections = (vfResponse, betBody, stake) => {
   return requestSelections.map((selectionBody, index) => {
     const selectionResponse = responseSelections[index] || {};
     const acceptedOdds = resolveAcceptedOdds(selectionResponse, selectionBody.requested_odds);
+    const legStake = Number(selectionResponse.stake);
 
     return {
       homeTeam: selectionResponse.homeTeam || selectionBody.homeTeam,
@@ -55,7 +83,7 @@ const toTicketSelections = (vfResponse, betBody, stake) => {
       odd: acceptedOdds,
       oddsTaken: acceptedOdds,
       betCategory,
-      stake: selectionStake,
+      stake: Number.isFinite(legStake) && legStake > 0 ? legStake : selectionStake,
     };
   });
 };
@@ -117,9 +145,9 @@ const mapVfEngineError = (err) => {
     return apiErr;
   }
   if (status === httpStatus.NOT_FOUND) {
-    return new ApiError(httpStatus.NOT_FOUND, message);
+    return new ApiError(httpStatus.NOT_FOUND, message, true, '', code || null);
   }
-  return new ApiError(status || httpStatus.BAD_GATEWAY, message);
+  return new ApiError(status || httpStatus.BAD_GATEWAY, message, true, '', code || null);
 };
 
 /**
@@ -166,7 +194,9 @@ const placeBet = async (userWallet, betBody, cashierId) => {
     throw mapVfEngineError(err);
   }
 
-  const isMulti = Array.isArray(betBody.selections) && betBody.selections.length > 0;
+  const selectionCount = Array.isArray(betBody.selections) && betBody.selections.length > 0 ? betBody.selections.length : 1;
+  const betType = resolveBetType(betBody, vfResponse, selectionCount);
+  const isMulti = betType !== 'single';
   const selections = toTicketSelections(vfResponse, betBody, stake);
   const matchIdForStorage =
     vfResponse.matchId ||
@@ -178,10 +208,11 @@ const placeBet = async (userWallet, betBody, cashierId) => {
 
   try {
     await Tickets.create({
-      roundId: matchIdForStorage || (isMulti ? 'vf-turbo-acca' : 'vf-turbo'),
+      roundId: matchIdForStorage || getRoundFallback(betType),
       cashierId,
       ticketId: vfResponse.bet_id,
-      betType: isMulti ? 'multiple' : 'single',
+      betType: toTicketBetType(betType),
+      vfBetType: betType,
       selections,
       stake,
       winnings: 0,
