@@ -1,6 +1,14 @@
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
+const logger = require('../config/logger');
+
+const formatRequestRoute = (axiosConfig = {}) => {
+  const method = (axiosConfig.method || 'GET').toUpperCase();
+  const baseUrl = axiosConfig.baseURL || '';
+  const url = axiosConfig.url || '';
+  return `${method} ${baseUrl}${url}`.trim();
+};
 
 /**
  * Creates a short-lived JWT for authenticating with the VF Engine.
@@ -25,12 +33,55 @@ const client = () =>
     // Enforce VF Engine auth token on every outbound request, even if callers pass custom headers.
     instance.interceptors.request.use((reqConfig) => {
       const nextConfig = reqConfig;
+      nextConfig.metadata = { startedAt: Date.now() };
       nextConfig.headers = {
         ...(nextConfig.headers || {}),
         Authorization: `Bearer ${issueEngineToken()}`,
       };
+
+      logger.info(
+        '[VF Engine Request] route=%s params=%j payload=%j',
+        formatRequestRoute(nextConfig),
+        nextConfig.params || {},
+        nextConfig.data || null
+      );
+
       return nextConfig;
     });
+
+    instance.interceptors.response.use(
+      (response) => {
+        const startedAt = response.config && response.config.metadata ? response.config.metadata.startedAt : null;
+        const durationMs = startedAt ? Date.now() - startedAt : null;
+
+        logger.info(
+          '[VF Engine Response] route=%s status=%s durationMs=%s response=%j',
+          formatRequestRoute(response.config),
+          response.status,
+          durationMs,
+          response.data
+        );
+
+        return response;
+      },
+      (error) => {
+        const requestConfig = error.config || {};
+        const startedAt = requestConfig.metadata ? requestConfig.metadata.startedAt : null;
+        const durationMs = startedAt ? Date.now() - startedAt : null;
+
+        logger.error(
+          '[VF Engine Response Error] route=%s status=%s durationMs=%s params=%j payload=%j response=%j',
+          formatRequestRoute(requestConfig),
+          error.response ? error.response.status : 'NO_RESPONSE',
+          durationMs,
+          requestConfig.params || {},
+          requestConfig.data || null,
+          error.response ? error.response.data : { message: error.message, code: error.code || null }
+        );
+
+        return Promise.reject(error);
+      }
+    );
 
     return instance;
   })();

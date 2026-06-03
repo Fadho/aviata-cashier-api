@@ -29,15 +29,18 @@ const prematchSchedule = {
   query: leagueQuery,
 };
 
-const multiSelectionLeg = Joi.object().keys({
-  matchId: Joi.string().required(),
-  market: Joi.string().required(),
-  selection: Joi.string().required(),
-  requested_odds: Joi.number(),
-  homeTeam: Joi.string(),
-  awayTeam: Joi.string(),
-  client_timestamp: Joi.number().integer(),
-}).unknown(true);
+const multiSelectionLeg = Joi.object()
+  .keys({
+    matchId: Joi.string().required(),
+    market: Joi.string().required(),
+    selection: Joi.string().required(),
+    requested_odds: Joi.number(),
+    is_banker: Joi.boolean(),
+    homeTeam: Joi.string(),
+    awayTeam: Joi.string(),
+    client_timestamp: Joi.number().integer(),
+  })
+  .unknown(true);
 
 const placeBetCommon = {
   stake: Joi.number().positive().required(),
@@ -46,35 +49,42 @@ const placeBetCommon = {
   client_timestamp: Joi.number().integer(),
   auto_accept_changes: Joi.boolean(),
   prematch: Joi.boolean(),
-  type: Joi.string().lowercase().valid('single', 'accumulator', 'combinator'),
+  type: Joi.string().lowercase().valid('single', 'accumulator', 'combinator', 'system'),
+  systemSize: Joi.number().integer().min(1),
 };
 
-const placeBetSingleSchema = Joi.object().keys({
-  ...placeBetCommon,
-  type: Joi.string().lowercase().valid('single'),
-  matchId: Joi.string().required(),
-  market: Joi.string().required(),
-  selection: Joi.string().required(),
-  requested_odds: Joi.number(),
-  homeTeam: Joi.string(),
-  awayTeam: Joi.string(),
-  selections: Joi.any().forbidden(),
-}).unknown(true);
+const placeBetSingleSchema = Joi.object()
+  .keys({
+    ...placeBetCommon,
+    type: Joi.string().lowercase().valid('single'),
+    matchId: Joi.string().required(),
+    market: Joi.string().required(),
+    selection: Joi.string().required(),
+    requested_odds: Joi.number(),
+    homeTeam: Joi.string(),
+    awayTeam: Joi.string(),
+    selections: Joi.any().forbidden(),
+  })
+  .unknown(true);
 
-const placeBetMultiSchema = Joi.object().keys({
-  ...placeBetCommon,
-  selections: Joi.array().items(multiSelectionLeg).min(1).required(),
-  matchId: Joi.string(),
-  market: Joi.string(),
-  selection: Joi.string(),
-  requested_odds: Joi.number(),
-}).unknown(true);
+const placeBetMultiSchema = Joi.object()
+  .keys({
+    ...placeBetCommon,
+    selections: Joi.array().items(multiSelectionLeg).min(1).required(),
+    matchId: Joi.string(),
+    market: Joi.string(),
+    selection: Joi.string(),
+    requested_odds: Joi.number(),
+  })
+  .unknown(true);
 
 const validateSelectionTypeRules = (value, helpers) => {
   const count = Array.isArray(value.selections) ? value.selections.length : 0;
   if (!count) return value;
 
   const resolvedType = value.type || (count === 1 ? 'single' : 'accumulator');
+  const bankerCount = value.selections.filter((selection) => selection && selection.is_banker === true).length;
+  const regularCount = count - bankerCount;
 
   if (resolvedType === 'single' && count !== 1) {
     return helpers.error('any.invalid', { message: 'single requires exactly 1 selection' });
@@ -84,6 +94,26 @@ const validateSelectionTypeRules = (value, helpers) => {
     return helpers.error('any.invalid', {
       message: `${resolvedType} requires at least 2 selections`,
     });
+  }
+
+  if (resolvedType === 'system') {
+    if (count < 2) {
+      return helpers.error('any.invalid', { message: 'system requires at least 2 selections' });
+    }
+
+    if (!Number.isInteger(value.systemSize)) {
+      return helpers.error('any.invalid', { message: 'system requires systemSize' });
+    }
+
+    if (regularCount < 1) {
+      return helpers.error('any.invalid', { message: 'system requires at least 1 non-banker selection' });
+    }
+
+    if (value.systemSize > regularCount) {
+      return helpers.error('any.invalid', {
+        message: 'systemSize cannot exceed the number of non-banker selections',
+      });
+    }
   }
 
   return value;

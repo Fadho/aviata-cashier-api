@@ -1,6 +1,7 @@
 # Turbo Soccer Pro — API Integration Guide
 
-> **Version:** 1.7.0 | **Date:** 2026-05-20  
+> **Version:** 1.6.3 | **Date:** 2026-05-20  
+> **Latest:** Betting system integration complete — prematch fixtures with canonical identity, suspension tracking (isSuspended/suspensionReason/pendingPenalty), combo & half-time markets, multi-league WebSocket isolation, Grace Period middleware, WebSocket bet placement with MongoDB persistence  
 > **Base path:** `/cashier/v1/turbo-soccer/`  
 > All authenticated routes require a Bearer JWT obtained from `POST /cashier/v1/auth/login`.
 
@@ -23,20 +24,24 @@ Authorization: Bearer <access_token>
 4. [Bet Placement — Pre-match](#4-bet-placement--pre-match)
 5. [Bet Placement — Live (In-Play)](#5-bet-placement--live-in-play)
 6. [Validate Live Odds (Pre-flight)](#6-validate-live-odds-pre-flight)
-7. [Bet History](#7-bet-history)
-8. [Void a Bet](#8-void-a-bet)
-9. [Settlement Webhook](#9-settlement-webhook)
-10. [Error Responses](#10-error-responses)
-11. [Tickets & Printing (Chapter 10)](#11-tickets--printing-chapter-10)
-12. [Thermal Printing (Chapter 10B)](#12-thermal-printing-chapter-10b)
-13. [Admin — Margins](#13-admin--margins)
-14. [Admin — Leagues](#14-admin--leagues)
-15. [Admin — Accumulator](#15-admin--accumulator)
-16. [Admin — Throttler](#16-admin--throttler)
-17. [Admin — Match Control](#17-admin--match-control)
-18. [Admin — Webhook Management](#18-admin--webhook-management)
-19. [Role Summary](#19-role-summary)
-20. [Market Identifiers Quick Reference](#20-market-identifiers-quick-reference)
+7. [WebSocket Bet Placement](#7-websocket-bet-placement)
+8. [Bet History](#8-bet-history)
+9. [Void a Bet](#9-void-a-bet)
+10. [Settlement Webhook](#10-settlement-webhook)
+11. [Suspension Tracking (Chapter 8D)](#11-suspension-tracking-chapter-8d)
+12. [Market Identifiers Reference](#12-market-identifiers-reference)
+13. [Accumulator, Combinator & System Models](#13-accumulator-combinator--system-models)
+14. [Tickets & Printing (Chapter 10)](#14-tickets--printing-chapter-10)
+15. [Thermal Printing (Chapter 10B)](#15-thermal-printing-chapter-10b)
+16. [Admin — Margins](#16-admin--margins)
+17. [Admin — Leagues](#17-admin--leagues)
+18. [Admin — Accumulator](#18-admin--accumulator)
+19. [Admin — Throttler](#19-admin--throttler)
+20. [Admin — Match Control](#20-admin--match-control)
+21. [Admin — Webhook Management](#21-admin--webhook-management)
+22. [Role Summary](#22-role-summary)
+23. [Error Codes & Validation](#23-error-codes--validation)
+24. [Market Identifiers Reference (Detailed)](#24-market-identifiers-reference-detailed)
 
 ---
 
@@ -101,6 +106,44 @@ The `token` field is also returned separately for clients that prefer to constru
 ---
 
 ## 2. Fixtures & Odds
+
+### Fixture Identity Rule (Settlement-Grade)
+
+When placing prematch bets, **prefer the scheduled fixture ID** (`fixtureId`, alias `gameId`, e.g. `"VFL-L01-S01-R012-M01"`) as the canonical `matchId` in all bet requests:
+
+```http
+POST /cashier/v1/turbo-soccer/bets/place
+{
+  "matchId": "VFL-L01-S01-R012-M01",  ← canonical fixture ID (preferred)
+  "market": "match_winner",
+  "selection": "home",
+  ...
+}
+```
+
+**Why?** Fixture IDs are unique across seasons and remain consistent even after server restarts, making them ideal for settlement-grade bet identity. Slot IDs (`LEAGUE-*`) are display/routing identifiers that can rotate per round.
+
+**Backward compatibility:** Slot IDs (`LEAGUE-001` … `LEAGUE-010`) remain fully accepted by the engine and are stable within a season for display routing. Both forms reference the same match outcome.
+
+---
+
+### Get Available Leagues
+
+```http
+GET /cashier/v1/turbo-soccer/leagues
+```
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "leagues": ["FRANCE", "GERMANY", "ITALY", "LALIGA", "PREMIER"]
+}
+```
+
+Call this once at app bootstrap to discover valid league values dynamically.
+
+---
 
 ### Get All Teams
 ```http
@@ -303,41 +346,51 @@ socket.on('ERROR', ({ code, message }) => {
 **`LEAGUE_UPDATE` shape:**
 ```javascript
 {
-  matchId:     'LEAGUE-003',
-  gameId:      'VFL-L03-S01-R012',  // unique game instance — changes every round
-  homeTeam:    'Arsenal',
-  awayTeam:    'Chelsea',
-  phase:       'SECOND_HALF',   // PRE_MATCH | FIRST_HALF | HALF_TIME | SECOND_HALF | FULL_TIME
-  status:      '2H',            // PRE | 1H | HT | 2H | FT
-  score:       { home: 1, away: 0 },
-  htScore:     { home: 1, away: 0 },  // null until half-time
-  time:        { minute: 67, displayTime: '67:00' },
-  events:      [{ type: 'GOAL_HOME', minute: 23 }],
-  statistics:  { home: { corners: 4, yellowCards: 1, redCards: 0 },
-                 away: { corners: 2, yellowCards: 2, redCards: 0 } },
-  odds:        { /* full MarketPacket — null when suspended */ },
-  risk:        { /* risk indicators */ },
-  seasonId:    'S01',           // season label
-  roundNumber: 12,              // 1-based round within the season
-  updateType:  'TICK',          // 'TICK' on normal tick; event type string on major events
-  leagueName:  'PREMIER',       // league identifier — use to route updates on multi-league boards
-  leagueRoom:  'league:PREMIER' // Socket.io room the update was sent to
+  matchId:           'LEAGUE-003',
+  gameId:            'VFL-L03-S01-R012',  // unique game instance — changes every round
+  fixtureId:         'VFL-L03-S01-R012',  // alias of gameId — settlement identity
+  homeTeam:          'Arsenal',
+  awayTeam:          'Chelsea',
+  phase:             'SECOND_HALF',   // PRE_MATCH | FIRST_HALF | HALF_TIME | SECOND_HALF | FULL_TIME
+  status:            '2H',            // PRE | 1H | HT | 2H | FT
+  score:             { home: 1, away: 0 },
+  htScore:           { home: 1, away: 0 },  // null until half-time
+  time:              { minute: 67, displayTime: '67:00' },
+  events:            [{ type: 'GOAL_HOME', minute: 23 }],
+  statistics:        { home: { corners: 4, yellowCards: 1, redCards: 0 },
+                       away: { corners: 2, yellowCards: 2, redCards: 0 } },
+  odds:              { /* full MarketPacket — null when suspended */ },
+  risk:              { /* risk indicators */ },
+  
+  // Chapter 8D: Active suspension tracking
+  isSuspended:       false,           // true = market locked
+  suspensionReason:  null,            // 'TRANSITION'|'GOAL'|'RED_CARD'|'PENALTY'|null
+  pendingPenalty:    false,           // true = indefinite lock waiting for outcome
+  
+  seasonId:          'S01',           // season label
+  roundNumber:       12,              // 1-based round within the season
+  updateType:        'TICK',          // 'TICK' on normal tick; event type string on major events
+  leagueName:        'PREMIER',       // league identifier — use to route updates on multi-league boards
+  leagueRoom:        'league:PREMIER' // Socket.io room the update was sent to
 }
 ```
 
 > **Room isolation (v1.6.0+):** Updates are emitted to `league:<LEAGUENAME>` (e.g. `league:PREMIER`). All 10 slots within a league share one room. Use `leagueName` to route updates to the correct display panel.
 
+> **Goal animation deduplication:** `events` can repeat the latest goal event on consecutive ticks. Trigger animations once per unique goal signature (e.g., `type + minute + score.home + score.away`) rather than on every tick.
+
 **`LEAGUE_FINAL` shape:**
 ```javascript
 {
-  matchId:     'LEAGUE-003',
-  gameId:      'VFL-L03-S01-R012',
-  seasonId:    'S01',
-  homeTeam:    'Arsenal',
-  awayTeam:    'Chelsea',
-  score:       { home: 2, away: 1 },
-  roundNumber: 12,              // NOTE: was roundNum in v1.5 — use roundNumber
-  message:     'FT: Arsenal 2–1 Chelsea'
+  matchId:       'LEAGUE-003',
+  gameId:        'VFL-L03-S01-R012',
+  fixtureId:     'VFL-L03-S01-R012',  // settlement identity
+  seasonId:      'S01',
+  homeTeam:      'Arsenal',
+  awayTeam:      'Chelsea',
+  score:         { home: 2, away: 1 },
+  roundNumber:   12,                   // NOTE: use roundNumber (not roundNum)
+  message:       'FT: Arsenal 2–1 Chelsea'
 }
 ```
 
@@ -568,41 +621,38 @@ socket.on('reconnect', rejoinRooms);
 
 ## 4. Bet Placement — Pre-match
 
+**Single-selection request (backward-compatible):**
 ```http
 POST /cashier/v1/turbo-soccer/bets/place
 Content-Type: application/json
 
 {
   "cashierId": "665f1a2b3c4d5e6f7a8b9c0d",
-  "matchId": "LEAGUE-001",
+  "matchId": "VFL-L01-S01-R012-M01",     ← canonical fixture ID (preferred) or LEAGUE-001 (backward compat)
   "market": "match_winner",
   "selection": "home",
   "stake": 100,
   "requested_odds": 1.85,
-  "auto_accept_changes": true,
-  "client_timestamp": 1746614400000
+  "client_timestamp": 1746614400000,     ← recommended: Date.now() at slip construction
+  "prematch": true                        ← optional but recommended for explicit pre-match intent
 }
 ```
 
-`/bets/place` accepts both payload formats:
-- Single-selection (shown above): top-level `matchId`, `market`, `selection`
-- Multi-selection accumulator: `selections[]` where each leg has `matchId`, `market`, `selection`, and optional per-leg metadata
-
-**Multi-selection example:**
+**Multi-selection accumulator:**
 ```json
 {
   "cashierId": "665f1a2b3c4d5e6f7a8b9c0d",
   "stake": 500,
-  "auto_accept_changes": true,
+  "client_timestamp": 1746614400000,
   "selections": [
     {
-      "matchId": "LEAGUE-001",
+      "matchId": "VFL-L01-S01-R012-M01",  ← canonical fixture ID
       "market": "match_winner",
       "selection": "home",
       "requested_odds": 1.95
     },
     {
-      "matchId": "LEAGUE-004",
+      "matchId": "VFL-L04-S01-R012-M04",  ← another fixture
       "market": "btts",
       "selection": "GG",
       "requested_odds": 1.82
@@ -611,17 +661,52 @@ Content-Type: application/json
 }
 ```
 
+**Multi-selection combinator (split-stake, see [§13](#13-accumulator--combinator-models)):**
+```json
+{
+  "cashierId": "665f1a2b3c4d5e6f7a8b9c0d",
+  "type": "combinator",                   ← explicit combinator type
+  "stake": 500,
+  "client_timestamp": 1746614400000,
+  "selections": [
+    {
+      "matchId": "VFL-L01-S01-R012-M01",
+      "market": "match_winner",
+      "selection": "home",
+      "requested_odds": 1.95
+    },
+    {
+      "matchId": "VFL-L04-S01-R012-M04",
+      "market": "btts",
+      "selection": "GG",
+      "requested_odds": 1.82
+    }
+  ]
+}
+```
+
+**Combo-market leg (single or accumulator):**
+```json
+{
+  "matchId": "VFL-L01-S01-R012-M01",
+  "market": "combo_result_ou25",          ← match result + O/U 2.5 combined
+  "selection": "1 & Over",                ← exact string from odds packet
+  "requested_odds": 4.20
+}
+```
+
 | Field | Required | Description |
 |---|---|---|
 | `cashierId` | ✓ | MongoDB ObjectId of the logged-in cashier. Stake debited from this cashier's wallet. |
-| `market` | ✓ | Market key — see [§20 Market Identifiers](#20-market-identifiers-quick-reference) |
-| `selection` | ✓ | Selection value — see §20 |
+| `market` | ✓ | Market key — see [§12 Market Identifiers](#12-market-identifiers-reference) |
+| `selection` | ✓ | Selection value — must match exact key in odds packet (including spaces/case for combo markets) |
 | `stake` | ✓ | Positive number in operator currency units |
-| `matchId` | Cond. | Required in single-selection mode. In multi-selection mode use `selections[].matchId`. Fixture IDs are canonical; `LEAGUE-*` slot IDs are accepted for backward compatibility. |
+| `matchId` | ✓ (cond.) | Required in single-selection mode. In multi-selection mode use `selections[].matchId`. **Prefer canonical fixture ID** (`VFL-L01-S01-R012-M01`); `LEAGUE-*` slot IDs accepted for backward compatibility. |
 | `requested_odds` | | Client-side odds snapshot for drift detection |
-| `prematch` | | Omit for `LEAGUE-*` slots (auto-detected). Set `false` only for early in-play bets via this endpoint. |
-| `auto_accept_changes` | | Accept minor drift automatically |
-| `client_timestamp` | | Unix ms — send `Date.now()` at slip-construction time; omitting it disables Grace Period drift detection on the VF Engine side |
+| `type` | | Bet type: omit for auto-detection (1 leg → `single`, 2+ legs → `accumulator`), or explicit `single`, `accumulator`, `combinator` |
+| `prematch` | | `true` for pre-match window (default). Set `false` only for early in-play bets via this endpoint. |
+| `auto_accept_changes` | | Accept minor odds drift automatically (default: `false`) |
+| `client_timestamp` | | **Recommended:** Unix ms at slip-construction time (e.g., `Date.now()`). Enables consistent Grace Period drift detection on engine side. |
 
 **Success `200`:**
 ```json
@@ -646,6 +731,8 @@ Content-Type: application/json
 
 ## 5. Bet Placement — Live (In-Play)
 
+Place bets during an active match. The **Grace Period Middleware** automatically handles minor odds drift (within ±0.05) to account for network latency.
+
 ```http
 POST /cashier/v1/turbo-soccer/bets/live
 POST /cashier/v1/turbo-soccer/live/bet
@@ -657,9 +744,9 @@ Content-Type: application/json
   "market": "next_goal",
   "selection": "home",
   "stake": 50,
-  "odds": 1.80,
-  "client_timestamp": 1746614405000,
-  "auto_accept_changes": true
+  "odds": 1.80,                          ← odds displayed on terminal at click time
+  "client_timestamp": 1746614405000,     ← required: Date.now() at click time
+  "auto_accept_changes": true            ← accept minor drift automatically
 }
 ```
 
@@ -668,15 +755,30 @@ Both routes are supported and equivalent. Frontend may use either path.
 | Field | Required | Description |
 |---|---|---|
 | `cashierId` | ✓ | MongoDB ObjectId of the cashier |
-| `market` | ✓ | Market key — see §20 |
+| `market` | ✓ | Market key — see [§24 Market Identifiers](#24-market-identifiers-reference-detailed) |
 | `selection` | ✓ | Selection value |
 | `stake` | ✓ | Positive number |
-| `odds` | ✓ | Odds displayed on terminal at click time — used for drift detection |
-| `client_timestamp` | ✓ | Unix ms — used by Grace Period Middleware |
-| `matchId` | Cond. | Required unless live match context is singular. Canonical slot ID (`LEAGUE-*`). |
-| `auto_accept_changes` | | Accept drift within tolerance automatically |
+| `odds` | ✓ | **Decimal odds displayed at click time** — used by Grace Period for drift detection |
+| `client_timestamp` | ✓ | **Required:** Unix ms at click time (e.g., `Date.now()`). Engine uses this + server clock offset to determine request age. |
+| `matchId` | ✓ | Live match slot ID (`LEAGUE-*`). Prefer fixture ID (`VFL-L03-S01-R012-M03`) for settlement-grade identity. |
+| `auto_accept_changes` | | Accept minor odds drift (±0.05) automatically (default: `false`) |
 
-**Success `200`:**
+**Success `200` (odds unchanged or improved):**
+```json
+{
+  "approved": true,
+  "bet_id": "BET-1746624051240-CD34E",
+  "market": "next_goal",
+  "selection": "home",
+  "stake": 50,
+  "requested_odds": 1.80,
+  "final_odds": 1.80,
+  "timestamp": "2026-05-13T14:23:14.000Z",
+  "message": null
+}
+```
+
+**Success `200` (drift within tolerance + auto-accept):**
 ```json
 {
   "approved": true,
@@ -691,22 +793,93 @@ Both routes are supported and equivalent. Frontend may use either path.
 }
 ```
 
-**Grace Period behaviour:**
+**Failure `409` (drift outside tolerance or manual rejection):**
+```json
+{
+  "approved": false,
+  "error": "Odds have changed",
+  "error_code": "ODDS_CHANGED",
+  "current_odds": 1.74,
+  "message": "Requested 1.80, now 1.74 — resubmit with new odds?"
+}
+```
 
-| Condition | Outcome |
-|---|---|
-| Odds unchanged | Accepted immediately |
-| Drift within tolerance + `auto_accept_changes: true` | Accepted with adjusted `final_odds` + `message` |
-| Drift within tolerance + `auto_accept_changes: false` | `409 ODDS_CHANGED` with `current_odds` |
-| Drift outside tolerance | `409 ODDS_CHANGED` regardless of flag |
-| Match `SUSPENDED` or `TRANSITION` | `403 MARKET_SUSPENDED` |
-| Market `CLOSED` | `400 MARKET_CLOSED` |
+### Grace Period Drift Handling Rules
+
+The middleware applies these rules based on time elapsed and odds change:
+
+| Scenario | Drift | Engine Decision | HTTP Response |
+|----------|-------|-----------------|---|
+| No time elapsed | ≤0.05 | Accept at requested odds | `200 OK` |
+| Odds improved | Any | Always accept at new odds | `200 OK` |
+| Drift within tolerance | ±0.05 | Accept if `auto_accept_changes: true`; reject if `false` | `200 OK` or `409 ODDS_CHANGED` |
+| Drift outside tolerance | >0.05 | Always reject | `409 ODDS_CHANGED` with `current_odds` |
+| Request stale | >3 seconds old | Always reject | `422 UNPROCESSABLE_ENTITY` |
+| Market suspended/locked | Any | Always reject | `403 FORBIDDEN` |
+| Market closed | Any | Always reject | `400 BAD_REQUEST` |
+
+### Client-Side Drift UX Pattern
+
+**Recommended user flow:**
+
+```javascript
+async function placeLiveBet(matchId, market, selection, requestedOdds) {
+  // Step 1: Show confirmation dialog with requested odds
+  const confirmed = await showConfirmDialog({
+    title: 'Place Live Bet?',
+    message: `${selection} @ ${requestedOdds}`,
+    stake: 50
+  });
+  if (!confirmed) return;
+
+  // Step 2: Submit with client timestamp (guarantees consistent grace window)
+  const response = await api.post('/cashier/v1/turbo-soccer/bets/live', {
+    matchId,
+    market,
+    selection,
+    stake: 50,
+    odds: requestedOdds,
+    client_timestamp: Date.now(),
+    auto_accept_changes: false  ← force explicit user approval on drift
+  });
+
+  // Step 3a: Accepted at requested odds
+  if (response.approved && response.final_odds === requestedOdds) {
+    showSuccess(`Bet placed @ ${requestedOdds}`);
+    return;
+  }
+
+  // Step 3b: Accepted with drift
+  if (response.approved && response.final_odds !== requestedOdds) {
+    showWarning(`Odds moved to ${response.final_odds} — accepted`);
+    return;
+  }
+
+  // Step 3c: Rejected due to drift
+  if (!response.approved) {
+    const newOdds = response.current_odds;
+    const resubmit = await showConfirmDialog({
+      title: 'Odds Have Changed',
+      message: `Now ${newOdds} (was ${requestedOdds}) — resubmit?`
+    });
+    if (resubmit) {
+      // Retry with fresh client_timestamp and new odds
+      return placeLiveBet(matchId, market, selection, newOdds);
+    }
+  }
+}
+```
 
 ---
 
 ## 6. Validate Live Odds (Pre-flight)
 
-Call before showing a confirmation screen. Does **not** place a bet or debit the wallet.
+Call before showing the confirmation screen to check if odds are still valid. Does **not** place a bet or debit the wallet.
+
+**Use cases:**
+- Pre-flight validation before displaying confirmation dialog
+- Deduplication check (prevent duplicate bets if terminal UI is slow)
+- Odds drift detection without commitment
 
 ```http
 POST /cashier/v1/turbo-soccer/bets/validate
@@ -727,7 +900,135 @@ Both routes are supported and equivalent. Frontend may use either path.
 
 ---
 
-## 7. Bet History
+## 7. WebSocket Bet Placement
+
+Place single or multi-leg bets in real-time via Socket.io `place_bet` event. Bet is persisted to MongoDB and confirmed with `bet_placed` or `bet_error` response before returning to client (no fire-and-forget).
+
+**Use case:** Premium terminals requiring real-time confirmation feedback, kiosks with instant database verification.
+
+**Single-selection via WebSocket:**
+```javascript
+const timeout = setTimeout(() => reject(new Error('Timeout')), 5000);
+
+socket.emit('place_bet', {
+  selections: [{
+    matchId: "VFL-L01-S01-R012-M01",
+    market: "match_winner",
+    selection: "home",
+    requested_odds: 1.95
+  }],
+  stake: 500,
+  cashierId: "665f1a2b3c4d5e6f7a8b9c0d",
+  client_timestamp: Date.now()
+});
+
+socket.once('bet_placed', (response) => {
+  clearTimeout(timeout);
+  console.log('✓ Bet placed:', response.bet_id);
+  console.log('  MongoDB ID:', response._meta.dbId);  // ObjectId for audit
+  console.log('  Timestamp:', response._meta.placedAt);
+});
+
+socket.once('bet_error', (error) => {
+  clearTimeout(timeout);
+  reject(new Error(error.message || 'Bet placement failed'));
+});
+```
+
+**Accumulator (multi-leg):**
+```javascript
+socket.emit('place_bet', {
+  selections: [
+    {
+      matchId: "VFL-L01-S01-R012-M01",
+      market: "match_winner",
+      selection: "home",
+      requested_odds: 1.95
+    },
+    {
+      matchId: "VFL-L04-S01-R012-M04",
+      market: "btts",
+      selection: "GG",
+      requested_odds: 1.82
+    }
+  ],
+  stake: 500,
+  cashierId: "665f1a2b3c4d5e6f7a8b9c0d",
+  userId: "PLAYER-123",                    ← optional player ID for bet attribution
+  client_timestamp: Date.now()
+});
+```
+
+**`bet_placed` response (success):**
+```json
+{
+  "success": true,
+  "bet_id": "BET-1746624051234-AB12C",
+  "type": "accumulator",
+  "stake": 500,
+  "totalOdds": 3.549,
+  "potentialReturn": 1774.5,
+  "status": "PENDING",
+  "timestamp": "2026-05-07T14:23:11.000Z",
+  "selections": [
+    {
+      "matchId": "VFL-L01-S01-R012-M01",
+      "homeTeam": "Manchester City",
+      "awayTeam": "Liverpool FC",
+      "market": "match_winner",
+      "selection": "home",
+      "accepted_odds": 1.95
+    },
+    {
+      "matchId": "VFL-L04-S01-R012-M04",
+      "homeTeam": "Arsenal",
+      "awayTeam": "Chelsea",
+      "market": "btts",
+      "selection": "GG",
+      "accepted_odds": 1.82
+    }
+  ],
+  "_meta": {
+    "placedAt": "2026-05-07T14:23:11.456Z",
+    "dbPersisted": true,
+    "dbId": "507f1f77bcf86cd799439011",
+    "ticketId": "BET-1746624051234-AB12C"
+  }
+}
+```
+
+| Field | Description |
+|---|---|
+| `_meta.placedAt` | Server timestamp when bet was placed |
+| `_meta.dbPersisted` | Whether bet was successfully saved to MongoDB |
+| `_meta.dbId` | MongoDB ObjectId — use for audit/reconciliation |
+| `_meta.ticketId` | Ticket ID for internal tracking |
+
+**`bet_error` response (failure):**
+```json
+{
+  "success": false,
+  "error": "Market currently suspended (Goal)",
+  "code": "MARKET_SUSPENDED",
+  "message": "Cannot place bets during suspension",
+  "_meta": {
+    "dbPersisted": false,
+    "dbError": null
+  }
+}
+```
+
+**Error codes (same as REST `/api/bets/place`):**
+- `MARKET_SUSPENDED` — market locked (goal, red card, penalty, transition)
+- `ODDS_STALE` — odds drifted beyond tolerance
+- `NETWORK_TIMEOUT` — request > 3s old
+- `INVALID_MARKET` — unknown market or selection
+- `MATCH_NOT_FOUND` — fixture does not exist
+- `INSUFFICIENT_BALANCE` — wallet insufficient (if ledger-based)
+
+---
+
+## 8. Bet History
 
 ```http
 GET /cashier/v1/turbo-soccer/bets/history?page=1&limit=20
@@ -740,7 +1041,7 @@ GET /cashier/v1/turbo-soccer/bets/history?page=1&limit=20
 
 ---
 
-## 8. Void a Bet
+## 9. Void a Bet
 
 > Requires `manageGameConfig` role.
 
@@ -766,7 +1067,7 @@ On success: ticket is marked `cancelled = true`, `payout = true`, original cashi
 
 ---
 
-## 9. Settlement Webhook
+## 10. Settlement Webhook
 
 The VF Engine posts to this endpoint after each match settles. **No JWT required** — HMAC-SHA256 verified only.
 
@@ -949,32 +1250,281 @@ Content-Type: application/json
 
 ---
 
-## 10. Error Responses
+## 11. Suspension Tracking (Chapter 8D)
 
-```json
+### Active Suspension State
+
+Each `LEAGUE_UPDATE` event includes real-time suspension tracking fields:
+
+```javascript
 {
-  "code": 409,
-  "message": "Odds have changed",
-  "error_code": "ODDS_CHANGED",
-  "current_odds": 1.78
+  matchId:          'LEAGUE-001',
+  isSuspended:      false,           // true = market locked
+  suspensionReason: null,            // 'TRANSITION'|'GOAL'|'RED_CARD'|'PENALTY'|null
+  pendingPenalty:   false,           // true = indefinite lock waiting for outcome
+  odds:             { /* MarketPacket */ },
+  // ... other fields
 }
 ```
 
-| HTTP | `error_code` | Meaning | Extra field |
-|---|---|---|---|
-| 400 | `MARKET_CLOSED` | Market outcome already determined | — |
-| 400 | — | Insufficient funds / invalid stake | — |
-| 403 | `MARKET_SUSPENDED` | Market locked (goal/red card/penalty/kickoff) | — |
-| 403 | — | Authenticated but not authorized (for example cashier calling admin routes) | — |
-| 404 | — | Cashier or wallet not found | — |
-| 409 | `ODDS_CHANGED` | Odds drifted; update display then re-submit | `current_odds` |
-| 500 | — | Engine accepted the bet but local ticket persistence failed; wallet rollback applied | — |
-| 502 | — | VF Engine unreachable from cashier API | — |
-| 503 | `NO_ACTIVE_MATCH` | No active match for this slot | — |
+### Suspension Triggers & Durations
+
+| Trigger | `suspensionReason` | Duration | `odds` | Notes |
+|---------|-------------------|----------|--------|-------|
+| Kickoff (min 0) | `TRANSITION` | 3 seconds | `null` | Market lock during kickoff countdown |
+| Goal scored | `GOAL` | 5 seconds | `null` | Lock after each goal to prevent ghost bets |
+| Red card shown | `RED_CARD` | 5 seconds | `null` | Safety buffer for player dismissal |
+| Penalty awarded | `PENALTY` | Indefinite | `null` | Lock until penalty resolved (scored/missed) |
+| No suspension | `null` | — | Valid odds object | Market is LIVE and accepting bets |
+
+### Client-Side Suspension Handling
+
+**Checklist:**
+- [ ] Block bet submission when `isSuspended: true` OR `odds === null`
+- [ ] Show suspension reason to operator: `"Markets suspended: ${suspensionReason}"` or `"Markets locked"`
+- [ ] If `pendingPenalty: true`, show indefinite lock indicator: `"Awaiting penalty outcome — markets remain locked"`
+- [ ] Disable bet slip input for the duration shown above
+- [ ] Auto-resume when suspension clears: `isSuspended: false` AND `odds !== null`
+
+**Implementation:**
+```javascript
+socket.on('LEAGUE_UPDATE', (slot) => {
+  if (slot.isSuspended || slot.odds === null) {
+    // Market locked — disable bets
+    disableBetInput(slot.matchId);
+    const msg = slot.suspensionReason 
+      ? `Markets suspended: ${slot.suspensionReason}` 
+      : 'Markets locked';
+    showMarketLock(msg);
+    if (slot.pendingPenalty) {
+      showWarning('Awaiting penalty outcome — indefinite lock');
+    }
+  } else {
+    // Market LIVE — resume normal operations
+    enableBetInput(slot.matchId);
+    clearMarketLock();
+    updateOdds(slot.odds);
+  }
+  updateScoreboard(slot);
+});
+```
+
+### Dead Markets (Individual Market Closure)
+
+A dead market is one whose outcome is already determined. The engine sets `status: "CLOSED"` on the market and returns `null` for its odds fields in the `MarketPacket`.
+
+| Market | Closes When |
+|--------|-------------|
+| `btts` | Both teams scored OR impossible (e.g., 0-0 at 90 min) |
+| `ou_1.5`–`ou_4.5` | Sufficient goals scored to guarantee the over |
+| `first_half` | Minute ≥ 45 |
+| `fh_ou_*` | First-half over |
+| `second_half` | Minute ≥ 90 |
+| `sh_ou_*` | Second-half over |
+| `next_goal` | Minute ≥ 88 |
+| `fh_goal_ng` | Any goal in first half OR first-half ends |
+| `sh_goal_ng` | Any goal in second half OR match ends |
+| `win_both_halves` | Match ends (full time) |
+
+**Client action:** Do not display or accept bets on dead markets. Check `market.status === "CLOSED"` before rendering market card on bet slip.
 
 ---
 
-## 11. Tickets & Printing (Chapter 10)
+## 12. Market Identifiers Reference
+
+Use these exact strings for the `market` and `selection` fields in all bet requests. See [§24 Detailed Reference](#24-market-identifiers-reference-detailed) for complete market tables.
+
+### Quick Reference: Common Markets
+
+| `market` | `selection` | Description |
+|----------|-------------|-------------|
+| `match_winner` | `home`, `draw`, `away` | Full-time 1X2 |
+| `double_chance` | `home_draw`, `home_away`, `draw_away` | Double chance |
+| `btts` | `GG`, `NG` | Both teams to score |
+| `ou_1.5` to `ou_4.5` | `over`, `under` | Goals O/U (lines 1.5–4.5) |
+| `first_half` | `home`, `draw`, `away` | First-half result |
+| `second_half` | `home`, `draw`, `away` | Second-half result |
+| `next_goal` | `home`, `away` | Next goal scorer |
+| `next_corner` | `home`, `away` | Next corner |
+| `corners` | `over`, `under` | Total corners |
+| `combo_result_ou25` | `1 & Over`, `1 & Under`, `X & Over`, etc. | 1X2 + O/U 2.5 combined |
+| `combo_result_btts` | `1 & GG`, `1 & NG`, `X & GG`, etc. | 1X2 + BTTS combined |
+| `correct_score` | `0-0`, `1-0`, `1-1`, … | Exact final score |
+| `total_goals` | `0`, `1`, `2`, `3`, `4`, `5`, `6+` | Total goals exact count |
+
+> **Full list:** See [§24 Detailed Reference](#24-market-identifiers-reference-detailed) for all 50+ markets, dynamic line markets, card markets, half-time markets, and expanded markets.
+
+---
+
+## 13. Accumulator, Combinator & System Models
+
+### Accumulator (All-Win Model)
+
+**Definition:** All legs must resolve WON for the entire ticket to win. Any LOST or VOID leg results in a LOST ticket.
+
+**Payload:**
+```json
+{
+  "type": "accumulator",        ← explicit type (or omit for auto-detect with 2+ legs)
+  "stake": 500,                 ← entire stake on the combined odds
+  "selections": [               ← min 2 items
+    { "matchId": "...", "market": "...", "selection": "...", "requested_odds": 1.95 },
+    { "matchId": "...", "market": "...", "selection": "...", "requested_odds": 1.82 }
+  ],
+  "client_timestamp": Date.now()
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "type": "accumulator",
+  "bet_id": "BET-1746624051234-AB12C",
+  "stake": 500,
+  "totalOdds": 3.549,             ← product of all leg odds
+  "potentialReturn": 1774.5,      ← stake × totalOdds
+  "selections": [ ... ],
+  "_meta": { ... }
+}
+```
+
+**Settlement:** Ticket wins if ALL legs win. Any single losing/void leg loses the entire ticket.
+
+---
+
+### Combinator (Split-Stake Model)
+
+**Definition:** Stake is split equally across legs. Ticket wins if AT LEAST ONE leg wins. Winnings = sum of winning leg returns only. Losing legs do not cancel winning legs.
+
+**Payload:**
+```json
+{
+  "type": "combinator",         ← required for combinator
+  "stake": 500,                 ← total stake (split equally across legs)
+  "selections": [               ← min 2 items
+    { "matchId": "...", "market": "...", "selection": "...", "requested_odds": 1.95 },
+    { "matchId": "...", "market": "...", "selection": "...", "requested_odds": 1.82 }
+  ],
+  "client_timestamp": Date.now()
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "type": "combinator",
+  "bet_id": "BET-1746624051999-CD34E",
+  "stake": 500,                         ← total stake
+  "totalOdds": 1.885,                   ← simplified metric (not multiplied)
+  "potentialReturn": 942.5,             ← estimated return (context-dependent)
+  "selections": [
+    {
+      "matchId": "...",
+      "market": "...",
+      "selection": "...",
+      "requested_odds": 1.95,
+      "accepted_odds": 1.95,
+      "stake": 250                      ← leg stake (total ÷ leg count)
+    },
+    {
+      "matchId": "...",
+      "market": "...",
+      "selection": "...",
+      "requested_odds": 1.82,
+      "accepted_odds": 1.82,
+      "stake": 250
+    }
+  ],
+  "_meta": { ... }
+}
+```
+
+**Settlement:** Ticket wins if at least one leg wins. Winnings = sum of ALL winning leg payouts (stake per leg × odds per leg).
+
+**Example:**
+- Leg 1: stake 250, odds 1.95 → win: 250 × 1.95 = 487.50
+- Leg 2: stake 250, odds 1.82 → loss: 0
+- Ticket result: WON, Winnings: 487.50 (not 942.5)
+
+---
+
+### System + Banker (Line-Generation Model)
+
+**Definition:** The engine generates combination lines from non-banker selections only, then multiplies banker legs into every generated line.
+
+**Payload:**
+```json
+{
+  "type": "system",
+  "systemSize": 2,
+  "stake": 1000,
+  "client_timestamp": 1746614400000,
+  "selections": [
+    {
+      "matchId": "VFL-L01-S01-R012-M01",
+      "market": "match_winner",
+      "selection": "home",
+      "requested_odds": 2.00,
+      "is_banker": true
+    },
+    {
+      "matchId": "VFL-L01-S01-R012-M02",
+      "market": "btts",
+      "selection": "GG",
+      "requested_odds": 2.00
+    },
+    {
+      "matchId": "VFL-L01-S01-R012-M03",
+      "market": "double_chance",
+      "selection": "1X",
+      "requested_odds": 2.00
+    },
+    {
+      "matchId": "VFL-L01-S01-R012-M04",
+      "market": "draw_no_bet",
+      "selection": "away",
+      "requested_odds": 2.00
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "type": "system",
+  "bet_id": "BET-1746624052999-EF56G",
+  "stake": 3000,
+  "systemSize": 2,
+  "unitStake": 1000,
+  "linesGenerated": 3,
+  "bankerCount": 1,
+  "regularCount": 3,
+  "totalOdds": 8.0,
+  "potentialReturn": 24000,
+  "status": "PENDING",
+  "bet_lines": [
+    { "line_id": "LINE_1", "line_odds": 8.0, "line_payout": 8000, "status": "PENDING" },
+    { "line_id": "LINE_2", "line_odds": 8.0, "line_payout": 8000, "status": "PENDING" },
+    { "line_id": "LINE_3", "line_odds": 8.0, "line_payout": 8000, "status": "PENDING" }
+  ]
+}
+```
+
+**Rules:**
+- `systemSize` applies only to non-banker selections.
+- Banker legs are marked with `is_banker: true`.
+- Requested `stake` is unit stake per generated line.
+- Total stake debited = unit stake × lines generated.
+- If any banker settles `LOST`, the full ticket settles `LOST` immediately.
+- Banker `VOID` is treated as odds `1.00`.
+
+---
+
+## 14. Tickets & Printing (Chapter 10)
 
 Multi-leg ticket validation and issuance in a single call. All selections are checked against live odds with grace period tolerance.
 
@@ -1075,7 +1625,7 @@ async function placePrintTicket({ shopId, cashierId, selections, totalStake }) {
 
 ---
 
-## 12. Thermal Printing (Chapter 10B)
+## 15. Thermal Printing (Chapter 10B)
 
 Generates ESC/POS binary payloads for thermal printers. Send `payloadBase64` directly to the printer driver.
 
@@ -1114,7 +1664,7 @@ Same body and response shape. Adds a `** REPRINT **` header to the print job.
 
 ---
 
-## 13. Admin — Margins
+## 16. Admin — Margins
 
 > Requires `manageGameConfig` role.
 
@@ -1129,7 +1679,7 @@ PUT  /cashier/v1/turbo-soccer/admin/match/:matchId/margin
 
 ---
 
-## 14. Admin — Leagues
+## 17. Admin — Leagues
 
 > Requires `manageGameConfig` role.
 
@@ -1164,7 +1714,7 @@ The engine assigns up to 10 `LEAGUE-*` slots round-robin across active leagues. 
 
 ---
 
-## 15. Admin — Accumulator
+## 18. Admin — Accumulator
 
 > Requires `manageGameConfig` role.
 
@@ -1191,7 +1741,7 @@ Minimum 2 legs. Response includes `totalOdds`, `bonusMultiplier`, and `potential
 
 ---
 
-## 16. Admin — Throttler
+## 19. Admin — Throttler
 
 > Requires `manageGameConfig` role.
 
@@ -1203,7 +1753,7 @@ Returns `lastDecayBroadcast`, `lastMajorEventTimestamp`, and `timeDecayIntervalM
 
 ---
 
-## 17. Admin — Match Control
+## 20. Admin — Match Control
 
 > Requires `manageGameConfig` role.
 
@@ -1226,7 +1776,7 @@ Combines `init` + `start`. Engine generates the `matchId` automatically.
 
 ---
 
-## 18. Admin — Webhook Management
+## 21. Admin — Webhook Management
 
 > Requires `manageGameConfig` role.
 
@@ -1249,7 +1799,7 @@ DELETE /cashier/v1/turbo-soccer/admin/webhooks/settlement/:webhookId
 
 ---
 
-## 19. Role Summary
+## 22. Role Summary
 
 | Endpoint group | Required role |
 |---|---|
@@ -1265,7 +1815,53 @@ DELETE /cashier/v1/turbo-soccer/admin/webhooks/settlement/:webhookId
 
 ---
 
-## 20. Market Identifiers Quick Reference
+## 23. Error Codes & Validation
+
+### HTTP Status Codes & Error Responses
+
+```json
+{
+  "code": 409,
+  "message": "Odds have changed",
+  "error_code": "ODDS_CHANGED",
+  "current_odds": 1.78
+}
+```
+
+| HTTP | `error_code` | Meaning | Extra Fields |
+|---|---|---|---|
+| 400 | `MARKET_CLOSED` | Market outcome already determined (e.g., BTTS after both teams score) | — |
+| 400 | — | Insufficient funds / invalid stake / malformed request | — |
+| 403 | `MARKET_SUSPENDED` | Market locked (goal/red card/penalty/kickoff TRANSITION) | — |
+| 403 | — | Authenticated but not authorized for this action | — |
+| 404 | — | Cashier, wallet, or fixture not found | — |
+| 409 | `ODDS_CHANGED` | Odds drifted beyond Grace Period tolerance; show user the new odds | `current_odds` |
+| 422 | `ODDS_STALE` | Odds drifted heavily or network latency > 3s; request is stale | — |
+| 422 | `NETWORK_TIMEOUT` | Request timed out during validation | — |
+| 422 | `GHOST_BET` | Major event occurred after ticket placement; bet rejected for safety | — |
+| 500 | — | Engine accepted the bet but local ticket persistence failed; wallet rollback applied | — |
+| 502 | — | VF Engine unreachable from cashier API | — |
+| 503 | `NO_ACTIVE_MATCH` | No active match for this slot | — |
+
+### Grace Period Validation Rules
+
+The Grace Period Middleware (in-play betting) applies these rules:
+
+| Condition | Outcome | HTTP |
+|---|---|---|
+| Odds unchanged | Accepted immediately | `200 OK` |
+| Drift within ±0.05 tolerance + `auto_accept_changes: true` | Accepted with adjusted final_odds | `200 OK` |
+| Drift within ±0.05 tolerance + `auto_accept_changes: false` | Rejected; show current_odds | `409 CONFLICT` |
+| Drift outside tolerance (drop > 0.05) | Rejected regardless of flag | `409 CONFLICT` |
+| Odds improved (in punter's favour) | Always accepted | `200 OK` |
+| Match `SUSPENDED` or `TRANSITION` | Rejected; market locked | `403 FORBIDDEN` |
+| Market `CLOSED` | Rejected; outcome determined | `400 BAD_REQUEST` |
+| Network latency > 3 seconds | Rejected; stale request | `422 UNPROCESSABLE` |
+| Major event after placement | Rejected; ghost-bet protection | `422 UNPROCESSABLE` |
+
+---
+
+## 24. Market Identifiers Reference (Detailed)
 
 Use these exact strings for the `market` and `selection` fields in all bet requests.
 

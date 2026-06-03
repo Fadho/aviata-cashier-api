@@ -7,6 +7,7 @@ const logger = require('../config/logger');
 const { userService, walletService } = require('../services');
 const vfengineService = require('../services/vfengine.service');
 const turboSoccerService = require('../services/turboSoccer.service');
+const Tickets = require('../models/tickets.model');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -101,6 +102,10 @@ const getMatchState = proxyVf(() => vfengineService.getMatchState());
 
 // ─── Bets ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Places a prematch Turbo Soccer bet.
+ * Response includes _meta envelope with dbId (local Ticket ObjectId) for state tracking.
+ */
 const placeBet = catchAsync(async (req, res) => {
   const { cashierId } = req.body;
   const user = await userService.getUserById(cashierId);
@@ -112,9 +117,28 @@ const placeBet = catchAsync(async (req, res) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Cashier wallet not found');
   }
   const vfResponse = await turboSoccerService.placeBet(userWallet, req.body, cashierId);
-  res.status(httpStatus.OK).json(vfResponse);
+
+  // Fetch the persisted Ticket to construct _meta envelope
+  const ticket = await Tickets.findOne({ vfBetId: vfResponse.bet_id });
+
+  // Wrap VF response with local database tracking metadata
+  const response = {
+    ...vfResponse,
+    _meta: {
+      dbPersisted: !!ticket,
+      dbId: ticket ? ticket._id.toString() : null,
+      placedAt: new Date().toISOString(),
+      ticketId: ticket ? ticket.ticketId : null,
+    },
+  };
+
+  res.status(httpStatus.OK).json(response);
 });
 
+/**
+ * Places a live Turbo Soccer bet via Grace Period Middleware.
+ * Response includes _meta envelope with dbId for state tracking.
+ */
 const placeLiveBet = catchAsync(async (req, res) => {
   const { cashierId } = req.body;
   const user = await userService.getUserById(cashierId);
@@ -126,7 +150,22 @@ const placeLiveBet = catchAsync(async (req, res) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Cashier wallet not found');
   }
   const vfResponse = await turboSoccerService.placeLiveBet(userWallet, req.body, cashierId);
-  res.status(httpStatus.OK).json(vfResponse);
+
+  // Fetch the persisted Ticket to construct _meta envelope
+  const ticket = await Tickets.findOne({ vfBetId: vfResponse.bet_id });
+
+  // Wrap VF response with local database tracking metadata
+  const response = {
+    ...vfResponse,
+    _meta: {
+      dbPersisted: !!ticket,
+      dbId: ticket ? ticket._id.toString() : null,
+      placedAt: new Date().toISOString(),
+      ticketId: ticket ? ticket.ticketId : null,
+    },
+  };
+
+  res.status(httpStatus.OK).json(response);
 });
 
 const validateLiveBet = proxyVf((req) => vfengineService.validateLiveBet(req.body));

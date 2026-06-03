@@ -30,7 +30,7 @@ const ticketSchema = mongoose.Schema(
     vfBetType: {
       type: String,
       lowercase: true,
-      enum: ['single', 'accumulator', 'combinator'],
+      enum: ['single', 'accumulator', 'combinator', 'system'],
       sparse: true,
     },
     selections: [
@@ -58,12 +58,20 @@ const ticketSchema = mongoose.Schema(
           type: String,
           enum: ['PREMATCH', 'LIVE'],
         },
+        is_banker: {
+          type: Boolean,
+          default: false,
+        },
         stake: {
           type: Number,
           required: true,
         },
         winnings: {
           type: Number,
+        },
+        eventResult: {
+          type: String,
+          default: 'pending',
         },
       },
     ],

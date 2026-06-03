@@ -275,6 +275,48 @@ describe('turboSoccerService.placeBet', () => {
       })
     );
   });
+
+  test('should persist system vfBetType and retain per-leg banker metadata from request flow', async () => {
+    const systemBody = {
+      cashierId,
+      type: 'system',
+      systemSize: 2,
+      stake: 300,
+      selections: [
+        { matchId: 'LEAGUE-001', market: 'match_winner', selection: 'home', requested_odds: 2.0, is_banker: true },
+        { matchId: 'LEAGUE-002', market: 'btts', selection: 'GG', requested_odds: 1.8 },
+        { matchId: 'LEAGUE-003', market: 'draw_no_bet', selection: 'away', requested_odds: 1.7 },
+      ],
+    };
+
+    vfengineService.placeBet.mockResolvedValue({
+      data: {
+        bet_id: 'vf-system-001',
+        type: 'system',
+        stake: 300,
+        totalOdds: 6.12,
+        potentialReturn: 1836,
+        selections: [
+          { matchId: 'LEAGUE-001', market: 'match_winner', selection: 'home', accepted_odds: 2.0 },
+          { matchId: 'LEAGUE-002', market: 'btts', selection: 'GG', accepted_odds: 1.8 },
+          { matchId: 'LEAGUE-003', market: 'draw_no_bet', selection: 'away', accepted_odds: 1.7 },
+        ],
+      },
+    });
+
+    await turboSoccerService.placeBet(makeWallet(500), systemBody, cashierId);
+
+    expect(Tickets.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vfBetId: 'vf-system-001',
+        betType: 'multiple',
+        vfBetType: 'system',
+        roundId: 'LEAGUE-001',
+        potentialWinnings: 1836,
+        selections: expect.arrayContaining([expect.objectContaining({ is_banker: true })]),
+      })
+    );
+  });
 });
 
 // ─── placeLiveBet ─────────────────────────────────────────────────────────────

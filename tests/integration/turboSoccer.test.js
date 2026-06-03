@@ -513,6 +513,77 @@ describe('POST /bets/place', () => {
       .expect(httpStatus.BAD_REQUEST);
   });
 
+  test('should accept system payloads with systemSize and banker legs', async () => {
+    vfengineService.placeBet.mockResolvedValue({
+      data: {
+        success: true,
+        type: 'system',
+        bet_id: 'vf-system-001',
+        systemSize: 2,
+        unitStake: 100,
+        linesGenerated: 3,
+        bankerCount: 1,
+        regularCount: 3,
+        totalOdds: 8,
+        potentialReturn: 2400,
+        selections: [
+          {
+            matchId: 'VFL-L01-S01-R012-M01',
+            market: 'match_winner',
+            selection: 'home',
+            accepted_odds: 2.0,
+          },
+          {
+            matchId: 'VFL-L01-S01-R012-M02',
+            market: 'btts',
+            selection: 'GG',
+            accepted_odds: 2.0,
+          },
+          {
+            matchId: 'VFL-L01-S01-R012-M03',
+            market: 'double_chance',
+            selection: '1X',
+            accepted_odds: 2.0,
+          },
+          {
+            matchId: 'VFL-L01-S01-R012-M04',
+            market: 'draw_no_bet',
+            selection: 'away',
+            accepted_odds: 2.0,
+          },
+        ],
+      },
+    });
+
+    const payload = {
+      cashierId: cashierUser._id.toHexString(),
+      type: 'system',
+      systemSize: 2,
+      stake: 100,
+      selections: [
+        { matchId: 'VFL-L01-S01-R012-M01', market: 'match_winner', selection: 'home', requested_odds: 2.0, is_banker: true },
+        { matchId: 'VFL-L01-S01-R012-M02', market: 'btts', selection: 'GG', requested_odds: 2.0 },
+        { matchId: 'VFL-L01-S01-R012-M03', market: 'double_chance', selection: '1X', requested_odds: 2.0 },
+        { matchId: 'VFL-L01-S01-R012-M04', market: 'draw_no_bet', selection: 'away', requested_odds: 2.0 },
+      ],
+    };
+
+    const res = await request(app)
+      .post(`${BASE}/bets/place`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send(payload)
+      .expect(httpStatus.OK);
+
+    expect(res.body.bet_id).toBe('vf-system-001');
+    expect(vfengineService.placeBet).toHaveBeenCalledWith(payload);
+
+    const ticket = await Tickets.findOne({ vfBetId: 'vf-system-001' });
+    expect(ticket).not.toBeNull();
+    expect(ticket.vfBetType).toBe('system');
+    expect(ticket.betType).toBe('multiple');
+    expect(ticket.selections.some((selection) => selection.is_banker === true)).toBe(true);
+  });
+
   test('should persist vfBetType=combinator and per-leg stakes when combinator is accepted', async () => {
     vfengineService.placeBet.mockResolvedValue({
       data: {

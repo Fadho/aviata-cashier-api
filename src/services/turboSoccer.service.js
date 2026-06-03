@@ -11,7 +11,7 @@ const GAME_TYPE = 'turbo-soccer';
 const normalizeBetType = (value) => {
   if (!value) return null;
   const normalized = String(value).toLowerCase();
-  if (normalized === 'single' || normalized === 'accumulator' || normalized === 'combinator') {
+  if (normalized === 'single' || normalized === 'accumulator' || normalized === 'combinator' || normalized === 'system') {
     return normalized;
   }
   return null;
@@ -32,6 +32,7 @@ const toTicketBetType = (betType) => (betType === 'single' ? 'single' : 'multipl
 const getRoundFallback = (betType) => {
   if (betType === 'combinator') return 'vf-turbo-combinator';
   if (betType === 'accumulator') return 'vf-turbo-acca';
+  if (betType === 'system') return 'vf-turbo-system';
   return 'vf-turbo';
 };
 
@@ -61,6 +62,7 @@ const toTicketSelections = (vfResponse, betBody, stake) => {
         odd: acceptedOdds,
         oddsTaken: acceptedOdds,
         betCategory,
+        is_banker: betBody.is_banker === true,
         stake,
       },
     ];
@@ -74,6 +76,7 @@ const toTicketSelections = (vfResponse, betBody, stake) => {
     const selectionResponse = responseSelections[index] || {};
     const acceptedOdds = resolveAcceptedOdds(selectionResponse, selectionBody.requested_odds);
     const legStake = Number(selectionResponse.stake);
+    const isBanker = selectionResponse.is_banker === true || selectionBody.is_banker === true;
 
     return {
       homeTeam: selectionResponse.homeTeam || selectionBody.homeTeam,
@@ -83,6 +86,7 @@ const toTicketSelections = (vfResponse, betBody, stake) => {
       odd: acceptedOdds,
       oddsTaken: acceptedOdds,
       betCategory,
+      is_banker: isBanker,
       stake: Number.isFinite(legStake) && legStake > 0 ? legStake : selectionStake,
     };
   });
@@ -143,6 +147,33 @@ const mapVfEngineError = (err) => {
     const data = response.data || {};
     apiErr.currentOdds = data.current_odds;
     return apiErr;
+  }
+  if (code === 'ODDS_STALE') {
+    return new ApiError(
+      httpStatus.UNPROCESSABLE_ENTITY,
+      'Bet request is stale — too much time elapsed or network latency detected',
+      true,
+      '',
+      code
+    );
+  }
+  if (code === 'NETWORK_TIMEOUT') {
+    return new ApiError(
+      httpStatus.UNPROCESSABLE_ENTITY,
+      'Bet request timed out during validation — please try again',
+      true,
+      '',
+      code
+    );
+  }
+  if (code === 'GHOST_BET') {
+    return new ApiError(
+      httpStatus.UNPROCESSABLE_ENTITY,
+      'Bet rejected due to major event occurrence — please review odds and try again',
+      true,
+      '',
+      code
+    );
   }
   if (status === httpStatus.NOT_FOUND) {
     return new ApiError(httpStatus.NOT_FOUND, message, true, '', code || null);

@@ -19,7 +19,7 @@ All requests require Authorization: Bearer <access_token>.
 The endpoint supports two request modes.
 
 1. Single-selection mode
-2. Multi-selection mode (`accumulator` or `combinator`)
+2. Multi-selection mode (`accumulator`, `combinator`, or `system`)
 
 `type` is optional:
 
@@ -31,6 +31,7 @@ Type rules:
 - `single` requires exactly 1 selection.
 - `accumulator` requires at least 2 selections.
 - `combinator` requires at least 2 selections.
+- `system` requires at least 2 selections plus `systemSize`.
 
 ### 2.1 Single-selection payload
 
@@ -44,7 +45,7 @@ Required fields:
 
 Optional fields:
 
-- type (`single`, `accumulator`, `combinator`)
+- type (`single`, `accumulator`, `combinator`, `system`)
 - requested_odds
 - userId
 - client_timestamp
@@ -76,7 +77,8 @@ Required fields:
 
 Optional fields:
 
-- type (`single`, `accumulator`, `combinator`)
+- type (`single`, `accumulator`, `combinator`, `system`)
+- systemSize
 
 Per-leg required fields:
 
@@ -87,6 +89,7 @@ Per-leg required fields:
 Per-leg optional fields:
 
 - requested_odds
+- is_banker
 - homeTeam
 - awayTeam
 - client_timestamp
@@ -143,6 +146,53 @@ Combinator example:
   ]
 }
 ```
+
+System + banker example:
+
+```json
+{
+  "cashierId": "665f1a2b3c4d5e6f7a8b9c0d",
+  "type": "system",
+  "systemSize": 2,
+  "stake": 1000,
+  "selections": [
+    {
+      "matchId": "VFL-L01-S01-R012-M01",
+      "market": "match_winner",
+      "selection": "home",
+      "requested_odds": 2.0,
+      "is_banker": true
+    },
+    {
+      "matchId": "VFL-L01-S01-R012-M02",
+      "market": "btts",
+      "selection": "GG",
+      "requested_odds": 2.0
+    },
+    {
+      "matchId": "VFL-L01-S01-R012-M03",
+      "market": "double_chance",
+      "selection": "1X",
+      "requested_odds": 2.0
+    },
+    {
+      "matchId": "VFL-L01-S01-R012-M04",
+      "market": "draw_no_bet",
+      "selection": "away",
+      "requested_odds": 2.0
+    }
+  ]
+}
+```
+
+System rules:
+
+- `systemSize` applies to non-banker selections only.
+- Banker legs are marked with `is_banker: true`.
+- Requested `stake` is interpreted as unit stake per generated line.
+- Total stake = unit stake x lines generated.
+- If any banker settles lost, the system ticket settles lost.
+- Banker void is treated as odds `1.00`.
 
 ### 2.3 Combo-market selections
 
