@@ -40,13 +40,12 @@ const proxyVf = (fn) =>
         // eslint-disable-next-line prefer-destructuring
         const data = err.response.data;
         logger.error(
-          '[VF Engine error] cashierRoute=%s engineRoute=%s status=%s reason=%s code=%s payload=%j',
+          '[VF Engine error] cashierRoute=%s engineRoute=%s status=%s reason=%s code=%s',
           cashierRoute,
           engineRoute,
           err.response.status,
           (data && (data.error || data.message)) || err.message || 'Unknown VF Engine error',
-          (data && data.code) || err.code || 'UNKNOWN',
-          data || {}
+          (data && data.code) || err.code || 'UNKNOWN'
         );
         const message = (data && (data.error || data.message)) || 'VF Engine error';
         const apiErr = new ApiError(err.response.status, message, true, '', data && data.code ? data.code : null);
