@@ -283,6 +283,13 @@ const thermalPayload = Joi.object().keys({
   totalOdds: Joi.number(),
   stake: Joi.number().positive(),
   potentialReturn: Joi.number(),
+  betType: Joi.string(),
+  systemSize: Joi.number(),
+  unitStake: Joi.number().allow(null),
+  rowStakes: Joi.array(),
+  linesGenerated: Joi.number(),
+  grMode: Joi.string(),
+  bet_lines: Joi.array(),
 });
 
 const printThermal = {
