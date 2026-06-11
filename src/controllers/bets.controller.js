@@ -92,6 +92,7 @@ const createBetPlaced = catchAsync(async (req, res) => {
     betPlaced._id
   );
 
+  // financial report tracking
   financialReportService.getAndUpdateStake(cashierId, gameType);
 });
 

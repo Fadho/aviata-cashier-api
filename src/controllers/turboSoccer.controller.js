@@ -4,10 +4,12 @@ const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 const config = require('../config/config');
 const logger = require('../config/logger');
-const { userService, walletService } = require('../services');
+const { userService, walletService, financialReportService } = require('../services');
 const vfengineService = require('../services/vfengine.service');
 const turboSoccerService = require('../services/turboSoccer.service');
 const Tickets = require('../models/tickets.model');
+
+const gameType = 'turbo-soccer';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -132,6 +134,8 @@ const placeBet = catchAsync(async (req, res) => {
   };
 
   res.status(httpStatus.OK).json(response);
+
+  financialReportService.getAndUpdateStake(cashierId, gameType);
 });
 
 /**
@@ -165,6 +169,8 @@ const placeLiveBet = catchAsync(async (req, res) => {
   };
 
   res.status(httpStatus.OK).json(response);
+
+  financialReportService.getAndUpdateStake(cashierId, gameType);
 });
 
 const validateLiveBet = proxyVf((req) => vfengineService.validateLiveBet(req.body));
