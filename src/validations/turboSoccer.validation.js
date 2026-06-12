@@ -159,7 +159,9 @@ const getResults = {
     date: Joi.string()
       .pattern(/^\d{4}-\d{2}-\d{2}$/)
       .description('YYYY-MM-DD'),
-    startTime: Joi.string(),
+    startTime: Joi.string()
+      .pattern(/^([01]\d|2[0-3]):[0-5]\d$/)
+      .description('HH:MM'),
   }),
 };
 

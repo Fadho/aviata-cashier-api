@@ -143,6 +143,7 @@ beforeEach(async () => {
   // Default VF Engine mocks
   vfengineService.getSchedule.mockResolvedValue({ status: 200, data: { matches: [] } });
   vfengineService.getTeams.mockResolvedValue({ status: 200, data: { teams: [] } });
+  vfengineService.getResults.mockResolvedValue({ status: 200, data: { success: true, total: 0, panels: [] } });
   vfengineService.getPublicLeagues.mockResolvedValue({ status: 200, data: { leagues: ['PREMIER', 'LALIGA'] } });
   vfengineService.getMargins.mockResolvedValue({ status: 200, data: { margin: 1.05 } });
   vfengineService.issueEngineToken.mockReturnValue('vf-engine-jwt-token');
@@ -237,6 +238,45 @@ describe('GET /leagues', () => {
 });
 
 // ─── WebSocket connection info ─────────────────────────────────────────────────
+
+describe('GET /results', () => {
+  test('should proxy latest results when no query is provided', async () => {
+    const res = await request(app)
+      .get(`${BASE}/results`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(httpStatus.OK);
+
+    expect(res.body).toEqual({ success: true, total: 0, panels: [] });
+    expect(vfengineService.getResults).toHaveBeenCalledWith(undefined, undefined);
+  });
+
+  test('should pass date and HH:MM startTime to VF Engine', async () => {
+    await request(app)
+      .get(`${BASE}/results?date=2026-06-12&startTime=14:30`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(httpStatus.OK);
+
+    expect(vfengineService.getResults).toHaveBeenCalledWith('2026-06-12', '14:30');
+  });
+
+  test('should reject ISO datetime startTime because VF Engine expects HH:MM', async () => {
+    await request(app)
+      .get(`${BASE}/results?date=2026-06-12&startTime=2026-06-12T14:30:00Z`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(httpStatus.BAD_REQUEST);
+
+    expect(vfengineService.getResults).not.toHaveBeenCalled();
+  });
+
+  test('should ignore startTime without date because VF Engine only applies it with date', async () => {
+    await request(app)
+      .get(`${BASE}/results?startTime=14:30`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .expect(httpStatus.OK);
+
+    expect(vfengineService.getResults).toHaveBeenCalledWith(undefined, undefined);
+  });
+});
 
 describe('GET /ws-connect', () => {
   test('should return wsUrl and VF Engine JWT token', async () => {

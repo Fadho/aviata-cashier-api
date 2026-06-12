@@ -85,7 +85,10 @@ const getTeams = proxyVf((req) => vfengineService.getTeams(req.query.league));
 
 const getSchedule = proxyVf((req) => vfengineService.getSchedule(req.query.league));
 
-const getResults = proxyVf((req) => vfengineService.getResults(req.query.date, req.query.startTime));
+const getResults = proxyVf((req) => {
+  const { date, startTime } = req.query;
+  return vfengineService.getResults(date, date ? startTime : undefined);
+});
 
 const getAvailableLeagues = proxyVf(() => vfengineService.getPublicLeagues());
 

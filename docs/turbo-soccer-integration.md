@@ -256,13 +256,13 @@ GET /cashier/v1/turbo-soccer/match/state
 ### Get Historical Results
 ```http
 GET /cashier/v1/turbo-soccer/results?date=2026-05-13
-GET /cashier/v1/turbo-soccer/results?startTime=2026-05-13T10:00:00Z
+GET /cashier/v1/turbo-soccer/results?date=2026-05-13&startTime=10:00
 ```
 
 | Query | Description |
 |---|---|
-| `date` | `YYYY-MM-DD` — defaults to today |
-| `startTime` | ISO 8601 datetime filter |
+| `date` | Optional `YYYY-MM-DD`. When omitted, returns the latest completed results regardless of date. |
+| `startTime` | Optional `HH:MM`. Only applied when `date` is present; ignored by the cashier proxy if sent by itself. |
 
 ---
 
