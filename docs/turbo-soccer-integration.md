@@ -1,7 +1,7 @@
 # Turbo Soccer Pro — API Integration Guide
 
-> **Version:** 1.6.3 | **Date:** 2026-05-20  
-> **Latest:** Betting system integration complete — prematch fixtures with canonical identity, suspension tracking (isSuspended/suspensionReason/pendingPenalty), combo & half-time markets, multi-league WebSocket isolation, Grace Period middleware, WebSocket bet placement with MongoDB persistence  
+> **Version:** 1.6.4 | **Date:** 2026-06-16
+> **Latest:** Settlement integration refreshed — instant `MARKET_SETTLED` and full-time `MATCH_SETTLED` payloads, HMAC raw-body verification, idempotent local ticket updates, and results polling reconciliation
 > **Base path:** `/cashier/v1/turbo-soccer/`  
 > All authenticated routes require a Bearer JWT obtained from `POST /cashier/v1/auth/login`.
 
@@ -1069,184 +1069,211 @@ On success: ticket is marked `cancelled = true`, `payout = true`, original cashi
 
 ## 10. Settlement Webhook
 
-The VF Engine posts to this endpoint after each match settles. **No JWT required** — HMAC-SHA256 verified only.
+Turbo Soccer settlement is automatic. The cashier API does not call an endpoint to trigger settlement; it receives signed VF Engine callbacks and updates local tickets/wallets from the payload.
 
+| Channel | Delivery | Use |
+|---|---|---|
+| Settlement webhook | Push from VF Engine | Instant micro-market and full-time ticket grading |
+| Results polling | Pull through cashier API | Results screens, daily audit, missed-webhook reconciliation |
+
+### 10.1 Register the Engine Webhook
+
+Register the cashier API settlement URL with the VF Engine once per deployment:
+
+```http
+POST /cashier/v1/turbo-soccer/admin/webhooks/settlement
+Authorization: Bearer <admin_access_token>
+Content-Type: application/json
+
+{
+  "targetUrl": "https://cashier-api.example.com/cashier/v1/turbo-soccer/webhooks/settlement",
+  "secret": "your-hmac-secret-minimum-32-characters-long",
+  "description": "Cashier API production settlement callback"
+}
 ```
+
+The cashier API proxies this to VF Engine `POST /api/admin/webhooks/settlement`. The same secret must be configured locally as `VFENGINE_WEBHOOK_SECRET`.
+
+```bash
+VFENGINE_WEBHOOK_SECRET=your-hmac-secret-minimum-32-characters-long
+```
+
+**Secret rules:**
+- Minimum 32 characters
+- Keep it in environment configuration; do not hardcode it
+- Rotate by registering a new webhook with the new secret, then deleting the old registration
+
+### 10.2 Receive and Verify Settlement
+
+VF Engine posts canonical settlement events to:
+
+```http
 POST /cashier/v1/turbo-soccer/webhooks/settlement
-X-Signature: sha256=<hmac_hex>
+X-Signature: sha256=<hmac_hex_digest>
 Content-Type: application/json
 ```
 
-Responds `200 { "received": true }` immediately; processing is async.
+This route requires **no JWT**. It is protected by HMAC-SHA256 over the raw request body bytes. The Express route is mounted with `express.raw({ type: 'application/json' })`; do not place JSON parsing middleware before this route.
 
-### 9.1 Webhook Secret Configuration
+**Response behavior:**
+- `401` for missing or invalid `X-Signature`
+- `400` for invalid JSON after signature verification
+- `200 { "received": true }` immediately for a valid signed JSON payload
+- Settlement processing continues asynchronously after the `200` response
 
-The `VFENGINE_WEBHOOK_SECRET` environment variable is **required** and validated at server startup:
+### 10.3 Payloads
 
-```bash
-# .env
-VFENGINE_WEBHOOK_SECRET=your-secret-key-minimum-32-characters-long
-```
-
-**Validation Rules:**
-- Non-empty (fails if empty or whitespace)
-- Minimum 32 characters
-- Alphanumeric + common special characters only (`!@#$%^&*+=.,:;/?|~`)
-
-**Startup Behavior:**
-- Secret validated during app initialization
-- If invalid, process exits with code 1 and logs error message
-- Prevents runtime webhook signature failures from misconfiguration
-
-### 9.2 Accepted Payload Forms
-
-The webhook handler accepts canonical VF payloads and legacy migration payloads.
+The handler accepts canonical VF payloads and legacy migration aliases.
 
 **Supported events:**
-- `MATCH_SETTLED`
-- `MARKET_SETTLED`
-- `settlement.complete` (alias of `MATCH_SETTLED`)
-- `market.settlement.complete` (alias of `MARKET_SETTLED`)
+- `MARKET_SETTLED` - instant settlement for a micro-market during play
+- `MATCH_SETTLED` - full-time settlement sweep for unresolved tickets
+- `market.settlement.complete` - legacy alias of `MARKET_SETTLED`
+- `settlement.complete` - legacy alias of `MATCH_SETTLED`
 
-**Canonical (preferred):** `tickets_graded[]`
-
+**MARKET_SETTLED (instant):**
 ```json
 {
-  "event": "MATCH_SETTLED",
-  "fixture_id": "VFL-L01-S01-R012",
-  "matchId": "LEAGUE-001",
-  "final_score": "2-1",
-  "resolution_time": "2026-05-13T14:32:05.000Z",
-  "leagueName": "PREMIER",
+  "event": "MARKET_SETTLED",
+  "fixture_id": "VFL-L01-S01-R012-M01",
+  "market_id": "NEXT_GOAL",
+  "resolution_time": "2026-05-08T14:12:05.000Z",
+  "winning_selection": "HOME",
   "tickets_graded": [
     {
       "ticket_hash": "BET-1746624051234-AB12C",
       "status": "WON",
-      "payout_amount": 185.00
+      "payout_amount": 3225.00
+    },
+    {
+      "ticket_hash": "BET-1746624051999-CD34E",
+      "status": "LOST",
+      "payout_amount": 0
     }
-  ]
+  ],
+  "event_aliases": ["market.settlement.complete"]
 }
 ```
 
-**Migration-compatible (still supported):** `bets[]`
-
+**MATCH_SETTLED (full time):**
 ```json
 {
   "event": "MATCH_SETTLED",
-  "matchId": "LEAGUE-001",
-  "fixtureId": "VFL-L01-S01-R012",
-  "finalScore": { "home": 2, "away": 1 },
-  "leagueName": "PREMIER",
-  "bets": [
+  "fixture_id": "VFL-L01-S01-R012-M01",
+  "final_score": "2-1",
+  "resolution_time": "2026-05-08T14:32:05.000Z",
+  "tickets_graded": [
     {
-      "betId": "BET-1746624051234-AB12C",
-      "result": "WON",
-      "payout": 185.00
+      "ticket_hash": "BET-1746624052999-EF56G",
+      "status": "WON",
+      "payout_amount": 975.00
     }
-  ]
+  ],
+  "event_aliases": ["settlement.complete"]
 }
 ```
 
-### 9.3 Processing Rules
+**Migration-compatible payloads:** `bets[]`, `ticketHash`, `betId`, `ticketId`, `vfBetId`, `result`, `payout`, `payoutAmount`, `fixtureId`, `matchId`, `finalScore`, `settledAt`, and `resolutionTime` remain accepted during migration.
 
-**Identifier resolution (per settled entry):**
-- Canonical order: `ticket_hash`, `ticketHash`, `betId`, `ticketId`, `vfBetId`
-- Local ticket lookup uses both `vfBetId` and `ticketId`
+### 10.4 Field Reference
+
+| Field | Type | Notes |
+|---|---|---|
+| `event` | string | `MARKET_SETTLED` or `MATCH_SETTLED` |
+| `fixture_id` | string | Stable settlement fixture ID; preferred match foreign key |
+| `market_id` | string | Present on `MARKET_SETTLED`, normalized uppercase market key |
+| `winning_selection` | string | Present on `MARKET_SETTLED` |
+| `final_score` | string | Present on `MATCH_SETTLED` |
+| `resolution_time` | ISO string | UTC settlement timestamp |
+| `tickets_graded[].ticket_hash` | string | Ticket/bet reference returned at placement |
+| `tickets_graded[].status` | string | `WON`, `LOST`, `VOID`, or `PENDING` |
+| `tickets_graded[].payout_amount` | number | Amount to credit for winning tickets |
+
+### 10.5 Local Processing Rules
+
+**Ticket lookup:** each settled entry is matched by `vfBetId` or `ticketId`. Identifier resolution order is `ticket_hash`, `ticketHash`, `betId`, `ticketId`, then `vfBetId`.
+
+**Idempotency:** only open Turbo Soccer tickets are updated:
+
+```javascript
+{
+  gameType: 'turbo-soccer',
+  roundHasEnded: false,
+  cancelled: false
+}
+```
+
+Replayed webhooks or dual canonical/legacy deliveries do not double-credit wallets because already-settled tickets no longer match the open-ticket filter.
 
 **Outcome handling:**
-- Accepted statuses: `WON`, `LOST`, `VOID` (case-insensitive)
-- Unsupported statuses are skipped safely
-- Negative payout values are clamped to `0`
+- `WON`: mark result as `win`, set `winnings`, mark payout complete, credit the cashier wallet by `payout_amount`
+- `LOST`: mark result as `loss`, no wallet credit
+- `VOID`: mark the ticket cancelled and payout complete; this implementation does not credit a refund from the settlement webhook
+- `PENDING` or unsupported statuses are skipped
+- Negative or invalid payout values are treated as `0`
 
-**Wallet effects:**
-- `WON`: credit wallet by payout amount
-- `LOST`: no wallet credit
-- `VOID`: mark ticket cancelled, no wallet credit
+Processing is sequential inside one webhook to avoid wallet balance races when multiple graded tickets belong to the same cashier.
 
-**Runtime note:**
-- Webhook endpoint uses HMAC verification + runtime normalization.
-- The Joi schema in `turboSoccer.validation.js` documents the accepted shape, but raw webhook handling remains the enforcement path.
+### 10.6 Signature Verification Example
 
-### 9.4 Settlement Processing & Idempotency
+```javascript
+const crypto = require('crypto');
 
-Settlement is **idempotent**:
-- Only open Turbo Soccer tickets are updated: `gameType='turbo-soccer'`, `roundHasEnded=false`, `cancelled=false`
-- Replayed webhooks for the same ticket do not double-credit wallets
-- Unknown/missing ticket references are skipped
-- Sequential processing prevents wallet race conditions when one cashier has multiple entries in one webhook
+function verifyWebhook(rawBody, signature, secret) {
+  const expected = 'sha256=' + crypto
+    .createHmac('sha256', secret)
+    .update(rawBody)
+    .digest('hex');
 
-### 9.5 Logging & Audit Trail
+  const expectedBuffer = Buffer.from(expected);
+  const receivedBuffer = Buffer.from(String(signature));
 
-All settlement events are logged with full context for debugging and auditing:
-
-**Settlement Start Log:**
-```json
-{
-  "level": "info",
-  "message": "[TurboSoccerSettlement] Processing started",
-  "event": "MATCH_SETTLED",
-  "matchId": "LEAGUE-001",
-  "fixtureId": "VFL-L01-S01-R012",
-  "leagueName": "PREMIER",
-  "totalBets": 47,
-  "settledAt": "2026-05-13T14:32:05.000Z"
+  return expectedBuffer.length === receivedBuffer.length &&
+    crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
 }
 ```
 
-**Settlement Complete Log (Audit Trail):**
-```json
-{
-  "level": "info",
-  "message": "[TurboSoccerSettlement] Settlement complete",
-  "event": "MATCH_SETTLED",
-  "matchId": "LEAGUE-001",
-  "fixtureId": "VFL-L01-S01-R012",
-  "leagueName": "PREMIER",
-  "timestamp": "2026-05-13T14:32:05.000Z",
-  "betsProcessed": {
-    "total": 47,
-    "won": 21,
-    "lost": 24,
-    "voided": 2,
-    "skipped": 0
-  },
-  "walletsImpacted": {
-    "uniqueCashiers": 12,
-    "totalCredited": 4250.50,
-    "notFoundErrors": 0,
-    "creditErrors": 0
-  }
-}
-```
+### 10.7 Reconciliation via Results Polling
 
-**Error Logs:** Wallet credit failures, signature mismatches, and invalid payloads all logged with full context.
-
-### 9.6 Webhook Signature Verification
-
-The `X-Signature` header is verified using HMAC-SHA256 timing-safe comparison:
-
-```
-X-Signature: sha256=<hex_encoded_signature>
-```
-
-**Verification Steps:**
-1. Extract signature from header (part after `sha256=`)
-2. Compute HMAC-SHA256 of raw request body using `VFENGINE_WEBHOOK_SECRET`
-3. Compare using timing-safe equal function
-4. Log warning if signature missing or invalid; respond 401
-
-### 9.7 Response Behavior
+Use results polling as an audit/fallback channel for completed matches:
 
 ```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{ "received": true }
+GET /cashier/v1/turbo-soccer/results?date=2026-06-12
+Authorization: Bearer <access_token>
 ```
 
-- Always responds `200` immediately regardless of payload validity
-- Processing errors logged but don't affect HTTP response
-- This allows VF Engine to continue without retry logic
+This proxies VF Engine `GET /api/results`. It returns completed match panels with final scores and metadata, but not per-ticket payouts. If a webhook was permanently missed, re-derive open ticket outcomes from your local tickets and the result score.
+
+```json
+{
+  "success": true,
+  "total": 24,
+  "panels": [
+    {
+      "panelIndex": 0,
+      "season": 18111,
+      "roundNumber": 12,
+      "week": 4,
+      "completedAt": "2026-06-12T13:55:00.000Z",
+      "matches": [
+        {
+          "matchId": "PREMIER-R12-S01",
+          "leagueName": "PREMIER",
+          "homeTeam": "Manchester City",
+          "awayTeam": "Liverpool FC",
+          "htScore": { "home": 1, "away": 0 },
+          "finalScore": { "home": 2, "away": 1 },
+          "completedAt": "2026-06-12T13:55:00.000Z"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### 10.8 Logging and Audit Trail
+
+The cashier API logs settlement start and completion with event, match/fixture IDs, league name, ticket counts, skipped entries, wallet credits, and credit failures. Signature mismatches, malformed JSON, missing ticket references, and wallet-credit errors are logged with context for investigation.
 
 ---
 
