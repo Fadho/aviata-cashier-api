@@ -559,6 +559,85 @@ describe('turboSoccerService.processSettlement', () => {
     expect(walletService.updateWallet).not.toHaveBeenCalled();
   });
 
+  test('should correct a ROM BTTS void to win when the ticket selection matches winning_selection', async () => {
+    Tickets.findOne.mockResolvedValue({
+      ...wonTicket,
+      betType: 'single',
+      stake: 100,
+      potentialWinnings: 190,
+      selections: [{ market: 'btts', selection: 'GG', oddsTaken: 1.9, stake: 100 }],
+    });
+
+    await turboSoccerService.processSettlement({
+      event: 'MARKET_SETTLED',
+      market_id: 'ROM_BTTS',
+      winning_selection: 'GG',
+      tickets_graded: [{ ticket_hash: 'vf-bet-rom-btts', status: 'VOID', payout_amount: 0 }],
+    });
+
+    expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gameType: 'turbo-soccer',
+        $or: [{ vfBetId: 'vf-bet-rom-btts' }, { ticketId: 'vf-bet-rom-btts' }],
+      }),
+      expect.objectContaining({ result: 'win', winnings: 190, roundHasEnded: true }),
+      { new: true }
+    );
+    expect(walletService.updateWallet).toHaveBeenCalledWith(cashierWalletId2, 290);
+  });
+
+  test('should correct a ROM BTTS void from final_score when winning_selection is missing', async () => {
+    Tickets.findOne.mockResolvedValue({
+      ...wonTicket,
+      betType: 'single',
+      stake: 100,
+      potentialWinnings: 175,
+      selections: [{ market: 'btts', selection: 'NG', oddsTaken: 1.75, stake: 100 }],
+    });
+
+    await turboSoccerService.processSettlement({
+      event: 'MATCH_SETTLED',
+      final_score: '1-0',
+      tickets_graded: [{ ticket_hash: 'vf-bet-rom-btts-score', market_id: 'ROM_BTTS', status: 'VOID', payout_amount: 0 }],
+    });
+
+    expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gameType: 'turbo-soccer',
+        $or: [{ vfBetId: 'vf-bet-rom-btts-score' }, { ticketId: 'vf-bet-rom-btts-score' }],
+      }),
+      expect.objectContaining({ result: 'win', winnings: 175, roundHasEnded: true }),
+      { new: true }
+    );
+    expect(walletService.updateWallet).toHaveBeenCalledWith(cashierWalletId2, 275);
+  });
+
+  test('should correct a ROM BTTS void to loss when final_score does not match ticket selection', async () => {
+    Tickets.findOne.mockResolvedValue({
+      ...wonTicket,
+      betType: 'single',
+      stake: 100,
+      potentialWinnings: 190,
+      selections: [{ market: 'btts', selection: 'GG', oddsTaken: 1.9, stake: 100 }],
+    });
+
+    await turboSoccerService.processSettlement({
+      event: 'MATCH_SETTLED',
+      finalScore: { home: 2, away: 0 },
+      tickets_graded: [{ ticket_hash: 'vf-bet-rom-btts-loss', marketId: 'ROM_BTTS', status: 'VOID', payoutAmount: 0 }],
+    });
+
+    expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gameType: 'turbo-soccer',
+        $or: [{ vfBetId: 'vf-bet-rom-btts-loss' }, { ticketId: 'vf-bet-rom-btts-loss' }],
+      }),
+      expect.objectContaining({ result: 'loss', winnings: 0, roundHasEnded: true }),
+      { new: true }
+    );
+    expect(walletService.updateWallet).not.toHaveBeenCalled();
+  });
+
   test('should skip wallet credit when ticket is not found', async () => {
     Tickets.findOneAndUpdate.mockResolvedValue(null);
     await turboSoccerService.processSettlement({

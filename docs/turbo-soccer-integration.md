@@ -1131,14 +1131,16 @@ The handler accepts canonical VF payloads and legacy migration aliases.
 - `market.settlement.complete` - legacy alias of `MARKET_SETTLED`
 - `settlement.complete` - legacy alias of `MATCH_SETTLED`
 
+**Instant BTTS market IDs:** `btts` and engine-normalized aliases ending in `_BTTS` settle through `MARKET_SETTLED`. This includes `ROM_BTTS`; use `winning_selection: "GG"` when both teams scored and `winning_selection: "NG"` when both teams did not score.
+
 **MARKET_SETTLED (instant):**
 ```json
 {
   "event": "MARKET_SETTLED",
   "fixture_id": "VFL-L01-S01-R012-M01",
-  "market_id": "NEXT_GOAL",
+  "market_id": "ROM_BTTS",
   "resolution_time": "2026-05-08T14:12:05.000Z",
-  "winning_selection": "HOME",
+  "winning_selection": "GG",
   "tickets_graded": [
     {
       "ticket_hash": "BET-1746624051234-AB12C",
@@ -1181,7 +1183,7 @@ The handler accepts canonical VF payloads and legacy migration aliases.
 |---|---|---|
 | `event` | string | `MARKET_SETTLED` or `MATCH_SETTLED` |
 | `fixture_id` | string | Stable settlement fixture ID; preferred match foreign key |
-| `market_id` | string | Present on `MARKET_SETTLED`, normalized uppercase market key |
+| `market_id` | string | Present on `MARKET_SETTLED`, normalized uppercase market key, e.g. `NEXT_GOAL`, `BTTS`, `ROM_BTTS` |
 | `winning_selection` | string | Present on `MARKET_SETTLED` |
 | `final_score` | string | Present on `MATCH_SETTLED` |
 | `resolution_time` | ISO string | UTC settlement timestamp |
@@ -1367,7 +1369,7 @@ Use these exact strings for the `market` and `selection` fields in all bet reque
 |----------|-------------|-------------|
 | `match_winner` | `home`, `draw`, `away` | Full-time 1X2 |
 | `double_chance` | `home_draw`, `home_away`, `draw_away` | Double chance |
-| `btts` | `GG`, `NG` | Both teams to score |
+| `btts` / `ROM_BTTS` | `GG`, `NG` | Both teams to score |
 | `ou_1.5` to `ou_4.5` | `over`, `under` | Goals O/U (lines 1.5–4.5) |
 | `first_half` | `home`, `draw`, `away` | First-half result |
 | `second_half` | `home`, `draw`, `away` | Second-half result |
@@ -1899,7 +1901,7 @@ Use these exact strings for the `market` and `selection` fields in all bet reque
 | `match_winner` | `home` `draw` `away` | Full-time 1X2 | Minute 90 |
 | `double_chance` | `home_draw` `home_away` `draw_away` | Double chance | Minute 90 |
 | `draw_no_bet` | `home` `away` | Draw no bet | Minute 90 |
-| `btts` | `GG` `NG` | Both teams to score | Both teams scored or impossible |
+| `btts` / `ROM_BTTS` | `GG` `NG` | Both teams to score | Both teams scored or impossible |
 | `ou_1.5` | `over` `under` | Goals O/U 1.5 | ≥2 goals → over closed |
 | `ou_2.5` | `over` `under` | Goals O/U 2.5 | ≥3 goals → over closed |
 | `ou_3.5` | `over` `under` | Goals O/U 3.5 | ≥4 goals → over closed |
