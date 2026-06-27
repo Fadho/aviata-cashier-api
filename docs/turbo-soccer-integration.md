@@ -1,6 +1,6 @@
 # Turbo Soccer Pro — API Integration Guide
 
-> **Version:** 1.6.4 | **Date:** 2026-06-16
+> **Version:** 1.6.5 | **Date:** 2026-06-27
 > **Latest:** Settlement integration refreshed — instant `MARKET_SETTLED` and full-time `MATCH_SETTLED` payloads, HMAC raw-body verification, idempotent local ticket updates, and results polling reconciliation
 > **Base path:** `/cashier/v1/turbo-soccer/`  
 > All authenticated routes require a Bearer JWT obtained from `POST /cashier/v1/auth/login`.
@@ -1175,7 +1175,7 @@ The handler accepts canonical VF payloads and legacy migration aliases.
 }
 ```
 
-**Migration-compatible payloads:** `ticketsGraded[]`, `ticketsSettled[]`, `bets[]`, `ticketHash`, `betId`, `ticketId`, `vfBetId`, `result`, `payout`, `payoutAmount`, `fixtureId`, `matchId`, `finalScore`, `settledAt`, and `resolutionTime` remain accepted during migration.
+**Migration-compatible payloads:** `ticketsGraded[]`, `ticketsSettled[]`, `bets[]`, `ticketHash`, `betId`, `ticketId`, `vfBetId`, `result`, `payout`, `payoutAmount`, `fixtureId`, `matchId`, `finalScore`, `settledAt`, `resolutionTime`, and legacy full-time `completedAt` remain accepted during migration.
 
 ### 10.4 Field Reference
 
@@ -1190,6 +1190,7 @@ The handler accepts canonical VF payloads and legacy migration aliases.
 | `tickets_graded[].ticket_hash` | string | Ticket/bet reference returned at placement |
 | `tickets_graded[].status` | string | `WON`, `LOST`, `VOID`, or `PENDING` |
 | `tickets_graded[].payout_amount` | number | Amount to credit for winning tickets |
+| `tickets_graded[].market_leg_result` | string | Result of the leg touched by an instant event; the parent ticket can remain `PENDING` |
 
 ### 10.5 Local Processing Rules
 
@@ -1211,8 +1212,11 @@ Replayed webhooks or dual canonical/legacy deliveries do not double-credit walle
 - `WON`: mark result as `win`, set `winnings`, mark payout complete, credit the cashier wallet by `payout_amount`
 - `LOST`: mark result as `loss`, no wallet credit
 - `VOID`: mark the ticket cancelled and payout complete; credit `payout_amount` when positive, otherwise refund the original local ticket stake
-- `PENDING` or unsupported statuses are skipped
+- `PENDING`: leave the parent ticket open and do not credit it; `market_leg_result` is retained in settlement logs for audit
+- Unsupported statuses are skipped
 - Negative or invalid payout values are treated as `0`
+
+The engine-provided ticket `status` is authoritative. The cashier API does not recalculate or override a terminal outcome from `winning_selection`, `final_score`, or local market rules.
 
 Processing is sequential inside one webhook, and each wallet credit uses an atomic balance increment to avoid overwriting concurrent cashier activity. Ticket audit dates use the engine settlement timestamp when supplied.
 

@@ -372,19 +372,28 @@ const voidBet = async (vfBetId, reason) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Bet not found');
   }
   if (ticket.cancelled || ticket.roundHasEnded) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Bet is not eligible for void');
+    let currentStatus = 'SETTLED';
+    if (ticket.cancelled) currentStatus = 'VOID';
+    else if (ticket.result === 'win') currentStatus = 'WON';
+    else if (ticket.result === 'loss') currentStatus = 'LOST';
+    throw new ApiError(httpStatus.CONFLICT, `Bet is already ${currentStatus}`);
   }
 
+  let engineResponse;
   try {
-    await vfengineService.voidBet(vfBetId, reason);
+    engineResponse = await vfengineService.voidBet(vfBetId, reason);
   } catch (err) {
     throw mapVfEngineError(err);
   }
 
+  const engineResult = (engineResponse && engineResponse.data) || {};
+  const voidedAt = engineResult.voidedAt ? new Date(engineResult.voidedAt) : new Date();
+  const safeVoidedAt = Number.isNaN(voidedAt.getTime()) ? new Date() : voidedAt;
+
   ticket.cancelled = true;
   ticket.roundHasEnded = true;
   ticket.payout = true;
-  ticket.payoutDate = new Date();
+  ticket.payoutDate = safeVoidedAt;
   await ticket.save();
 
   // Refund the cashier who originally placed the bet
@@ -398,8 +407,8 @@ const voidBet = async (vfBetId, reason) => {
     success: true,
     betId: vfBetId,
     status: 'VOID',
-    voidReason: reason || null,
-    voidedAt: new Date().toISOString(),
+    voidReason: engineResult.voidReason || reason || null,
+    voidedAt: safeVoidedAt.toISOString(),
   };
 };
 
@@ -440,45 +449,6 @@ const normalizeSettlementEvent = (event) => {
 
 const firstDefined = (...values) => values.find((value) => value !== undefined && value !== null);
 
-const normalizeMarketKey = (value) =>
-  String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_');
-
-const isBttsMarket = (value) => {
-  const market = normalizeMarketKey(value);
-  return market === 'btts' || market.endsWith('_btts') || market.includes('both_teams_to_score');
-};
-
-const normalizeBttsSelection = (value) => {
-  const selection = normalizeMarketKey(value);
-  if (['gg', 'yes', 'y', 'true', 'both_score', 'both_teams_score', 'both_teams_to_score'].includes(selection)) return 'GG';
-  if (['ng', 'no', 'n', 'false', 'no_goal', 'no_goals', 'both_teams_not_to_score'].includes(selection)) return 'NG';
-  return null;
-};
-
-const parseScore = (score) => {
-  if (!score) return null;
-  if (typeof score === 'string') {
-    const match = score.match(/(\d+)\D+(\d+)/);
-    if (!match) return null;
-    return { home: Number(match[1]), away: Number(match[2]) };
-  }
-  if (typeof score === 'object') {
-    const home = Number(firstDefined(score.home, score.homeScore, score.h));
-    const away = Number(firstDefined(score.away, score.awayScore, score.a));
-    if (Number.isFinite(home) && Number.isFinite(away)) return { home, away };
-  }
-  return null;
-};
-
-const deriveBttsSelectionFromScore = (score) => {
-  const parsed = parseScore(score);
-  if (!parsed) return null;
-  return parsed.home > 0 && parsed.away > 0 ? 'GG' : 'NG';
-};
-
 const normalizeSettlementResult = (rawResult) => {
   if (!rawResult) return null;
   const result = String(rawResult).toUpperCase();
@@ -511,6 +481,7 @@ const normalizeSettledTicket = (ticket, payload = {}) => {
       payload.winningSelection
     ),
     finalScore: firstDefined(ticket.final_score, ticket.finalScore, payload.final_score, payload.finalScore),
+    marketLegResult: normalizeSettlementResult(firstDefined(ticket.market_leg_result, ticket.marketLegResult)),
   };
 };
 
@@ -520,54 +491,6 @@ const buildOpenTicketFilter = (ticketRef) => ({
   cancelled: false,
   $or: [{ vfBetId: ticketRef }, { ticketId: ticketRef }],
 });
-
-const getSingleBttsSelection = (ticket) => {
-  if (!ticket || !Array.isArray(ticket.selections) || ticket.selections.length !== 1) return null;
-  const [selection] = ticket.selections;
-  if (!isBttsMarket(selection.market)) return null;
-  return selection;
-};
-
-const getSelectionPayout = (ticket, selection) => {
-  const potentialWinnings = Number(ticket && ticket.potentialWinnings);
-  if (Number.isFinite(potentialWinnings) && potentialWinnings > 0) return potentialWinnings;
-
-  const stake = Number(firstDefined(selection && selection.stake, ticket && ticket.stake, 0));
-  const odds = Number(firstDefined(selection && selection.oddsTaken, selection && selection.odd, 0));
-  if (Number.isFinite(stake) && stake > 0 && Number.isFinite(odds) && odds > 0) return stake * odds;
-
-  return 0;
-};
-
-const resolveBttsVoidCorrection = async (bet, payoutAmount, leagueName, openTicket) => {
-  if (bet.result !== 'VOID') return null;
-
-  const ticket = openTicket || (await Tickets.findOne(buildOpenTicketFilter(bet.ticketRef)));
-  const selection = getSingleBttsSelection(ticket);
-  if (!selection) return null;
-
-  if (bet.marketId && !isBttsMarket(bet.marketId) && !isBttsMarket(selection.market)) return null;
-
-  const ticketSelection = normalizeBttsSelection(selection.selection);
-  const winningSelection = normalizeBttsSelection(bet.winningSelection) || deriveBttsSelectionFromScore(bet.finalScore);
-  if (!ticketSelection || !winningSelection) return null;
-
-  const correctedResult = ticketSelection === winningSelection ? 'WON' : 'LOST';
-  const correctedPayout = correctedResult === 'WON' ? Math.max(payoutAmount, getSelectionPayout(ticket, selection)) : 0;
-
-  logger.warn('[TurboSoccerSettlement] Corrected VOID BTTS settlement outcome', {
-    ticketRef: bet.ticketRef,
-    marketId: bet.marketId,
-    winningSelection: bet.winningSelection,
-    finalScore: bet.finalScore,
-    ticketSelection: selection.selection,
-    correctedResult,
-    correctedPayout,
-    leagueName,
-  });
-
-  return { result: correctedResult, payoutAmount: correctedPayout };
-};
 
 const normalizeSettlementPayload = (payload) => {
   if (!payload || typeof payload !== 'object') {
@@ -606,7 +529,7 @@ const normalizeSettlementPayload = (payload) => {
     fixtureId: firstDefined(payload.fixtureId, payload.fixture_id, payload.matchId),
     leagueName: payload.leagueName || null,
     finalScore: firstDefined(payload.finalScore, payload.final_score),
-    settledAt: firstDefined(payload.settledAt, payload.resolutionTime, payload.resolution_time),
+    settledAt: firstDefined(payload.settledAt, payload.resolutionTime, payload.resolution_time, payload.completedAt),
     gradedTickets: rawTickets.map((ticket) => normalizeSettledTicket(ticket, payload)),
   };
 };
@@ -622,13 +545,25 @@ const normalizeSettlementPayload = (payload) => {
  * @returns {Promise<{ success: boolean, error?: string }>}
  */
 const applyBetSettlement = async (bet, now, leagueName, metrics = {}) => {
-  let result = normalizeSettlementResult(bet.result);
-  let payoutAmount = Math.max(0, Number(bet.payout) || 0);
+  const result = normalizeSettlementResult(bet.result);
+  const payoutAmount = Math.max(0, Number(bet.payout) || 0);
 
   if (!bet.ticketRef) {
     // eslint-disable-next-line no-param-reassign
     metrics.skippedCount = (metrics.skippedCount || 0) + 1;
     return { success: false, reason: 'missing_ticket_reference' };
+  }
+
+  if (result === 'PENDING') {
+    // An instant event can grade one leg while the parent ticket stays open.
+    // eslint-disable-next-line no-param-reassign
+    metrics.pendingCount = (metrics.pendingCount || 0) + 1;
+    logger.info('[TurboSoccerSettlement] Parent ticket remains pending', {
+      ticketRef: bet.ticketRef,
+      marketId: bet.marketId,
+      marketLegResult: bet.marketLegResult || null,
+    });
+    return { success: true, reason: 'pending' };
   }
 
   if (!['WON', 'LOST', 'VOID'].includes(result)) {
@@ -644,12 +579,6 @@ const applyBetSettlement = async (bet, now, leagueName, metrics = {}) => {
     // eslint-disable-next-line no-param-reassign
     metrics.skippedCount = (metrics.skippedCount || 0) + 1;
     return { success: false, reason: 'already_settled' };
-  }
-
-  const bttsCorrection = await resolveBttsVoidCorrection({ ...bet, result }, payoutAmount, leagueName, ticket);
-  if (bttsCorrection) {
-    result = bttsCorrection.result;
-    payoutAmount = bttsCorrection.payoutAmount;
   }
 
   const update = { roundHasEnded: true, result: null, winnings: 0 };
@@ -766,6 +695,7 @@ const processSettlement = async (payload) => {
     wonCount: 0,
     lostCount: 0,
     voidedCount: 0,
+    pendingCount: 0,
     skippedCount: 0,
     walletsUpdated: new Set(),
     totalCreditedAmount: 0,
@@ -828,6 +758,7 @@ const processSettlement = async (payload) => {
       won: metrics.wonCount || 0,
       lost: metrics.lostCount || 0,
       voided: metrics.voidedCount || 0,
+      pending: metrics.pendingCount || 0,
       skipped: metrics.skippedCount || 0,
     },
     walletsImpacted: {

@@ -343,10 +343,12 @@ const settlementWebhookPayload = {
       settledAt: Joi.date().iso(),
       resolution_time: Joi.date().iso(),
       resolutionTime: Joi.date().iso(),
+      completedAt: Joi.date().iso(),
       market_id: Joi.string(),
       marketId: Joi.string(),
       winning_selection: Joi.string(),
       winningSelection: Joi.string(),
+      event_aliases: Joi.array().items(Joi.string()),
       leagueName: Joi.string()
         .uppercase()
         .valid(...LEAGUES)

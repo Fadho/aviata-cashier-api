@@ -438,18 +438,18 @@ describe('turboSoccerService.voidBet', () => {
     expect(vfengineService.voidBet).not.toHaveBeenCalled();
   });
 
-  test('should throw 400 when bet is already cancelled', async () => {
+  test('should throw 409 when bet is already cancelled', async () => {
     Tickets.findOne.mockResolvedValue({ ...mockTicket, cancelled: true, save: jest.fn() });
     await expect(turboSoccerService.voidBet('vf-bet-001')).rejects.toMatchObject({
-      statusCode: httpStatus.BAD_REQUEST,
-      message: expect.stringContaining('not eligible'),
+      statusCode: httpStatus.CONFLICT,
+      message: expect.stringContaining('already VOID'),
     });
   });
 
-  test('should throw 400 when bet round has already ended', async () => {
+  test('should throw 409 when bet round has already ended', async () => {
     Tickets.findOne.mockResolvedValue({ ...mockTicket, roundHasEnded: true, save: jest.fn() });
     await expect(turboSoccerService.voidBet('vf-bet-001')).rejects.toMatchObject({
-      statusCode: httpStatus.BAD_REQUEST,
+      statusCode: httpStatus.CONFLICT,
     });
   });
 
@@ -566,7 +566,7 @@ describe('turboSoccerService.processSettlement', () => {
     expect(walletService.creditSettlement).toHaveBeenCalledWith(cashierWalletId2, 100, 'settlement:vf-bet-003:VOID');
   });
 
-  test('should correct a ROM BTTS void to win when the ticket selection matches winning_selection', async () => {
+  test('should treat the engine ticket status as authoritative for BTTS settlements', async () => {
     Tickets.findOne.mockResolvedValue({
       ...wonTicket,
       betType: 'single',
@@ -587,68 +587,11 @@ describe('turboSoccerService.processSettlement', () => {
         gameType: 'turbo-soccer',
         $or: [{ vfBetId: 'vf-bet-rom-btts' }, { ticketId: 'vf-bet-rom-btts' }],
       }),
-      expect.objectContaining({ result: 'win', winnings: 190, roundHasEnded: true }),
+      expect.objectContaining({ cancelled: true, result: null, winnings: 0, roundHasEnded: true }),
       { new: true }
     );
-    expect(walletService.creditSettlement).toHaveBeenCalledWith(cashierWalletId2, 190, 'settlement:vf-bet-rom-btts:WON');
+    expect(walletService.creditSettlement).toHaveBeenCalledWith(cashierWalletId2, 100, 'settlement:vf-bet-rom-btts:VOID');
   });
-
-  test('should correct a ROM BTTS void from final_score when winning_selection is missing', async () => {
-    Tickets.findOne.mockResolvedValue({
-      ...wonTicket,
-      betType: 'single',
-      stake: 100,
-      potentialWinnings: 175,
-      selections: [{ market: 'btts', selection: 'NG', oddsTaken: 1.75, stake: 100 }],
-    });
-
-    await turboSoccerService.processSettlement({
-      event: 'MATCH_SETTLED',
-      final_score: '1-0',
-      tickets_graded: [{ ticket_hash: 'vf-bet-rom-btts-score', market_id: 'ROM_BTTS', status: 'VOID', payout_amount: 0 }],
-    });
-
-    expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        gameType: 'turbo-soccer',
-        $or: [{ vfBetId: 'vf-bet-rom-btts-score' }, { ticketId: 'vf-bet-rom-btts-score' }],
-      }),
-      expect.objectContaining({ result: 'win', winnings: 175, roundHasEnded: true }),
-      { new: true }
-    );
-    expect(walletService.creditSettlement).toHaveBeenCalledWith(
-      cashierWalletId2,
-      175,
-      'settlement:vf-bet-rom-btts-score:WON'
-    );
-  });
-
-  test('should correct a ROM BTTS void to loss when final_score does not match ticket selection', async () => {
-    Tickets.findOne.mockResolvedValue({
-      ...wonTicket,
-      betType: 'single',
-      stake: 100,
-      potentialWinnings: 190,
-      selections: [{ market: 'btts', selection: 'GG', oddsTaken: 1.9, stake: 100 }],
-    });
-
-    await turboSoccerService.processSettlement({
-      event: 'MATCH_SETTLED',
-      finalScore: { home: 2, away: 0 },
-      tickets_graded: [{ ticket_hash: 'vf-bet-rom-btts-loss', marketId: 'ROM_BTTS', status: 'VOID', payoutAmount: 0 }],
-    });
-
-    expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        gameType: 'turbo-soccer',
-        $or: [{ vfBetId: 'vf-bet-rom-btts-loss' }, { ticketId: 'vf-bet-rom-btts-loss' }],
-      }),
-      expect.objectContaining({ result: 'loss', winnings: 0, roundHasEnded: true }),
-      { new: true }
-    );
-    expect(walletService.updateWallet).not.toHaveBeenCalled();
-  });
-
   test('should skip wallet credit when ticket is not found', async () => {
     Tickets.findOne.mockResolvedValue(null);
     await turboSoccerService.processSettlement({
@@ -742,13 +685,24 @@ describe('turboSoccerService.processSettlement', () => {
   });
 
   test('should leave a parent ticket open for a PENDING instant leg result', async () => {
-    await turboSoccerService.processSettlement({
-      event: 'MATCH_SETTLED',
-      tickets_graded: [{ ticket_hash: 'vf-bet-bad-status', status: 'PENDING', payout_amount: 50 }],
+    const result = await turboSoccerService.processSettlement({
+      event: 'MARKET_SETTLED',
+      market_id: 'NEXT_GOAL',
+      tickets_graded: [
+        {
+          ticket_hash: 'vf-bet-bad-status',
+          status: 'PENDING',
+          payout_amount: 50,
+          market_leg_result: 'WON',
+        },
+      ],
     });
 
+    expect(Tickets.findOne).not.toHaveBeenCalled();
     expect(Tickets.findOneAndUpdate).not.toHaveBeenCalled();
     expect(walletService.creditSettlement).not.toHaveBeenCalled();
+    expect(result.metrics.pendingCount).toBe(1);
+    expect(result.metrics.skippedCount).toBe(0);
   });
 
   test('should clamp negative payout values to zero and avoid wallet credit', async () => {
@@ -792,6 +746,21 @@ describe('turboSoccerService.processSettlement', () => {
         $or: [{ vfBetId: 'vf-bet-settled' }, { ticketId: 'vf-bet-settled' }],
       }),
       expect.objectContaining({ result: 'loss' }),
+      { new: true }
+    );
+  });
+
+  test('should use completedAt from a legacy full-time delivery', async () => {
+    const completedAt = '2026-06-27T13:45:00.000Z';
+    await turboSoccerService.processSettlement({
+      event: 'settlement.complete',
+      completedAt,
+      ticketsSettled: [{ betId: 'vf-bet-legacy-timestamp', result: 'WON', payout: 50 }],
+    });
+
+    expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ payoutDate: new Date(completedAt) }),
       { new: true }
     );
   });
