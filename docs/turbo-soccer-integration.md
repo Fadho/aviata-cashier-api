@@ -1175,7 +1175,7 @@ The handler accepts canonical VF payloads and legacy migration aliases.
 }
 ```
 
-**Migration-compatible payloads:** `bets[]`, `ticketHash`, `betId`, `ticketId`, `vfBetId`, `result`, `payout`, `payoutAmount`, `fixtureId`, `matchId`, `finalScore`, `settledAt`, and `resolutionTime` remain accepted during migration.
+**Migration-compatible payloads:** `ticketsGraded[]`, `ticketsSettled[]`, `bets[]`, `ticketHash`, `betId`, `ticketId`, `vfBetId`, `result`, `payout`, `payoutAmount`, `fixtureId`, `matchId`, `finalScore`, `settledAt`, and `resolutionTime` remain accepted during migration.
 
 ### 10.4 Field Reference
 
@@ -1210,11 +1210,11 @@ Replayed webhooks or dual canonical/legacy deliveries do not double-credit walle
 **Outcome handling:**
 - `WON`: mark result as `win`, set `winnings`, mark payout complete, credit the cashier wallet by `payout_amount`
 - `LOST`: mark result as `loss`, no wallet credit
-- `VOID`: mark the ticket cancelled and payout complete; this implementation does not credit a refund from the settlement webhook
+- `VOID`: mark the ticket cancelled and payout complete; credit `payout_amount` when positive, otherwise refund the original local ticket stake
 - `PENDING` or unsupported statuses are skipped
 - Negative or invalid payout values are treated as `0`
 
-Processing is sequential inside one webhook to avoid wallet balance races when multiple graded tickets belong to the same cashier.
+Processing is sequential inside one webhook, and each wallet credit uses an atomic balance increment to avoid overwriting concurrent cashier activity. Ticket audit dates use the engine settlement timestamp when supplied.
 
 ### 10.6 Signature Verification Example
 

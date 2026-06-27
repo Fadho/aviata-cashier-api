@@ -26,6 +26,11 @@ const walletSchema = mongoose.Schema(
       required: true,
       default: false,
     },
+    settlementCreditKeys: {
+      type: [String],
+      default: undefined,
+      select: false,
+    },
   },
   {
     timestamps: true,

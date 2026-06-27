@@ -304,6 +304,26 @@ const reprintThermal = {
 
 // ─── Settlement Webhook ──────────────────────────────────────────────────────
 
+const settledTicketSchema = Joi.object()
+  .keys({
+    ticket_hash: Joi.string(),
+    ticketHash: Joi.string(),
+    ticketId: Joi.string(),
+    betId: Joi.string(),
+    vfBetId: Joi.string(),
+    status: Joi.string().valid('WON', 'LOST', 'VOID', 'PENDING', 'win', 'loss', 'void', 'pending').insensitive(),
+    result: Joi.string().valid('WON', 'LOST', 'VOID', 'PENDING', 'win', 'loss', 'void', 'pending').insensitive(),
+    payout_amount: Joi.number().min(0),
+    payoutAmount: Joi.number().min(0),
+    payout: Joi.number().min(0),
+    market_id: Joi.string(),
+    marketId: Joi.string(),
+    market: Joi.string(),
+    market_leg_result: Joi.string().valid('WON', 'LOST', 'VOID', 'MIXED').insensitive(),
+    marketLegResult: Joi.string().valid('WON', 'LOST', 'VOID', 'MIXED').insensitive(),
+  })
+  .or('ticket_hash', 'ticketHash', 'ticketId', 'betId', 'vfBetId');
+
 const settlementWebhookPayload = {
   body: Joi.object()
     .keys({
@@ -337,32 +357,13 @@ const settlementWebhookPayload = {
         lost: Joi.number().integer(),
         voided: Joi.number().integer(),
       }),
-      tickets_graded: Joi.array().items(
-        Joi.object().keys({
-          ticket_hash: Joi.string(),
-          ticketHash: Joi.string(),
-          ticketId: Joi.string(),
-          betId: Joi.string(),
-          status: Joi.string().valid('WON', 'LOST', 'VOID', 'win', 'loss', 'void').insensitive().required(),
-          payout_amount: Joi.number().min(0),
-          payoutAmount: Joi.number().min(0),
-          payout: Joi.number().min(0),
-        })
-      ),
-      bets: Joi.array().items(
-        Joi.object().keys({
-          betId: Joi.string().required(),
-          market: Joi.string(),
-          selection: Joi.string(),
-          oddsTaken: Joi.number(),
-          stake: Joi.number().required(),
-          result: Joi.string().valid('WON', 'LOST', 'VOID').insensitive().required(),
-          payout: Joi.number().min(0).required(),
-        })
-      ),
+      tickets_graded: Joi.array().items(settledTicketSchema),
+      ticketsGraded: Joi.array().items(settledTicketSchema),
+      ticketsSettled: Joi.array().items(settledTicketSchema),
+      bets: Joi.array().items(settledTicketSchema),
     })
     .or('matchId', 'fixture_id', 'fixtureId')
-    .or('tickets_graded', 'bets'),
+    .or('tickets_graded', 'ticketsGraded', 'ticketsSettled', 'bets'),
 };
 
 module.exports = {

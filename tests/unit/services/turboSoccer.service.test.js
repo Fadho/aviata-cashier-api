@@ -12,6 +12,8 @@ jest.mock('../../../src/services/vfengine.service', () => ({
 
 jest.mock('../../../src/services/wallet.service', () => ({
   updateWallet: jest.fn(),
+  incrementWallet: jest.fn(),
+  creditSettlement: jest.fn(),
 }));
 
 jest.mock('../../../src/models/tickets.model', () => ({
@@ -405,13 +407,14 @@ describe('turboSoccerService.voidBet', () => {
     User.findById.mockReturnValue({ populate: jest.fn().mockResolvedValue(mockCashier) });
     vfengineService.voidBet.mockResolvedValue({ data: { success: true } });
     walletService.updateWallet.mockResolvedValue({});
+    walletService.creditSettlement.mockResolvedValue({});
   });
 
   test('should void ticket, call VF Engine, and refund original cashier wallet', async () => {
     const result = await turboSoccerService.voidBet('vf-bet-001', 'admin override');
 
     expect(vfengineService.voidBet).toHaveBeenCalledWith('vf-bet-001', 'admin override');
-    expect(walletService.updateWallet).toHaveBeenCalledWith(cashierWalletId, 300); // 200 + 100
+    expect(walletService.creditSettlement).toHaveBeenCalledWith(cashierWalletId, 100, 'settlement:vf-bet-001:VOID');
     expect(result).toMatchObject({
       success: true,
       betId: 'vf-bet-001',
@@ -457,20 +460,20 @@ describe('turboSoccerService.voidBet', () => {
     await expect(turboSoccerService.voidBet('vf-bet-001')).rejects.toMatchObject({
       statusCode: httpStatus.NOT_FOUND,
     });
-    expect(walletService.updateWallet).not.toHaveBeenCalled();
+    expect(walletService.creditSettlement).not.toHaveBeenCalled();
   });
 
   test('should complete without wallet update when cashier has no wallets', async () => {
     User.findById.mockReturnValue({ populate: jest.fn().mockResolvedValue({ wallets: [] }) });
     const result = await turboSoccerService.voidBet('vf-bet-001');
-    expect(walletService.updateWallet).not.toHaveBeenCalled();
+    expect(walletService.creditSettlement).not.toHaveBeenCalled();
     expect(result.status).toBe('VOID');
   });
 
   test('should complete without wallet update when cashier user is not found', async () => {
     User.findById.mockReturnValue({ populate: jest.fn().mockResolvedValue(null) });
     const result = await turboSoccerService.voidBet('vf-bet-001');
-    expect(walletService.updateWallet).not.toHaveBeenCalled();
+    expect(walletService.creditSettlement).not.toHaveBeenCalled();
     expect(result.success).toBe(true);
   });
 });
@@ -482,12 +485,14 @@ describe('turboSoccerService.processSettlement', () => {
 
   const wonTicket = {
     cashierId: new mongoose.Types.ObjectId().toHexString(),
+    stake: 100,
     result: null,
     roundHasEnded: false,
     cancelled: false,
   };
 
   beforeEach(() => {
+    Tickets.findOne.mockResolvedValue({ ...wonTicket });
     Tickets.findOneAndUpdate.mockResolvedValue({ ...wonTicket });
     User.findById.mockReturnValue({
       select: jest.fn().mockReturnThis(),
@@ -496,6 +501,8 @@ describe('turboSoccerService.processSettlement', () => {
       }),
     });
     walletService.updateWallet.mockResolvedValue({});
+    walletService.incrementWallet.mockResolvedValue({});
+    walletService.creditSettlement.mockResolvedValue({});
   });
 
   test('should return immediately when settlement payload has no graded tickets', async () => {
@@ -522,7 +529,7 @@ describe('turboSoccerService.processSettlement', () => {
       expect.objectContaining({ result: 'win', winnings: 250, roundHasEnded: true }),
       { new: true }
     );
-    expect(walletService.updateWallet).toHaveBeenCalledWith(cashierWalletId2, 350); // 100 + 250
+    expect(walletService.creditSettlement).toHaveBeenCalledWith(cashierWalletId2, 250, 'settlement:vf-bet-001:WON');
   });
 
   test('should update ticket to loss and NOT credit wallet for a lost bet', async () => {
@@ -556,7 +563,7 @@ describe('turboSoccerService.processSettlement', () => {
       expect.objectContaining({ cancelled: true, result: null, roundHasEnded: true }),
       { new: true }
     );
-    expect(walletService.updateWallet).not.toHaveBeenCalled();
+    expect(walletService.creditSettlement).toHaveBeenCalledWith(cashierWalletId2, 100, 'settlement:vf-bet-003:VOID');
   });
 
   test('should correct a ROM BTTS void to win when the ticket selection matches winning_selection', async () => {
@@ -583,7 +590,7 @@ describe('turboSoccerService.processSettlement', () => {
       expect.objectContaining({ result: 'win', winnings: 190, roundHasEnded: true }),
       { new: true }
     );
-    expect(walletService.updateWallet).toHaveBeenCalledWith(cashierWalletId2, 290);
+    expect(walletService.creditSettlement).toHaveBeenCalledWith(cashierWalletId2, 190, 'settlement:vf-bet-rom-btts:WON');
   });
 
   test('should correct a ROM BTTS void from final_score when winning_selection is missing', async () => {
@@ -609,7 +616,11 @@ describe('turboSoccerService.processSettlement', () => {
       expect.objectContaining({ result: 'win', winnings: 175, roundHasEnded: true }),
       { new: true }
     );
-    expect(walletService.updateWallet).toHaveBeenCalledWith(cashierWalletId2, 275);
+    expect(walletService.creditSettlement).toHaveBeenCalledWith(
+      cashierWalletId2,
+      175,
+      'settlement:vf-bet-rom-btts-score:WON'
+    );
   });
 
   test('should correct a ROM BTTS void to loss when final_score does not match ticket selection', async () => {
@@ -639,12 +650,24 @@ describe('turboSoccerService.processSettlement', () => {
   });
 
   test('should skip wallet credit when ticket is not found', async () => {
-    Tickets.findOneAndUpdate.mockResolvedValue(null);
+    Tickets.findOne.mockResolvedValue(null);
     await turboSoccerService.processSettlement({
       event: 'MATCH_SETTLED',
       tickets_graded: [{ ticket_hash: 'unknown-bet', status: 'Won', payout_amount: 100 }],
     });
     expect(walletService.updateWallet).not.toHaveBeenCalled();
+  });
+
+  test('should leave the ticket open when its wallet credit fails', async () => {
+    walletService.creditSettlement.mockRejectedValue(new Error('wallet unavailable'));
+
+    const result = await turboSoccerService.processSettlement({
+      event: 'MATCH_SETTLED',
+      tickets_graded: [{ ticket_hash: 'vf-bet-retry', status: 'WON', payout_amount: 250 }],
+    });
+
+    expect(Tickets.findOneAndUpdate).not.toHaveBeenCalled();
+    expect(result.metrics.creditErrorCount).toBe(1);
   });
 
   test('should process multiple bets sequentially', async () => {
@@ -718,14 +741,14 @@ describe('turboSoccerService.processSettlement', () => {
     );
   });
 
-  test('should skip entries with unsupported status values', async () => {
+  test('should leave a parent ticket open for a PENDING instant leg result', async () => {
     await turboSoccerService.processSettlement({
       event: 'MATCH_SETTLED',
       tickets_graded: [{ ticket_hash: 'vf-bet-bad-status', status: 'PENDING', payout_amount: 50 }],
     });
 
     expect(Tickets.findOneAndUpdate).not.toHaveBeenCalled();
-    expect(walletService.updateWallet).not.toHaveBeenCalled();
+    expect(walletService.creditSettlement).not.toHaveBeenCalled();
   });
 
   test('should clamp negative payout values to zero and avoid wallet credit', async () => {
@@ -742,6 +765,49 @@ describe('turboSoccerService.processSettlement', () => {
       expect.objectContaining({ result: 'win', winnings: 0, roundHasEnded: true }),
       { new: true }
     );
-    expect(walletService.updateWallet).not.toHaveBeenCalled();
+    expect(walletService.creditSettlement).not.toHaveBeenCalled();
+  });
+
+  test('should accept canonical camelCase and legacy settled-ticket arrays', async () => {
+    await turboSoccerService.processSettlement({
+      event: 'MARKET_SETTLED',
+      ticketsGraded: [{ betId: 'vf-bet-camel', status: 'LOST', payoutAmount: 0 }],
+    });
+    await turboSoccerService.processSettlement({
+      event: 'settlement.complete',
+      ticketsSettled: [{ ticketId: 'vf-bet-settled', result: 'LOST', payout: 0 }],
+    });
+
+    expect(Tickets.findOneAndUpdate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        $or: [{ vfBetId: 'vf-bet-camel' }, { ticketId: 'vf-bet-camel' }],
+      }),
+      expect.objectContaining({ result: 'loss' }),
+      { new: true }
+    );
+    expect(Tickets.findOneAndUpdate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        $or: [{ vfBetId: 'vf-bet-settled' }, { ticketId: 'vf-bet-settled' }],
+      }),
+      expect.objectContaining({ result: 'loss' }),
+      { new: true }
+    );
+  });
+
+  test('should use the engine resolution timestamp for settlement audit fields', async () => {
+    const resolutionTime = '2026-06-27T12:34:56.000Z';
+    await turboSoccerService.processSettlement({
+      event: 'MATCH_SETTLED',
+      resolution_time: resolutionTime,
+      tickets_graded: [{ ticket_hash: 'vf-bet-timestamp', status: 'WON', payout_amount: 50 }],
+    });
+
+    expect(Tickets.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ payoutDate: new Date(resolutionTime) }),
+      { new: true }
+    );
   });
 });

@@ -257,6 +257,10 @@ const handleSettlementWebhook = (req, res) => {
   let betCount = 0;
   if (Array.isArray(payload.tickets_graded)) {
     betCount = payload.tickets_graded.length;
+  } else if (Array.isArray(payload.ticketsGraded)) {
+    betCount = payload.ticketsGraded.length;
+  } else if (Array.isArray(payload.ticketsSettled)) {
+    betCount = payload.ticketsSettled.length;
   } else if (Array.isArray(payload.bets)) {
     betCount = payload.bets.length;
   }

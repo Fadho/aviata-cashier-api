@@ -391,8 +391,7 @@ const voidBet = async (vfBetId, reason) => {
   const originalCashier = await User.findById(ticket.cashierId).populate('wallets');
   if (originalCashier && originalCashier.wallets && originalCashier.wallets.length > 0) {
     const cashierWallet = originalCashier.wallets[0];
-    const balance = Number(cashierWallet.balance);
-    await walletService.updateWallet(cashierWallet.id, balance + ticket.stake);
+    await walletService.creditSettlement(cashierWallet.id, ticket.stake, `settlement:${vfBetId}:VOID`);
   }
 
   return {
@@ -418,8 +417,9 @@ const voidBet = async (vfBetId, reason) => {
  * @param {number} payout  - Engine-reported payout value
  * @returns {number}
  */
-const resolveCreditAmount = (result, payout) => {
+const resolveCreditAmount = (result, payout, stake = 0) => {
   if (result === 'WON') return payout;
+  if (result === 'VOID') return payout > 0 ? payout : Math.max(0, Number(stake) || 0);
   return 0;
 };
 
@@ -496,7 +496,14 @@ const normalizeSettledTicket = (ticket, payload = {}) => {
     ticketRef: ticketRef != null ? String(ticketRef) : null,
     result,
     payout,
-    marketId: firstDefined(ticket.market_id, ticket.marketId, ticket.market, payload.market_id, payload.marketId, payload.market),
+    marketId: firstDefined(
+      ticket.market_id,
+      ticket.marketId,
+      ticket.market,
+      payload.market_id,
+      payload.marketId,
+      payload.market
+    ),
     winningSelection: firstDefined(
       ticket.winning_selection,
       ticket.winningSelection,
@@ -532,10 +539,10 @@ const getSelectionPayout = (ticket, selection) => {
   return 0;
 };
 
-const resolveBttsVoidCorrection = async (bet, payoutAmount, leagueName) => {
+const resolveBttsVoidCorrection = async (bet, payoutAmount, leagueName, openTicket) => {
   if (bet.result !== 'VOID') return null;
 
-  const ticket = await Tickets.findOne(buildOpenTicketFilter(bet.ticketRef));
+  const ticket = openTicket || (await Tickets.findOne(buildOpenTicketFilter(bet.ticketRef)));
   const selection = getSingleBttsSelection(ticket);
   if (!selection) return null;
 
@@ -575,6 +582,10 @@ const normalizeSettlementPayload = (payload) => {
   let rawTickets = [];
   if (Array.isArray(payload.tickets_graded)) {
     rawTickets = payload.tickets_graded;
+  } else if (Array.isArray(payload.ticketsGraded)) {
+    rawTickets = payload.ticketsGraded;
+  } else if (Array.isArray(payload.ticketsSettled)) {
+    rawTickets = payload.ticketsSettled;
   } else if (Array.isArray(payload.bets)) {
     rawTickets = payload.bets;
   }
@@ -626,7 +637,16 @@ const applyBetSettlement = async (bet, now, leagueName, metrics = {}) => {
     return { success: false, reason: 'unsupported_result' };
   }
 
-  const bttsCorrection = await resolveBttsVoidCorrection({ ...bet, result }, payoutAmount, leagueName);
+  const openTicketFilter = buildOpenTicketFilter(bet.ticketRef);
+  const ticket = await Tickets.findOne(openTicketFilter);
+  if (!ticket) {
+    // Bet not found or already terminal.
+    // eslint-disable-next-line no-param-reassign
+    metrics.skippedCount = (metrics.skippedCount || 0) + 1;
+    return { success: false, reason: 'already_settled' };
+  }
+
+  const bttsCorrection = await resolveBttsVoidCorrection({ ...bet, result }, payoutAmount, leagueName, ticket);
   if (bttsCorrection) {
     result = bttsCorrection.result;
     payoutAmount = bttsCorrection.payoutAmount;
@@ -639,37 +659,18 @@ const applyBetSettlement = async (bet, now, leagueName, metrics = {}) => {
     update.winnings = payoutAmount;
     update.payout = true;
     update.payoutDate = now;
-    // eslint-disable-next-line no-param-reassign
-    metrics.wonCount = (metrics.wonCount || 0) + 1;
   } else if (result === 'LOST') {
     update.result = 'loss';
     update.winnings = 0;
-    // eslint-disable-next-line no-param-reassign
-    metrics.lostCount = (metrics.lostCount || 0) + 1;
   } else if (result === 'VOID') {
     update.cancelled = true;
     update.result = null;
     update.winnings = 0;
     update.payout = true;
     update.payoutDate = now;
-    // eslint-disable-next-line no-param-reassign
-    metrics.voidedCount = (metrics.voidedCount || 0) + 1;
   }
 
-  const ticket = await Tickets.findOneAndUpdate(
-    buildOpenTicketFilter(bet.ticketRef),
-    update,
-    { new: true }
-  );
-
-  if (!ticket) {
-    // Bet not found or already settled
-    // eslint-disable-next-line no-param-reassign
-    metrics.skippedCount = (metrics.skippedCount || 0) + 1;
-    return { success: false, reason: 'already_settled' };
-  }
-
-  const creditAmount = resolveCreditAmount(result, payoutAmount);
+  const creditAmount = resolveCreditAmount(result, payoutAmount, ticket.stake);
   if (creditAmount > 0) {
     try {
       const cashier = await User.findById(ticket.cashierId).select('wallets').populate('wallets');
@@ -688,15 +689,12 @@ const applyBetSettlement = async (bet, now, leagueName, metrics = {}) => {
       }
 
       const cashierWallet = cashier.wallets[0];
-      const currentBalance = Number(cashierWallet.balance);
-      await walletService.updateWallet(cashierWallet.id, currentBalance + creditAmount);
+      await walletService.creditSettlement(cashierWallet.id, creditAmount, `settlement:${bet.ticketRef}:${result}`);
 
       // eslint-disable-next-line no-param-reassign
       metrics.walletsUpdated = (metrics.walletsUpdated || new Set()).add(ticket.cashierId.toString());
       // eslint-disable-next-line no-param-reassign
       metrics.totalCreditedAmount = (metrics.totalCreditedAmount || 0) + creditAmount;
-
-      return { success: true };
     } catch (err) {
       logger.error('[TurboSoccerSettlement] Failed to credit wallet', {
         ticketRef: bet.ticketRef,
@@ -709,6 +707,26 @@ const applyBetSettlement = async (bet, now, leagueName, metrics = {}) => {
       metrics.creditErrorCount = (metrics.creditErrorCount || 0) + 1;
       return { success: false, reason: 'credit_failed', error: err.message };
     }
+  }
+
+  const settledTicket = await Tickets.findOneAndUpdate(openTicketFilter, update, { new: true });
+  if (!settledTicket) {
+    // A concurrent duplicate completed the same ticket after our initial read.
+    // The wallet credit remains safe because creditSettlement is key-guarded.
+    // eslint-disable-next-line no-param-reassign
+    metrics.skippedCount = (metrics.skippedCount || 0) + 1;
+    return { success: false, reason: 'already_settled' };
+  }
+
+  if (result === 'WON') {
+    // eslint-disable-next-line no-param-reassign
+    metrics.wonCount = (metrics.wonCount || 0) + 1;
+  } else if (result === 'LOST') {
+    // eslint-disable-next-line no-param-reassign
+    metrics.lostCount = (metrics.lostCount || 0) + 1;
+  } else {
+    // eslint-disable-next-line no-param-reassign
+    metrics.voidedCount = (metrics.voidedCount || 0) + 1;
   }
 
   return { success: true };
@@ -765,7 +783,8 @@ const processSettlement = async (payload) => {
     settledAt: normalized.settledAt || null,
   });
 
-  const now = new Date();
+  const parsedSettledAt = normalized.settledAt ? new Date(normalized.settledAt) : null;
+  const now = parsedSettledAt && !Number.isNaN(parsedSettledAt.getTime()) ? parsedSettledAt : new Date();
 
   // Process sequentially to avoid wallet-balance races for bets belonging to the same cashier
   try {

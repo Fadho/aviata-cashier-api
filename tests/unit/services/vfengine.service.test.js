@@ -27,6 +27,9 @@ describe('vfengineService timestamp forwarding', () => {
         request: {
           use: jest.fn(),
         },
+        response: {
+          use: jest.fn(),
+        },
       },
     };
 

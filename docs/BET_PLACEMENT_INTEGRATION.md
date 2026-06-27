@@ -352,7 +352,9 @@ Settlement is applied asynchronously via:
 Current runtime behavior supports both payload forms:
 
 1. Canonical: tickets_graded[] (preferred)
-2. Legacy migration: bets[]
+2. Canonical camelCase alias: ticketsGraded[]
+3. Legacy full-time alias: ticketsSettled[]
+4. Legacy migration: bets[]
 
 Supported events:
 
@@ -367,7 +369,9 @@ Ticket identifier resolution order per settled entry:
 
 Status and payout rules:
 
-- Accepted status values: WON, LOST, VOID (case-insensitive)
+- Accepted status values: WON, LOST, VOID, PENDING (case-insensitive)
+- PENDING records an intermediate leg outcome and leaves the parent ticket open
+- VOID credits a positive engine payout or falls back to the original local stake
 - Unknown status values are skipped safely
 - Negative payout values are clamped to 0
 
