@@ -221,14 +221,6 @@ const printThermal = (body) => client().post('/api/print/thermal', body);
 
 const reprintThermal = (body) => client().post('/api/print/thermal/reprint', body);
 
-// ─── Admin — Webhooks ─────────────────────────────────────────────────────────
-
-const getWebhooks = () => client().get('/api/admin/webhooks/settlement');
-
-const registerWebhook = (body) => client().post('/api/admin/webhooks/settlement', body);
-
-const deleteWebhook = (webhookId) => client().delete(`/api/admin/webhooks/settlement/${encodeURIComponent(webhookId)}`);
-
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -276,10 +268,6 @@ module.exports = {
   getThrottlerStatus,
   getLeagueProgression,
   persistLeagueProgression,
-  // Admin — webhooks
-  getWebhooks,
-  registerWebhook,
-  deleteWebhook,
   // Tickets & Printing (Chapter 10)
   printTicket,
   // Thermal Printing (Chapter 10B)

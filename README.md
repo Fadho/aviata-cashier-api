@@ -441,6 +441,7 @@ The settlement webhook (`POST /cashier/v1/turbo-soccer/webhooks/settlement`) pro
 - **HMAC-SHA256 Signature Verification**: All webhooks are verified using `VFENGINE_WEBHOOK_SECRET` (minimum 32 characters)
 - **Startup Validation**: Webhook secret is validated at server initialization; invalid config causes process exit
 - **Idempotent Processing**: Already-settled bets are safely skipped; replayed webhooks don't double-credit wallets
+- **Durable Inbound Journal**: Verified deliveries are stored before acknowledgement and transient failures retry locally
 - **Sequential Processing**: Prevents wallet race conditions when one cashier has multiple bets
 - **Full Audit Trail**: Settlement start/complete events logged with detailed metrics (won/lost/voided counts, unique cashiers affected, total credits)
 - **League Tracking**: Optional `leagueName` field captured for settlement queries and reporting
@@ -456,12 +457,11 @@ VFENGINE_JWT_SECRET=shared-jwt-secret-with-engine
 VFENGINE_OPERATOR_ID=your-operator-id
 ```
 
-**Webhook Payload Validation:**
-The settlement payload is validated against a strict Joi schema matching VF Engine specification:
-- `event` must be `"MATCH_SETTLED"`
-- `bets` array with required `betId`, `result` (WON|LOST|VOID), and `payout` (≥0)
-- Optional league name (FRANCE|GERMANY|ITALY|LALIGA|PREMIER)
-- Case-insensitive result handling
+**Webhook Payload Support:**
+- Canonical `MARKET_SETTLED` and `MATCH_SETTLED` events
+- Compatibility aliases `market.settlement.complete` and `settlement.complete`
+- Canonical `tickets_graded` rows plus migration aliases
+- Parent-ticket statuses `WON`, `LOST`, `VOID`, and `PENDING`
 
 **Logging Context:**
 All settlement events are logged with structured JSON including:
@@ -470,7 +470,7 @@ All settlement events are logged with structured JSON including:
 - Outcome metrics (won, lost, voided, skipped counts)
 - Wallet impact (unique cashiers updated, total credited, error counts)
 
-**For detailed API documentation**, see [docs/turbo-soccer-integration.md](docs/turbo-soccer-integration.md) (Section 9: Settlement Webhook).
+**For detailed API documentation**, see [docs/turbo-soccer-integration.md](docs/turbo-soccer-integration.md) (Section 10: Settlement Webhook).
 
 ## Inspirations
 

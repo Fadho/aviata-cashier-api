@@ -769,7 +769,12 @@ const processSettlement = async (payload) => {
     },
   });
 
-  return { success: true, metrics };
+  const retryableFailure = metrics.creditErrorCount > 0 || metrics.walletNotFoundCount > 0;
+  return {
+    success: !retryableFailure,
+    metrics,
+    ...(retryableFailure ? { error: 'One or more settlements could not be applied' } : {}),
+  };
 };
 
 module.exports = {

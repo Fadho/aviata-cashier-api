@@ -229,14 +229,6 @@ const validateAccumulator = {
   }),
 };
 
-const registerWebhook = {
-  body: Joi.object().keys({
-    targetUrl: Joi.string().uri().required(),
-    secret: Joi.string().min(32).required(),
-    description: Joi.string(),
-  }),
-};
-
 const initMatch = {
   body: Joi.object().keys({
     homeTeam: Joi.string().required(),
@@ -386,7 +378,6 @@ module.exports = {
   leagueProgression,
   previewMargin,
   validateAccumulator,
-  registerWebhook,
   initMatch,
   quickStartMatch,
   // Chapter 10

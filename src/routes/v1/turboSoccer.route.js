@@ -81,12 +81,6 @@ router.post(
 
 router.get('/admin/throttler/status', auth('manageGameConfig'), ctrl.getThrottlerStatus);
 
-// ─── Admin — Webhook Management ───────────────────────────────────────────────
-
-router.get('/admin/webhooks/settlement', auth('manageGameConfig'), ctrl.getWebhooks);
-router.post('/admin/webhooks/settlement', auth('manageGameConfig'), validate(v.registerWebhook), ctrl.registerWebhook);
-router.delete('/admin/webhooks/settlement/:webhookId', auth('manageGameConfig'), ctrl.deleteWebhook);
-
 // ─── Admin — Match Control ────────────────────────────────────────────────────
 
 router.post('/admin/match/init', auth('manageGameConfig'), validate(v.initMatch), ctrl.initMatch);

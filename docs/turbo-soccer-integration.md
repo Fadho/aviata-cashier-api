@@ -38,7 +38,7 @@ Authorization: Bearer <access_token>
 18. [Admin — Accumulator](#18-admin--accumulator)
 19. [Admin — Throttler](#19-admin--throttler)
 20. [Admin — Match Control](#20-admin--match-control)
-21. [Admin — Webhook Management](#21-admin--webhook-management)
+21. [Settlement Webhook Configuration](#21-settlement-webhook-configuration)
 22. [Role Summary](#22-role-summary)
 23. [Error Codes & Validation](#23-error-codes--validation)
 24. [Market Identifiers Reference (Detailed)](#24-market-identifiers-reference-detailed)
@@ -1076,32 +1076,23 @@ Turbo Soccer settlement is automatic. The cashier API does not call an endpoint 
 | Settlement webhook | Push from VF Engine | Instant micro-market and full-time ticket grading |
 | Results polling | Pull through cashier API | Results screens, daily audit, missed-webhook reconciliation |
 
-### 10.1 Register the Engine Webhook
+### 10.1 Configure the Engine Webhook
 
-Register the cashier API settlement URL with the VF Engine once per deployment:
-
-```http
-POST /cashier/v1/turbo-soccer/admin/webhooks/settlement
-Authorization: Bearer <admin_access_token>
-Content-Type: application/json
-
-{
-  "targetUrl": "https://cashier-api.example.com/cashier/v1/turbo-soccer/webhooks/settlement",
-  "secret": "your-hmac-secret-minimum-32-characters-long",
-  "description": "Cashier API production settlement callback"
-}
-```
-
-The cashier API proxies this to VF Engine `POST /api/admin/webhooks/settlement`. The same secret must be configured locally as `VFENGINE_WEBHOOK_SECRET`.
+Configure the engine deployment with the cashier callback URL and a shared secret, then restart the engine. VF Engine v1.6.4 does not expose webhook registration REST endpoints.
 
 ```bash
+# VF Engine deployment
+SETTLEMENT_WEBHOOK_URL=https://cashier-api.example.com/cashier/v1/turbo-soccer/webhooks/settlement
+SETTLEMENT_WEBHOOK_SECRET=your-hmac-secret-minimum-32-characters-long
+
+# Cashier API deployment (same secret)
 VFENGINE_WEBHOOK_SECRET=your-hmac-secret-minimum-32-characters-long
 ```
 
 **Secret rules:**
 - Minimum 32 characters
 - Keep it in environment configuration; do not hardcode it
-- Rotate by registering a new webhook with the new secret, then deleting the old registration
+- Rotate by updating both deployments together and restarting the engine
 
 ### 10.2 Receive and Verify Settlement
 
@@ -1119,7 +1110,7 @@ This route requires **no JWT**. It is protected by HMAC-SHA256 over the raw requ
 - `401` for missing or invalid `X-Signature`
 - `400` for invalid JSON after signature verification
 - `200 { "received": true }` immediately for a valid signed JSON payload
-- Settlement processing continues asynchronously after the `200` response
+- The verified body is journaled in MongoDB before acknowledgement; settlement processing and local retries continue asynchronously after the `200` response
 
 ### 10.3 Payloads
 
@@ -1279,7 +1270,7 @@ This proxies VF Engine `GET /api/results`. It returns completed match panels wit
 
 ### 10.8 Logging and Audit Trail
 
-The cashier API logs settlement start and completion with event, match/fixture IDs, league name, ticket counts, skipped entries, wallet credits, and credit failures. Signature mismatches, malformed JSON, missing ticket references, and wallet-credit errors are logged with context for investigation.
+The cashier API logs settlement start and completion with event, match/fixture IDs, league name, ticket counts, skipped entries, wallet credits, and credit failures. Signature mismatches, malformed JSON, missing ticket references, and wallet-credit errors are logged with context for investigation. Exact webhook deliveries are deduplicated by a SHA-256 body hash in the durable inbound journal.
 
 ---
 
@@ -1809,26 +1800,9 @@ Combines `init` + `start`. Engine generates the `matchId` automatically.
 
 ---
 
-## 21. Admin — Webhook Management
+## 21. Settlement Webhook Configuration
 
-> Requires `manageGameConfig` role.
-
-```http
-GET    /cashier/v1/turbo-soccer/admin/webhooks/settlement
-POST   /cashier/v1/turbo-soccer/admin/webhooks/settlement
-DELETE /cashier/v1/turbo-soccer/admin/webhooks/settlement/:webhookId
-```
-
-**Register body:**
-```json
-{
-  "targetUrl": "https://retail.yourdomain.com/webhooks/vfootball/settlement",
-  "secret": "minimum-32-character-hmac-secret-here",
-  "description": "Production settlement callback"
-}
-```
-
-`secret` must be at least 32 characters. The `secret` field is **redacted** from `GET` responses.
+Webhook configuration lives on the VF Engine deployment through `SETTLEMENT_WEBHOOK_URL` and `SETTLEMENT_WEBHOOK_SECRET`. There are no webhook-management REST endpoints in VF Engine v1.6.4.
 
 ---
 
@@ -1975,4 +1949,3 @@ Use these exact strings for the `market` and `selection` fields in all bet reque
 | `sh_ou_0.5` … `sh_ou_8.5` | `over` `under` | Second-half goals O/U 0.5–8.5 |
 
 > **Closed markets:** when `odds` for a market is `null` in the `MarketPacket`, that market is closed — its outcome is already determined. Do not offer it on the bet slip.
-

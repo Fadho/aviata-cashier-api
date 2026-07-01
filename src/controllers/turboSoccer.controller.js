@@ -7,6 +7,7 @@ const logger = require('../config/logger');
 const { userService, walletService, financialReportService } = require('../services');
 const vfengineService = require('../services/vfengine.service');
 const turboSoccerService = require('../services/turboSoccer.service');
+const settlementWebhookService = require('../services/settlementWebhook.service');
 const Tickets = require('../models/tickets.model');
 
 const gameType = 'turbo-soccer';
@@ -225,7 +226,7 @@ const getVFootballGameLauncher = catchAsync(async (req, res) => {
  * IMPORTANT: Route must be mounted with express.raw({ type: 'application/json' })
  * so req.body is a raw Buffer for signature verification.
  */
-const handleSettlementWebhook = (req, res) => {
+const handleSettlementWebhook = async (req, res) => {
   const signature = req.headers['x-signature'];
   if (!signature) {
     logger.warn('[SettlementWebhook] Missing signature header');
@@ -254,6 +255,12 @@ const handleSettlementWebhook = (req, res) => {
     return res.status(httpStatus.BAD_REQUEST).json({ success: false, error: 'Invalid JSON payload' });
   }
 
+  const supportedEvents = new Set(['MARKET_SETTLED', 'MATCH_SETTLED', 'market.settlement.complete', 'settlement.complete']);
+  if (!supportedEvents.has(payload.event)) {
+    logger.warn('[SettlementWebhook] Unsupported event', { event: payload.event });
+    return res.status(httpStatus.BAD_REQUEST).json({ success: false, error: 'Unsupported settlement event' });
+  }
+
   let betCount = 0;
   if (Array.isArray(payload.tickets_graded)) {
     betCount = payload.tickets_graded.length;
@@ -273,18 +280,23 @@ const handleSettlementWebhook = (req, res) => {
     betCount,
   });
 
-  // Respond immediately to prevent VF Engine retry loops; process asynchronously
-  res.status(httpStatus.OK).json({ received: true });
-
-  // Process settlement asynchronously with error logging
-  turboSoccerService.processSettlement(payload).catch((err) => {
-    logger.error('[SettlementWebhook] Unexpected error during settlement processing', {
+  let delivery;
+  try {
+    delivery = await settlementWebhookService.enqueue(req.body, payload);
+  } catch (err) {
+    logger.error('[SettlementWebhook] Unable to persist verified settlement', {
       matchId: payload.matchId,
       leagueName: payload.leagueName,
       error: err.message,
-      stack: err.stack,
     });
-  });
+    return res.status(httpStatus.SERVICE_UNAVAILABLE).json({ received: false, retry: true });
+  }
+
+  // Acknowledge only after durable journaling, then apply the settlement outside
+  // the engine's five-second delivery window. Failed jobs remain in MongoDB.
+  res.status(httpStatus.OK).json({ received: true });
+  settlementWebhookService.schedule(delivery._id);
+  return undefined;
 };
 
 // ─── Admin — Margins ──────────────────────────────────────────────────────────
@@ -328,14 +340,6 @@ const validateAccumulator = proxyVf((req) => vfengineService.validateAccumulator
 // ─── Admin — Throttler ────────────────────────────────────────────────────────
 
 const getThrottlerStatus = proxyVf(() => vfengineService.getThrottlerStatus());
-
-// ─── Admin — Webhooks ─────────────────────────────────────────────────────────
-
-const getWebhooks = proxyVf(() => vfengineService.getWebhooks());
-
-const registerWebhook = proxyVf((req) => vfengineService.registerWebhook(req.body));
-
-const deleteWebhook = proxyVf((req) => vfengineService.deleteWebhook(req.params.webhookId));
 
 // ─── Admin — Match Control ────────────────────────────────────────────────────
 
@@ -399,10 +403,6 @@ module.exports = {
   validateAccumulator,
   // Admin — throttler
   getThrottlerStatus,
-  // Admin — webhooks
-  getWebhooks,
-  registerWebhook,
-  deleteWebhook,
   // Admin — match control
   initMatch,
   startMatch,

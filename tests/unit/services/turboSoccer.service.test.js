@@ -611,6 +611,8 @@ describe('turboSoccerService.processSettlement', () => {
 
     expect(Tickets.findOneAndUpdate).not.toHaveBeenCalled();
     expect(result.metrics.creditErrorCount).toBe(1);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeDefined();
   });
 
   test('should process multiple bets sequentially', async () => {

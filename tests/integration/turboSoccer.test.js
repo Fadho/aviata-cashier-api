@@ -38,18 +38,17 @@ jest.mock('../../src/services/vfengine.service', () => ({
   updateAccumulatorConfig: jest.fn(),
   validateAccumulator: jest.fn(),
   getThrottlerStatus: jest.fn(),
-  getWebhooks: jest.fn(),
-  registerWebhook: jest.fn(),
-  deleteWebhook: jest.fn(),
   initMatch: jest.fn(),
   startMatch: jest.fn(),
   quickStartMatch: jest.fn(),
 }));
 
 const vfengineService = require('../../src/services/vfengine.service');
+const walletService = require('../../src/services/wallet.service');
+const settlementWebhookService = require('../../src/services/settlementWebhook.service');
 const app = require('../../src/app');
 const setupTestDB = require('../utils/setupTestDB');
-const { User, Wallets } = require('../../src/models');
+const { User, Wallets, SettlementWebhook } = require('../../src/models');
 const Tickets = require('../../src/models/tickets.model');
 const config = require('../../src/config/config');
 const { tokenTypes } = require('../../src/config/tokens');
@@ -82,8 +81,10 @@ const waitFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const waitForTicket = async (vfBetId, predicate, attempts = 20, intervalMs = 50) => {
   for (let i = 0; i < attempts; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
     const ticket = await Tickets.findOne({ vfBetId });
     if (ticket && predicate(ticket)) return ticket;
+    // eslint-disable-next-line no-await-in-loop
     await waitFor(intervalMs);
   }
   return Tickets.findOne({ vfBetId });
@@ -91,11 +92,24 @@ const waitForTicket = async (vfBetId, predicate, attempts = 20, intervalMs = 50)
 
 const waitForWalletBalance = async (walletId, expectedBalance, attempts = 30, intervalMs = 50) => {
   for (let i = 0; i < attempts; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
     const wallet = await Wallets.findById(walletId);
     if (wallet && Number(wallet.balance) === expectedBalance) return wallet;
+    // eslint-disable-next-line no-await-in-loop
     await waitFor(intervalMs);
   }
   return Wallets.findById(walletId);
+};
+
+const waitForDeliveryStatus = async (status, attempts = 30, intervalMs = 50) => {
+  for (let i = 0; i < attempts; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const delivery = await SettlementWebhook.findOne({ status });
+    if (delivery) return delivery;
+    // eslint-disable-next-line no-await-in-loop
+    await waitFor(intervalMs);
+  }
+  return null;
 };
 
 beforeEach(async () => {
@@ -864,9 +878,8 @@ describe('POST /webhooks/settlement', () => {
     expect(ticket.roundHasEnded).toBe(true);
   });
 
-  test('should return 200 even when settlement processing throws (prevents VF Engine retry)', async () => {
-    // Send valid signature but with an unknown betId — processSettlement won't throw,
-    // but this verifies the "always 200" contract
+  test('should acknowledge an idempotent settlement for an unknown or already-terminal ticket', async () => {
+    // Unknown references are safe to acknowledge because retrying cannot make them match.
     const payload = JSON.stringify(buildPayload([{ ticket_hash: 'unknown-bet', status: 'Won', payout_amount: 100 }]));
     const sig = makeSignature(payload);
 
@@ -878,6 +891,49 @@ describe('POST /webhooks/settlement', () => {
       .expect(httpStatus.OK);
 
     expect(res.body.received).toBe(true);
+    expect(await waitForDeliveryStatus('completed')).not.toBeNull();
+  });
+
+  test('should acknowledge after journaling and retry a transient wallet credit failure locally', async () => {
+    await Tickets.create({
+      roundId: 'match-99',
+      cashierId: cashierUser._id,
+      ticketId: 'vf-bet-001',
+      vfBetId: 'vf-bet-001',
+      betType: 'single',
+      selections: [{ odd: 2.5, stake: 100 }],
+      stake: 100,
+      winnings: 0,
+      potentialWinnings: 250,
+      gameType: 'turbo-soccer',
+      roundHasEnded: false,
+      payout: false,
+      cancelled: false,
+    });
+
+    const creditSpy = jest.spyOn(walletService, 'creditSettlement').mockRejectedValueOnce(new Error('wallet unavailable'));
+    const payload = JSON.stringify(buildPayload([{ ticket_hash: 'vf-bet-001', status: 'WON', payout_amount: 250 }]));
+    const sig = makeSignature(payload);
+
+    const res = await request(app)
+      .post(`${BASE}/webhooks/settlement`)
+      .set('Content-Type', 'application/json')
+      .set('x-signature', sig)
+      .send(payload)
+      .expect(httpStatus.OK);
+
+    expect(res.body).toEqual({ received: true });
+    const failedDelivery = await waitForDeliveryStatus('failed');
+    expect(failedDelivery).not.toBeNull();
+    creditSpy.mockRestore();
+
+    failedDelivery.nextAttemptAt = new Date(0);
+    await failedDelivery.save();
+    await settlementWebhookService.processDueDeliveries();
+
+    const ticket = await waitForTicket('vf-bet-001', (item) => item.roundHasEnded === true);
+    expect(ticket.roundHasEnded).toBe(true);
+    expect(ticket.result).toBe('win');
   });
 });
 
