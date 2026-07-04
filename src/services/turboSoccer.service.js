@@ -8,114 +8,6 @@ const User = require('../models/user.model');
 
 const GAME_TYPE = 'turbo-soccer';
 
-const normalizeBetType = (value) => {
-  if (!value) return null;
-  const normalized = String(value).toLowerCase();
-  if (normalized === 'single' || normalized === 'accumulator' || normalized === 'combinator' || normalized === 'system') {
-    return normalized;
-  }
-  return null;
-};
-
-const resolveBetType = (betBody, vfResponse, selectionCount) => {
-  const requestedType = normalizeBetType(betBody.type);
-  if (requestedType) return requestedType;
-
-  const responseType = normalizeBetType(vfResponse.type);
-  if (responseType) return responseType;
-
-  return selectionCount > 1 ? 'accumulator' : 'single';
-};
-
-const toTicketBetType = (betType) => (betType === 'single' ? 'single' : 'multiple');
-
-const getRoundFallback = (betType) => {
-  if (betType === 'combinator') return 'vf-turbo-combinator';
-  if (betType === 'accumulator') return 'vf-turbo-acca';
-  if (betType === 'system') return 'vf-turbo-system';
-  return 'vf-turbo';
-};
-
-const resolveAcceptedOdds = (source, fallbackOdds) => {
-  if (source && source.accepted_odds != null) return Number(source.accepted_odds);
-  if (source && source.final_odds != null) return Number(source.final_odds);
-  return Number(fallbackOdds);
-};
-
-const getSelectionStake = (totalStake, selectionCount) => {
-  if (!selectionCount || selectionCount < 1) return totalStake;
-  return totalStake / selectionCount;
-};
-
-const toTicketSelections = (vfResponse, betBody, stake) => {
-  const isMulti = Array.isArray(betBody.selections) && betBody.selections.length > 0;
-  const betCategory = betBody.prematch === false ? 'LIVE' : 'PREMATCH';
-
-  if (!isMulti) {
-    const acceptedOdds = resolveAcceptedOdds(vfResponse, betBody.requested_odds);
-    return [
-      {
-        homeTeam: vfResponse.homeTeam || betBody.homeTeam,
-        awayTeam: vfResponse.awayTeam || betBody.awayTeam,
-        market: vfResponse.market || betBody.market,
-        selection: vfResponse.selection || betBody.selection,
-        odd: acceptedOdds,
-        oddsTaken: acceptedOdds,
-        betCategory,
-        is_banker: betBody.is_banker === true,
-        stake,
-      },
-    ];
-  }
-
-  const responseSelections = Array.isArray(vfResponse.selections) ? vfResponse.selections : [];
-  const requestSelections = betBody.selections || [];
-  const selectionStake = getSelectionStake(stake, requestSelections.length || responseSelections.length || 1);
-
-  return requestSelections.map((selectionBody, index) => {
-    const selectionResponse = responseSelections[index] || {};
-    const acceptedOdds = resolveAcceptedOdds(selectionResponse, selectionBody.requested_odds);
-    const legStake = Number(selectionResponse.stake);
-    const isBanker = selectionResponse.is_banker === true || selectionBody.is_banker === true;
-
-    return {
-      homeTeam: selectionResponse.homeTeam || selectionBody.homeTeam,
-      awayTeam: selectionResponse.awayTeam || selectionBody.awayTeam,
-      market: selectionResponse.market || selectionBody.market,
-      selection: selectionResponse.selection || selectionBody.selection,
-      odd: acceptedOdds,
-      oddsTaken: acceptedOdds,
-      betCategory,
-      is_banker: isBanker,
-      stake: Number.isFinite(legStake) && legStake > 0 ? legStake : selectionStake,
-    };
-  });
-};
-
-const getPotentialWinnings = (vfResponse, stake, selections) => {
-  const enginePotentialReturn = Number(vfResponse.potentialReturn);
-  if (!Number.isNaN(enginePotentialReturn) && Number.isFinite(enginePotentialReturn) && enginePotentialReturn > 0) {
-    return enginePotentialReturn;
-  }
-
-  const totalOdds = Number(vfResponse.totalOdds);
-  if (!Number.isNaN(totalOdds) && Number.isFinite(totalOdds) && totalOdds > 0) {
-    return stake * totalOdds;
-  }
-
-  const singleOdds = Number(vfResponse.accepted_odds);
-  if (!Number.isNaN(singleOdds) && Number.isFinite(singleOdds) && singleOdds > 0) {
-    return stake * singleOdds;
-  }
-
-  if (Array.isArray(selections) && selections.length > 0) {
-    const multipliedOdds = selections.reduce((acc, s) => acc * (Number(s.oddsTaken) || 1), 1);
-    return stake * multipliedOdds;
-  }
-
-  return 0;
-};
-
 /**
  * Maps an error from the VF Engine axios response to a local ApiError.
  * @param {import('axios').AxiosError} err
@@ -183,23 +75,13 @@ const mapVfEngineError = (err) => {
 
 /**
  * Places a pre-match or early in-play Turbo Soccer bet.
- * Debits the cashier wallet, forwards the bet to the VF Engine, and records a
- * local Ticket. Refunds the wallet automatically if the VF Engine rejects the bet.
- *
- * Selection Structure (per selection item in ticket.selections[]):
- * Each selection now includes match and market metadata:
- *   - homeTeam: string      — Team name (from VF Engine response)
- *   - awayTeam: string      — Team name (from VF Engine response)
- *   - market: string        — Market code (e.g. 'match_winner')
- *   - selection: string     — Selection value (e.g. 'home', 'draw', 'away')
- *   - odd: number           — Decimal odds accepted by the engine
- *   - oddsTaken: number     — Same as `odd` (for backward compatibility)
- *   - betCategory: string   — 'PREMATCH' | 'LIVE' (from betBody.prematch flag)
- *   - stake: number         — Portion of stake for this selection
+ * Debits the cashier wallet and forwards the bet to the VF Engine. The engine is
+ * the sole ticket store; this server does not persist a local copy.
+ * Refunds the wallet automatically if the VF Engine rejects the bet.
  *
  * @param {object} userWallet - Populated wallet document (user.wallets[0])
  * @param {object} betBody    - Validated request body { matchId, market, selection, stake, ... }
- * @param {string} cashierId  - Cashier user ObjectId (for Ticket FK)
+ * @param {string} cashierId  - Cashier user ObjectId forwarded to the VF Engine
  * @returns {Promise<object>} - VF Engine bet response { bet_id, accepted_odds, ... }
  */
 const placeBet = async (userWallet, betBody, cashierId) => {
@@ -217,7 +99,7 @@ const placeBet = async (userWallet, betBody, cashierId) => {
 
   let vfResponse;
   try {
-    const { data } = await vfengineService.placeBet(betBody);
+    const { data } = await vfengineService.placeBet({ ...betBody, cashierId });
     vfResponse = data;
   } catch (err) {
     // Compensating write: refund the wallet
@@ -225,54 +107,12 @@ const placeBet = async (userWallet, betBody, cashierId) => {
     throw mapVfEngineError(err);
   }
 
-  const selectionCount = Array.isArray(betBody.selections) && betBody.selections.length > 0 ? betBody.selections.length : 1;
-  const betType = resolveBetType(betBody, vfResponse, selectionCount);
-  const isMulti = betType !== 'single';
-  const selections = toTicketSelections(vfResponse, betBody, stake);
-  const matchIdForStorage =
-    vfResponse.matchId ||
-    betBody.matchId ||
-    (Array.isArray(vfResponse.selections) && vfResponse.selections[0] && vfResponse.selections[0].matchId) ||
-    (isMulti && betBody.selections[0] && betBody.selections[0].matchId) ||
-    null;
-  const potentialWinnings = getPotentialWinnings(vfResponse, stake, selections);
-
-  try {
-    await Tickets.create({
-      roundId: matchIdForStorage || getRoundFallback(betType),
-      cashierId,
-      ticketId: vfResponse.bet_id,
-      betType: toTicketBetType(betType),
-      vfBetType: betType,
-      selections,
-      stake,
-      winnings: 0,
-      potentialWinnings,
-      gameType: GAME_TYPE,
-      roundHasEnded: false,
-      payout: false,
-      cancelled: false,
-      vfBetId: vfResponse.bet_id,
-      matchId: matchIdForStorage,
-    });
-  } catch (err) {
-    // Keep wallet/ticket consistency if local persistence fails after engine acceptance.
-    await walletService.updateWallet(userWallet.id, balance);
-    throw new ApiError(
-      httpStatus.INTERNAL_SERVER_ERROR,
-      'Bet accepted by engine but could not be recorded locally; wallet has been restored'
-    );
-  }
-
   return vfResponse;
 };
 
 /**
  * Places an in-play Turbo Soccer bet via the VF Engine Grace Period Middleware.
- * Same wallet debit/refund pattern as placeBet.
- *
- * Ticket selection structure mirrors placeBet — each selection in the array includes:
- *   - homeTeam, awayTeam, market, selection, odd, oddsTaken, betCategory, stake
+ * Same wallet debit/refund pattern as placeBet. The ticket is not persisted locally.
  *
  * @param {object} userWallet - Populated wallet document
  * @param {object} betBody    - Request body { matchId, market, selection, stake, odds, client_timestamp, ... }
@@ -294,7 +134,7 @@ const placeLiveBet = async (userWallet, betBody, cashierId) => {
 
   let vfResponse;
   try {
-    const { data } = await vfengineService.placeLiveBet(betBody);
+    const { data } = await vfengineService.placeLiveBet({ ...betBody, cashierId });
     vfResponse = data;
   } catch (err) {
     await walletService.updateWallet(userWallet.id, balance);
@@ -313,45 +153,6 @@ const placeLiveBet = async (userWallet, betBody, cashierId) => {
   if (isRejected) {
     await walletService.updateWallet(userWallet.id, balance);
     throw new ApiError(httpStatus.CONFLICT, vfResponse.message || 'Live bet not approved by engine');
-  }
-
-  const finalOdds = Number(vfResponse.final_odds != null ? vfResponse.final_odds : betBody.odds);
-
-  try {
-    await Tickets.create({
-      // Live bet responses do not include matchId; fall back to the request body value
-      roundId: betBody.matchId || 'vf-turbo-live',
-      cashierId,
-      ticketId: vfResponse.bet_id,
-      betType: 'single',
-      selections: [
-        {
-          homeTeam: vfResponse.homeTeam || betBody.homeTeam,
-          awayTeam: vfResponse.awayTeam || betBody.awayTeam,
-          market: vfResponse.market || betBody.market,
-          selection: vfResponse.selection || betBody.selection,
-          odd: finalOdds,
-          oddsTaken: finalOdds,
-          betCategory: 'LIVE',
-          stake,
-        },
-      ],
-      stake,
-      winnings: 0,
-      potentialWinnings: stake * finalOdds,
-      gameType: GAME_TYPE,
-      roundHasEnded: false,
-      payout: false,
-      cancelled: false,
-      vfBetId: vfResponse.bet_id,
-      matchId: betBody.matchId,
-    });
-  } catch (err) {
-    await walletService.updateWallet(userWallet.id, balance);
-    throw new ApiError(
-      httpStatus.INTERNAL_SERVER_ERROR,
-      'Live bet accepted by engine but could not be recorded locally; wallet has been restored'
-    );
   }
 
   return vfResponse;

@@ -88,32 +88,13 @@ describe('turboSoccerService.placeBet', () => {
     Tickets.create.mockResolvedValue({});
   });
 
-  test('should debit wallet, call VF Engine, create ticket and return VF response', async () => {
+  test('should debit wallet, call VF Engine, avoid local ticket persistence and return VF response', async () => {
     const wallet = makeWallet(500);
     const result = await turboSoccerService.placeBet(wallet, placeBetBody, cashierId);
 
     expect(walletService.updateWallet).toHaveBeenCalledWith(walletId, 400); // 500 - 100
     expect(vfengineService.placeBet).toHaveBeenCalledWith(placeBetBody);
-    expect(Tickets.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        vfBetId: 'vf-bet-001',
-        cashierId,
-        stake: 100,
-        vfBetType: 'single',
-        gameType: 'turbo-soccer',
-        roundHasEnded: false,
-        cancelled: false,
-        potentialWinnings: 250, // 100 * 2.5
-        selections: expect.arrayContaining([
-          expect.objectContaining({
-            market: '1X2',
-            selection: '1',
-            oddsTaken: 2.5,
-            betCategory: 'PREMATCH',
-          }),
-        ]),
-      })
-    );
+    expect(Tickets.create).not.toHaveBeenCalled();
     expect(result).toEqual(vfBetResponse);
   });
 
@@ -175,29 +156,27 @@ describe('turboSoccerService.placeBet', () => {
     expect(walletService.updateWallet).toHaveBeenCalledTimes(2);
   });
 
-  test('should use fallback roundId when VF response lacks matchId', async () => {
+  test('should accept an engine response without matchId without creating a local ticket', async () => {
     vfengineService.placeBet.mockResolvedValue({ data: { ...vfBetResponse, matchId: undefined } });
     const bodyNoMatchId = { ...placeBetBody, matchId: undefined };
 
     await turboSoccerService.placeBet(makeWallet(500), bodyNoMatchId, cashierId);
 
-    expect(Tickets.create).toHaveBeenCalledWith(expect.objectContaining({ roundId: 'vf-turbo' }));
+    expect(Tickets.create).not.toHaveBeenCalled();
   });
 
-  test('should refund wallet if local ticket persistence fails after engine acceptance', async () => {
+  test('should not interact with local ticket persistence after engine acceptance', async () => {
     Tickets.create.mockRejectedValue(new Error('db write failed'));
 
     const wallet = makeWallet(500);
-    const err = await turboSoccerService.placeBet(wallet, placeBetBody, cashierId).catch((e) => e);
+    const result = await turboSoccerService.placeBet(wallet, placeBetBody, cashierId);
 
-    expect(err).toBeInstanceOf(ApiError);
-    expect(err.statusCode).toBe(httpStatus.INTERNAL_SERVER_ERROR);
-    // debit then rollback
-    expect(walletService.updateWallet).toHaveBeenNthCalledWith(1, walletId, 400);
-    expect(walletService.updateWallet).toHaveBeenNthCalledWith(2, walletId, 500);
+    expect(result).toEqual(vfBetResponse);
+    expect(Tickets.create).not.toHaveBeenCalled();
+    expect(walletService.updateWallet).toHaveBeenCalledTimes(1);
   });
 
-  test('should persist a multiple ticket when selections[] payload is used', async () => {
+  test('should place a multiple bet without persisting a local ticket', async () => {
     const multiBetBody = {
       cashierId,
       stake: 100,
@@ -223,22 +202,10 @@ describe('turboSoccerService.placeBet', () => {
 
     expect(result.bet_id).toBe('vf-acca-001');
     expect(walletService.updateWallet).toHaveBeenNthCalledWith(1, walletId, 400);
-    expect(Tickets.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        vfBetId: 'vf-acca-001',
-        betType: 'multiple',
-        vfBetType: 'accumulator',
-        roundId: 'LEAGUE-001',
-        potentialWinnings: 360,
-        selections: expect.arrayContaining([
-          expect.objectContaining({ market: 'match_winner', selection: 'home', oddsTaken: 2.0 }),
-          expect.objectContaining({ market: 'btts', selection: 'GG', oddsTaken: 1.8 }),
-        ]),
-      })
-    );
+    expect(Tickets.create).not.toHaveBeenCalled();
   });
 
-  test('should persist combinator vfBetType and engine-provided per-leg stake', async () => {
+  test('should place a combinator without persisting a local ticket', async () => {
     const combinatorBody = {
       cashierId,
       type: 'combinator',
@@ -264,21 +231,10 @@ describe('turboSoccerService.placeBet', () => {
 
     await turboSoccerService.placeBet(makeWallet(500), combinatorBody, cashierId);
 
-    expect(Tickets.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        vfBetId: 'vf-combi-001',
-        betType: 'multiple',
-        vfBetType: 'combinator',
-        roundId: 'LEAGUE-001',
-        selections: expect.arrayContaining([
-          expect.objectContaining({ market: 'match_winner', selection: 'home', stake: 50 }),
-          expect.objectContaining({ market: 'btts', selection: 'GG', stake: 50 }),
-        ]),
-      })
-    );
+    expect(Tickets.create).not.toHaveBeenCalled();
   });
 
-  test('should persist system vfBetType and retain per-leg banker metadata from request flow', async () => {
+  test('should place a system bet without persisting a local ticket', async () => {
     const systemBody = {
       cashierId,
       type: 'system',
@@ -308,16 +264,7 @@ describe('turboSoccerService.placeBet', () => {
 
     await turboSoccerService.placeBet(makeWallet(500), systemBody, cashierId);
 
-    expect(Tickets.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        vfBetId: 'vf-system-001',
-        betType: 'multiple',
-        vfBetType: 'system',
-        roundId: 'LEAGUE-001',
-        potentialWinnings: 1836,
-        selections: expect.arrayContaining([expect.objectContaining({ is_banker: true })]),
-      })
-    );
+    expect(Tickets.create).not.toHaveBeenCalled();
   });
 });
 
@@ -330,27 +277,13 @@ describe('turboSoccerService.placeLiveBet', () => {
     Tickets.create.mockResolvedValue({});
   });
 
-  test('should debit wallet, call VF Engine live endpoint, create ticket and return response', async () => {
+  test('should debit wallet, call VF Engine live endpoint, avoid local persistence and return response', async () => {
     const wallet = makeWallet(500);
     const result = await turboSoccerService.placeLiveBet(wallet, placeLiveBetBody, cashierId);
 
     expect(walletService.updateWallet).toHaveBeenCalledWith(walletId, 400);
     expect(vfengineService.placeLiveBet).toHaveBeenCalledWith(placeLiveBetBody);
-    expect(Tickets.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        vfBetId: 'vf-live-bet-001',
-        gameType: 'turbo-soccer',
-        potentialWinnings: 200,
-        selections: expect.arrayContaining([
-          expect.objectContaining({
-            market: '1X2',
-            selection: '1',
-            oddsTaken: 2.0,
-            betCategory: 'LIVE',
-          }),
-        ]),
-      })
-    );
+    expect(Tickets.create).not.toHaveBeenCalled();
     expect(result).toEqual(vfLiveBetResponse);
   });
 
@@ -370,15 +303,14 @@ describe('turboSoccerService.placeLiveBet', () => {
     expect(Tickets.create).not.toHaveBeenCalled();
   });
 
-  test('should refund wallet if local live ticket persistence fails after engine acceptance', async () => {
+  test('should not interact with local ticket persistence after live bet acceptance', async () => {
     Tickets.create.mockRejectedValue(new Error('db write failed'));
 
-    const err = await turboSoccerService.placeLiveBet(makeWallet(500), placeLiveBetBody, cashierId).catch((e) => e);
+    const result = await turboSoccerService.placeLiveBet(makeWallet(500), placeLiveBetBody, cashierId);
 
-    expect(err).toBeInstanceOf(ApiError);
-    expect(err.statusCode).toBe(httpStatus.INTERNAL_SERVER_ERROR);
-    expect(walletService.updateWallet).toHaveBeenNthCalledWith(1, walletId, 400);
-    expect(walletService.updateWallet).toHaveBeenNthCalledWith(2, walletId, 500);
+    expect(result).toEqual(vfLiveBetResponse);
+    expect(Tickets.create).not.toHaveBeenCalled();
+    expect(walletService.updateWallet).toHaveBeenCalledTimes(1);
   });
 });
 

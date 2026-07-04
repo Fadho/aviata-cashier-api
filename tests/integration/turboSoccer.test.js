@@ -359,13 +359,9 @@ describe('POST /bets/place', () => {
     const updatedWallet = await Wallets.findById(cashierWallet._id);
     expect(Number(updatedWallet.balance)).toBe(900); // 1000 - 100
 
-    // Verify ticket was created
+    // Ticket ownership remains with the VF Engine.
     const ticket = await Tickets.findOne({ vfBetId: 'vf-bet-001' });
-    expect(ticket).not.toBeNull();
-    expect(ticket.gameType).toBe('turbo-soccer');
-    expect(ticket.stake).toBe(100);
-    expect(ticket.result).toBeUndefined();
-    expect(ticket.cancelled).toBe(false);
+    expect(ticket).toBeNull();
   });
 
   test('should return 400 when stake exceeds wallet balance', async () => {
@@ -427,7 +423,7 @@ describe('POST /bets/place', () => {
     expect(ticket).toBeNull();
   });
 
-  test('should accept multi-selection payload and create a multiple ticket', async () => {
+  test('should accept multi-selection payload without creating a local ticket', async () => {
     vfengineService.placeBet.mockResolvedValue({
       data: {
         success: true,
@@ -484,9 +480,7 @@ describe('POST /bets/place', () => {
     expect(Number(updatedWallet.balance)).toBe(900);
 
     const ticket = await Tickets.findOne({ vfBetId: 'vf-acca-001' });
-    expect(ticket).not.toBeNull();
-    expect(ticket.betType).toBe('multiple');
-    expect(ticket.selections).toHaveLength(2);
+    expect(ticket).toBeNull();
   });
 
   test('should accept and forward additional leg metadata for /bets/place multi payloads', async () => {
@@ -632,13 +626,10 @@ describe('POST /bets/place', () => {
     expect(vfengineService.placeBet).toHaveBeenCalledWith(payload);
 
     const ticket = await Tickets.findOne({ vfBetId: 'vf-system-001' });
-    expect(ticket).not.toBeNull();
-    expect(ticket.vfBetType).toBe('system');
-    expect(ticket.betType).toBe('multiple');
-    expect(ticket.selections.some((selection) => selection.is_banker === true)).toBe(true);
+    expect(ticket).toBeNull();
   });
 
-  test('should persist vfBetType=combinator and per-leg stakes when combinator is accepted', async () => {
+  test('should accept a combinator without persisting it locally', async () => {
     vfengineService.placeBet.mockResolvedValue({
       data: {
         success: true,
@@ -692,11 +683,7 @@ describe('POST /bets/place', () => {
       .expect(httpStatus.OK);
 
     const ticket = await Tickets.findOne({ vfBetId: 'vf-combi-001' });
-    expect(ticket).not.toBeNull();
-    expect(ticket.betType).toBe('multiple');
-    expect(ticket.vfBetType).toBe('combinator');
-    expect(ticket.selections[0].stake).toBe(50);
-    expect(ticket.selections[1].stake).toBe(50);
+    expect(ticket).toBeNull();
   });
 });
 
@@ -728,6 +715,9 @@ describe('POST /bets/live', () => {
 
     const wallet = await Wallets.findById(cashierWallet._id);
     expect(Number(wallet.balance)).toBe(900);
+
+    const ticket = await Tickets.findOne({ vfBetId: 'vf-live-001' });
+    expect(ticket).toBeNull();
   });
 
   test('should return 400 when odds or client_timestamp is missing', async () => {
@@ -801,6 +791,22 @@ describe('Admin league progression routes', () => {
 
 describe('POST /webhooks/settlement', () => {
   const buildPayload = (ticketsGraded, event = 'MATCH_SETTLED') => ({ event, tickets_graded: ticketsGraded });
+  const createLegacyTicket = () =>
+    Tickets.create({
+      roundId: 'match-99',
+      cashierId: cashierUser._id,
+      ticketId: 'vf-bet-001',
+      vfBetId: 'vf-bet-001',
+      betType: 'single',
+      selections: [{ odd: 2.5, stake: 100 }],
+      stake: 100,
+      winnings: 0,
+      potentialWinnings: 250,
+      gameType: 'turbo-soccer',
+      roundHasEnded: false,
+      payout: false,
+      cancelled: false,
+    });
 
   test('should return 401 when x-signature header is missing', async () => {
     const res = await request(app)
@@ -822,14 +828,8 @@ describe('POST /webhooks/settlement', () => {
   });
 
   test('should return 200 and process won bet with valid signature', async () => {
-    // Place a bet first to create a ticket
-    await request(app).post(`${BASE}/bets/place`).set('Authorization', `Bearer ${cashierToken}`).send({
-      cashierId: cashierUser._id.toHexString(),
-      matchId: 'match-99',
-      market: '1X2',
-      selection: '1',
-      stake: 100,
-    });
+    // Settlement support remains for tickets created before local persistence was removed.
+    await createLegacyTicket();
 
     const payload = JSON.stringify(buildPayload([{ ticket_hash: 'vf-bet-001', status: 'Won', payout_amount: 250 }]));
     const sig = makeSignature(payload);
@@ -849,19 +849,12 @@ describe('POST /webhooks/settlement', () => {
     expect(ticket.roundHasEnded).toBe(true);
     expect(Number(ticket.winnings)).toBe(250);
 
-    // Cashier wallet: started 1000, debited 100 (bet), credited 250 (settlement) = 1150
-    const wallet = await waitForWalletBalance(cashierWallet._id, 1150);
-    expect(Number(wallet.balance)).toBe(1150);
+    const wallet = await waitForWalletBalance(cashierWallet._id, 1250);
+    expect(Number(wallet.balance)).toBe(1250);
   });
 
   test('should return 200 and mark ticket cancelled for void result', async () => {
-    await request(app).post(`${BASE}/bets/place`).set('Authorization', `Bearer ${cashierToken}`).send({
-      cashierId: cashierUser._id.toHexString(),
-      matchId: 'match-99',
-      market: '1X2',
-      selection: '1',
-      stake: 100,
-    });
+    await createLegacyTicket();
 
     const payload = JSON.stringify(buildPayload([{ ticket_hash: 'vf-bet-001', status: 'void', payout_amount: 0 }]));
     const sig = makeSignature(payload);

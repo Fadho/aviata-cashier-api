@@ -4,13 +4,11 @@ const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 const config = require('../config/config');
 const logger = require('../config/logger');
-const { userService, walletService, financialReportService } = require('../services');
+const userService = require('../services/user.service');
+const walletService = require('../services/wallet.service');
 const vfengineService = require('../services/vfengine.service');
 const turboSoccerService = require('../services/turboSoccer.service');
 const settlementWebhookService = require('../services/settlementWebhook.service');
-const Tickets = require('../models/tickets.model');
-
-const gameType = 'turbo-soccer';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -108,8 +106,7 @@ const getMatchState = proxyVf(() => vfengineService.getMatchState());
 // ─── Bets ─────────────────────────────────────────────────────────────────────
 
 /**
- * Places a prematch Turbo Soccer bet.
- * Response includes _meta envelope with dbId (local Ticket ObjectId) for state tracking.
+ * Places a prematch Turbo Soccer bet without persisting a local ticket.
  */
 const placeBet = catchAsync(async (req, res) => {
   const { cashierId } = req.body;
@@ -123,28 +120,11 @@ const placeBet = catchAsync(async (req, res) => {
   }
   const vfResponse = await turboSoccerService.placeBet(userWallet, req.body, cashierId);
 
-  // Fetch the persisted Ticket to construct _meta envelope
-  const ticket = await Tickets.findOne({ vfBetId: vfResponse.bet_id });
-
-  // Wrap VF response with local database tracking metadata
-  const response = {
-    ...vfResponse,
-    _meta: {
-      dbPersisted: !!ticket,
-      dbId: ticket ? ticket._id.toString() : null,
-      placedAt: new Date().toISOString(),
-      ticketId: ticket ? ticket.ticketId : null,
-    },
-  };
-
-  res.status(httpStatus.OK).json(response);
-
-  financialReportService.getAndUpdateStake(cashierId, gameType);
+  res.status(httpStatus.OK).json(vfResponse);
 });
 
 /**
- * Places a live Turbo Soccer bet via Grace Period Middleware.
- * Response includes _meta envelope with dbId for state tracking.
+ * Places a live Turbo Soccer bet without persisting a local ticket.
  */
 const placeLiveBet = catchAsync(async (req, res) => {
   const { cashierId } = req.body;
@@ -158,23 +138,7 @@ const placeLiveBet = catchAsync(async (req, res) => {
   }
   const vfResponse = await turboSoccerService.placeLiveBet(userWallet, req.body, cashierId);
 
-  // Fetch the persisted Ticket to construct _meta envelope
-  const ticket = await Tickets.findOne({ vfBetId: vfResponse.bet_id });
-
-  // Wrap VF response with local database tracking metadata
-  const response = {
-    ...vfResponse,
-    _meta: {
-      dbPersisted: !!ticket,
-      dbId: ticket ? ticket._id.toString() : null,
-      placedAt: new Date().toISOString(),
-      ticketId: ticket ? ticket.ticketId : null,
-    },
-  };
-
-  res.status(httpStatus.OK).json(response);
-
-  financialReportService.getAndUpdateStake(cashierId, gameType);
+  res.status(httpStatus.OK).json(vfResponse);
 });
 
 const validateLiveBet = proxyVf((req) => vfengineService.validateLiveBet(req.body));
