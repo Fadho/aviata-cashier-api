@@ -6,8 +6,10 @@ const config = require('../config/config');
  * Creates a short-lived JWT for authenticating with the VF Engine.
  * @returns {string}
  */
-const issueEngineToken = () => {
-  return jwt.sign({ operatorId: config.vfengine.operatorId }, config.vfengine.jwtSecret, { expiresIn: '8h' });
+const issueEngineToken = (options = {}) => {
+  const claims = { operatorId: options.operatorId || config.vfengine.operatorId };
+  if (options.admin === true) claims.role = 'admin';
+  return jwt.sign(claims, config.vfengine.jwtSecret, { expiresIn: '8h' });
 };
 
 /**
@@ -15,7 +17,7 @@ const issueEngineToken = () => {
  * A fresh token is injected per request to avoid using expired tokens.
  * @returns {import('axios').AxiosInstance}
  */
-const client = () =>
+const client = (options = {}) =>
   (() => {
     const instance = axios.create({
       baseURL: config.vfengine.baseUrl,
@@ -27,7 +29,7 @@ const client = () =>
       const nextConfig = reqConfig;
       nextConfig.headers = {
         ...(nextConfig.headers || {}),
-        Authorization: `Bearer ${issueEngineToken()}`,
+        Authorization: `Bearer ${issueEngineToken(options)}`,
       };
 
       return nextConfig;
@@ -150,50 +152,86 @@ const voidBet = (betId, reason) => client().post(`/api/bets/${encodeURIComponent
 
 // ─── Admin — Margins ──────────────────────────────────────────────────────────
 
-const getMargins = () => client().get('/api/admin/margins');
+const adminClient = () => client({ admin: true });
 
-const previewMargin = (margin) => client().get('/api/admin/margins/preview', { params: { margin } });
+const getMargins = () => adminClient().get('/api/admin/margins');
+
+const previewMargin = (margin) => adminClient().get('/api/admin/margins/preview', { params: { margin } });
 
 const updateMatchMargin = (matchId, margin) =>
-  client().put(`/api/admin/match/${encodeURIComponent(matchId)}/margin`, { margin });
+  adminClient().put(`/api/admin/match/${encodeURIComponent(matchId)}/margin`, { margin });
+
+const getMatchMargins = (matchId) => adminClient().get(`/api/admin/match/${encodeURIComponent(matchId)}/margins`);
+
+const getMatchMarketMargin = (matchId, marketId) =>
+  adminClient().get(`/api/admin/match/${encodeURIComponent(matchId)}/markets/${encodeURIComponent(marketId)}/margin`);
+
+const setMatchMarketMargin = (matchId, marketId, margin) =>
+  adminClient().put(`/api/admin/match/${encodeURIComponent(matchId)}/markets/${encodeURIComponent(marketId)}/margin`, {
+    margin,
+  });
+
+const resetMatchMarketMargin = (matchId, marketId) =>
+  adminClient().delete(`/api/admin/match/${encodeURIComponent(matchId)}/markets/${encodeURIComponent(marketId)}/margin`);
 
 // ─── Admin — Leagues ──────────────────────────────────────────────────────────
 
-const getLeagues = () => client().get('/api/admin/leagues');
+const getLeagues = () => adminClient().get('/api/admin/leagues');
 
 const getLeagueProgression = (league) => {
   const params = {};
   if (league) params.league = league;
-  return client().get('/api/admin/leagues/progression', { params });
+  return adminClient().get('/api/admin/leagues/progression', { params });
 };
 
-const persistLeagueProgression = () => client().post('/api/admin/leagues/progression/persist');
+const persistLeagueProgression = () => adminClient().post('/api/admin/leagues/progression/persist');
 
-const createLeague = (body) => client().post('/api/admin/leagues', body);
+const createLeague = (body) => adminClient().post('/api/admin/leagues', body);
 
-const getLeague = (id) => client().get(`/api/admin/leagues/${encodeURIComponent(id)}`);
+const getLeague = (id) => adminClient().get(`/api/admin/leagues/${encodeURIComponent(id)}`);
 
-const deleteLeague = (id) => client().delete(`/api/admin/leagues/${encodeURIComponent(id)}`);
+const deleteLeague = (id) => adminClient().delete(`/api/admin/leagues/${encodeURIComponent(id)}`);
 
-const generateLeagueSchedule = (id) => client().post(`/api/admin/leagues/${encodeURIComponent(id)}/schedule`);
+const generateLeagueSchedule = (id) => adminClient().post(`/api/admin/leagues/${encodeURIComponent(id)}/schedule`);
 
-const getLeagueSchedule = (id) => client().get(`/api/admin/leagues/${encodeURIComponent(id)}/schedule`);
+const getLeagueSchedule = (id) => adminClient().get(`/api/admin/leagues/${encodeURIComponent(id)}/schedule`);
 
-const getLeagueMargin = (id) => client().get(`/api/admin/leagues/${encodeURIComponent(id)}/margin`);
+const getLeagueMargin = (id) => adminClient().get(`/api/admin/leagues/${encodeURIComponent(id)}/margin`);
 
-const setLeagueMargin = (id, margin) => client().put(`/api/admin/leagues/${encodeURIComponent(id)}/margin`, { margin });
+const setLeagueMargin = (id, margin) => adminClient().put(`/api/admin/leagues/${encodeURIComponent(id)}/margin`, { margin });
+
+const getLeagueMarketMargin = (id, marketId) =>
+  adminClient().get(`/api/admin/leagues/${encodeURIComponent(id)}/markets/${encodeURIComponent(marketId)}/margin`);
+
+const setLeagueMarketMargin = (id, marketId, margin) =>
+  adminClient().put(`/api/admin/leagues/${encodeURIComponent(id)}/markets/${encodeURIComponent(marketId)}/margin`, {
+    margin,
+  });
+
+const resetLeagueMarketMargin = (id, marketId) =>
+  adminClient().delete(`/api/admin/leagues/${encodeURIComponent(id)}/markets/${encodeURIComponent(marketId)}/margin`);
 
 // ─── Admin — Accumulator ──────────────────────────────────────────────────────
 
-const getAccumulatorConfig = () => client().get('/api/admin/accumulator/config');
+const getAccumulatorConfig = () => adminClient().get('/api/admin/accumulator/config');
 
-const updateAccumulatorConfig = (body) => client().put('/api/admin/accumulator/config', body);
+const updateAccumulatorConfig = (body) => adminClient().put('/api/admin/accumulator/config', body);
 
-const validateAccumulator = (body) => client().post('/api/admin/accumulator/validate', body);
+const validateAccumulator = (body) => adminClient().post('/api/admin/accumulator/validate', body);
 
 // ─── Admin — Throttler ────────────────────────────────────────────────────────
 
-const getThrottlerStatus = () => client().get('/api/admin/throttler/status');
+const getThrottlerStatus = () => adminClient().get('/api/admin/throttler/status');
+
+const getAdminAudit = (limit, action) => {
+  const params = {};
+  if (limit != null) params.limit = limit;
+  if (action) params.action = action;
+  return adminClient().get('/api/admin/audit', { params });
+};
+
+const settleLedgerTicket = (ticketId, body) =>
+  adminClient().post(`/api/ledger/ticket/${encodeURIComponent(ticketId)}/settle`, body);
 
 // ─── Tickets & Printing (Chapter 10) ─────────────────────────────────────────
 
@@ -212,7 +250,9 @@ const printTicket = (body) => client().post('/api/tickets/print', body);
 //   POST /api/ledger/ticket/print           (ledgerPrintTicket)
 //   GET  /api/ledger/ticket/:ticketId       (getLedgerTicket)
 //   GET  /api/ledger/shop/:shopId/tickets   (getShopTickets)
-//   POST /api/ledger/ticket/:ticketId/settle (settleLedgerTicket)
+// Manual settlement is the sole ledger exception because VF Engine v1.7 defines
+// it as an audited administrator correction endpoint. Wallet-management and
+// ticket-issuance ledger routes remain intentionally unproxied.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── Thermal Printing (Chapter 10B) ──────────────────────────────────────────
@@ -251,6 +291,10 @@ module.exports = {
   getMargins,
   previewMargin,
   updateMatchMargin,
+  getMatchMargins,
+  getMatchMarketMargin,
+  setMatchMarketMargin,
+  resetMatchMarketMargin,
   // Admin — leagues
   getLeagues,
   createLeague,
@@ -260,12 +304,17 @@ module.exports = {
   getLeagueSchedule,
   getLeagueMargin,
   setLeagueMargin,
+  getLeagueMarketMargin,
+  setLeagueMarketMargin,
+  resetLeagueMarketMargin,
   // Admin — accumulator
   getAccumulatorConfig,
   updateAccumulatorConfig,
   validateAccumulator,
   // Admin — throttler
   getThrottlerStatus,
+  getAdminAudit,
+  settleLedgerTicket,
   getLeagueProgression,
   persistLeagueProgression,
   // Tickets & Printing (Chapter 10)

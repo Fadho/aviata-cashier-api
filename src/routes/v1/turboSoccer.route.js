@@ -52,6 +52,25 @@ router.post('/bets/:betId/void', auth('manageGameConfig'), validate(v.voidBet), 
 router.get('/admin/margins', auth('manageGameConfig'), ctrl.getMargins);
 router.get('/admin/margins/preview', auth('manageGameConfig'), validate(v.previewMargin), ctrl.previewMargin);
 router.put('/admin/match/:matchId/margin', auth('manageGameConfig'), validate(v.updateMatchMargin), ctrl.updateMatchMargin);
+router.get('/admin/match/:matchId/margins', auth('manageGameConfig'), validate(v.matchMarginParams), ctrl.getMatchMargins);
+router.get(
+  '/admin/match/:matchId/markets/:marketId/margin',
+  auth('manageGameConfig'),
+  validate(v.marketMarginParams),
+  ctrl.getMatchMarketMargin
+);
+router.put(
+  '/admin/match/:matchId/markets/:marketId/margin',
+  auth('manageGameConfig'),
+  validate(v.setMarketMargin),
+  ctrl.setMatchMarketMargin
+);
+router.delete(
+  '/admin/match/:matchId/markets/:marketId/margin',
+  auth('manageGameConfig'),
+  validate(v.marketMarginParams),
+  ctrl.resetMatchMarketMargin
+);
 
 // ─── Admin — Leagues ──────────────────────────────────────────────────────────
 
@@ -63,13 +82,36 @@ router.get('/admin/leagues/:id', auth('manageGameConfig'), ctrl.getLeague);
 router.delete('/admin/leagues/:id', auth('manageGameConfig'), ctrl.deleteLeague);
 router.get('/admin/leagues/:id/margin', auth('manageGameConfig'), ctrl.getLeagueMargin);
 router.put('/admin/leagues/:id/margin', auth('manageGameConfig'), validate(v.setLeagueMargin), ctrl.setLeagueMargin);
+router.get(
+  '/admin/leagues/:id/markets/:marketId/margin',
+  auth('manageGameConfig'),
+  validate(v.leagueMarketMarginParams),
+  ctrl.getLeagueMarketMargin
+);
+router.put(
+  '/admin/leagues/:id/markets/:marketId/margin',
+  auth('manageGameConfig'),
+  validate(v.setLeagueMarketMargin),
+  ctrl.setLeagueMarketMargin
+);
+router.delete(
+  '/admin/leagues/:id/markets/:marketId/margin',
+  auth('manageGameConfig'),
+  validate(v.leagueMarketMarginParams),
+  ctrl.resetLeagueMarketMargin
+);
 router.post('/admin/leagues/:id/schedule', auth('manageGameConfig'), ctrl.generateLeagueSchedule);
 router.get('/admin/leagues/:id/schedule', auth('manageGameConfig'), ctrl.getLeagueSchedule);
 
 // ─── Admin — Accumulator ──────────────────────────────────────────────────────
 
 router.get('/admin/accumulator/config', auth('manageGameConfig'), ctrl.getAccumulatorConfig);
-router.put('/admin/accumulator/config', auth('manageGameConfig'), ctrl.updateAccumulatorConfig);
+router.put(
+  '/admin/accumulator/config',
+  auth('manageGameConfig'),
+  validate(v.updateAccumulatorConfig),
+  ctrl.updateAccumulatorConfig
+);
 router.post(
   '/admin/accumulator/validate',
   auth('manageGameConfig'),
@@ -80,6 +122,15 @@ router.post(
 // ─── Admin — Throttler ────────────────────────────────────────────────────────
 
 router.get('/admin/throttler/status', auth('manageGameConfig'), ctrl.getThrottlerStatus);
+router.get('/admin/audit', auth('manageGameConfig'), validate(v.adminAudit), ctrl.getAdminAudit);
+
+// Administrator-only, audited VF Engine settlement correction.
+router.post(
+  '/ledger/ticket/:ticketId/settle',
+  auth('manageGameConfig'),
+  validate(v.settleLedgerTicket),
+  ctrl.settleLedgerTicket
+);
 
 // ─── Admin — Match Control ────────────────────────────────────────────────────
 

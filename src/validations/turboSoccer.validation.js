@@ -181,13 +181,37 @@ const updateMatchMargin = {
   }),
 };
 
+const matchMarginParams = {
+  params: Joi.object().keys({ matchId: Joi.string().required() }),
+};
+
+const marketMarginParams = {
+  params: Joi.object().keys({
+    matchId: Joi.string().required(),
+    marketId: Joi.string().trim().required(),
+  }),
+};
+
+const setMarketMargin = {
+  ...marketMarginParams,
+  body: Joi.object().keys({ margin: Joi.number().min(1.0).max(1.3).required() }),
+};
+
 const createLeague = {
   body: Joi.object().keys({
-    id: Joi.string().required(),
-    name: Joi.string().required(),
-    teams: Joi.array().items(Joi.string()).min(2).required(),
-    matchIntervalMinutes: Joi.number().integer().min(1),
+    leagueId: Joi.string().trim().required(),
+    leagueName: Joi.string().trim().required(),
+    teams: Joi.array()
+      .items(Joi.string().trim().required())
+      .min(2)
+      .unique()
+      .custom((teamList, helpers) => (teamList.length % 2 === 0 ? teamList : helpers.error('array.even')))
+      .messages({ 'array.even': 'teams must contain an even number of entries' })
+      .required(),
+    matchDurationMin: Joi.number().positive().required(),
+    preMatchDurationMin: Joi.number().min(0).required(),
     margin: Joi.number().min(1.0).max(1.3),
+    startDate: Joi.date().iso().required(),
   }),
 };
 
@@ -204,6 +228,18 @@ const setLeagueMargin = {
   }),
 };
 
+const leagueMarketMarginParams = {
+  params: Joi.object().keys({
+    id: Joi.string().required(),
+    marketId: Joi.string().trim().required(),
+  }),
+};
+
+const setLeagueMarketMargin = {
+  ...leagueMarketMarginParams,
+  body: Joi.object().keys({ margin: Joi.number().min(1.0).max(1.3).required() }),
+};
+
 const previewMargin = {
   query: Joi.object().keys({
     margin: Joi.number().min(1.0).max(1.3).required(),
@@ -212,21 +248,49 @@ const previewMargin = {
 
 const validateAccumulator = {
   body: Joi.object().keys({
-    ticketId: Joi.string().required(),
-    cashierId: Joi.string().required(),
     stake: Joi.number().positive().required(),
-    legs: Joi.array()
-      .items(
-        Joi.object().keys({
-          matchId: Joi.string().required(),
-          market: Joi.string().required(),
-          selection: Joi.string().required(),
-          odds: Joi.number().required(),
-        })
-      )
-      .min(2)
+    selections: Joi.array()
+      .items(Joi.object({ odds: Joi.number().positive().required() }).unknown(true))
+      .min(1)
       .required(),
   }),
+};
+
+const updateAccumulatorConfig = {
+  body: Joi.object({
+    minOddsForBonus: Joi.number().min(1),
+    shopMaxPayout: Joi.number().positive(),
+    bonusTiers: Joi.object()
+      .pattern(Joi.string().pattern(/^[1-9]\d*$/), Joi.number().min(1))
+      .min(1),
+  })
+    .min(1)
+    .required(),
+};
+
+const adminAudit = {
+  query: Joi.object({
+    limit: Joi.number().integer().min(1).max(100),
+    action: Joi.string().trim().min(1),
+  }),
+};
+
+const scoreSchema = Joi.object({
+  home: Joi.number().integer().min(0).required(),
+  away: Joi.number().integer().min(0).required(),
+});
+
+const settleLedgerTicket = {
+  params: Joi.object({ ticketId: Joi.string().trim().required() }),
+  body: Joi.object({
+    reason: Joi.string().trim().min(5).required(),
+    finalScore: scoreSchema,
+    htScore: scoreSchema,
+    statistics: Joi.object().unknown(true),
+    results: Joi.object().pattern(Joi.string().min(1), scoreSchema).min(1),
+  })
+    .xor('finalScore', 'results')
+    .required(),
 };
 
 const initMatch = {
@@ -373,11 +437,19 @@ module.exports = {
   voidBet,
   betHistory,
   updateMatchMargin,
+  matchMarginParams,
+  marketMarginParams,
+  setMarketMargin,
   createLeague,
   setLeagueMargin,
+  leagueMarketMarginParams,
+  setLeagueMarketMargin,
   leagueProgression,
   previewMargin,
   validateAccumulator,
+  updateAccumulatorConfig,
+  adminAudit,
+  settleLedgerTicket,
   initMatch,
   quickStartMatch,
   // Chapter 10

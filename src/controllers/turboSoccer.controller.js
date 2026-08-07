@@ -271,6 +271,18 @@ const previewMargin = proxyVf((req) => vfengineService.previewMargin(req.query.m
 
 const updateMatchMargin = proxyVf((req) => vfengineService.updateMatchMargin(req.params.matchId, req.body.margin));
 
+const getMatchMargins = proxyVf((req) => vfengineService.getMatchMargins(req.params.matchId));
+
+const getMatchMarketMargin = proxyVf((req) => vfengineService.getMatchMarketMargin(req.params.matchId, req.params.marketId));
+
+const setMatchMarketMargin = proxyVf((req) =>
+  vfengineService.setMatchMarketMargin(req.params.matchId, req.params.marketId, req.body.margin)
+);
+
+const resetMatchMarketMargin = proxyVf((req) =>
+  vfengineService.resetMatchMarketMargin(req.params.matchId, req.params.marketId)
+);
+
 // ─── Admin — Leagues ──────────────────────────────────────────────────────────
 
 const getLeagues = proxyVf(() => vfengineService.getLeagues());
@@ -289,6 +301,16 @@ const getLeagueMargin = proxyVf((req) => vfengineService.getLeagueMargin(req.par
 
 const setLeagueMargin = proxyVf((req) => vfengineService.setLeagueMargin(req.params.id, req.body.margin));
 
+const getLeagueMarketMargin = proxyVf((req) => vfengineService.getLeagueMarketMargin(req.params.id, req.params.marketId));
+
+const setLeagueMarketMargin = proxyVf((req) =>
+  vfengineService.setLeagueMarketMargin(req.params.id, req.params.marketId, req.body.margin)
+);
+
+const resetLeagueMarketMargin = proxyVf((req) =>
+  vfengineService.resetLeagueMarketMargin(req.params.id, req.params.marketId)
+);
+
 const getLeagueProgression = proxyVf((req) => vfengineService.getLeagueProgression(req.query.league));
 
 const persistLeagueProgression = proxyVf(() => vfengineService.persistLeagueProgression());
@@ -304,6 +326,10 @@ const validateAccumulator = proxyVf((req) => vfengineService.validateAccumulator
 // ─── Admin — Throttler ────────────────────────────────────────────────────────
 
 const getThrottlerStatus = proxyVf(() => vfengineService.getThrottlerStatus());
+
+const getAdminAudit = proxyVf((req) => vfengineService.getAdminAudit(req.query.limit, req.query.action));
+
+const settleLedgerTicket = proxyVf((req) => vfengineService.settleLedgerTicket(req.params.ticketId, req.body));
 
 // ─── Admin — Match Control ────────────────────────────────────────────────────
 
@@ -350,6 +376,10 @@ module.exports = {
   getMargins,
   previewMargin,
   updateMatchMargin,
+  getMatchMargins,
+  getMatchMarketMargin,
+  setMatchMarketMargin,
+  resetMatchMarketMargin,
   // Admin — leagues
   getLeagues,
   createLeague,
@@ -359,6 +389,9 @@ module.exports = {
   generateLeagueSchedule,
   getLeagueMargin,
   setLeagueMargin,
+  getLeagueMarketMargin,
+  setLeagueMarketMargin,
+  resetLeagueMarketMargin,
   getLeagueProgression,
   persistLeagueProgression,
   // Admin — accumulator
@@ -367,6 +400,8 @@ module.exports = {
   validateAccumulator,
   // Admin — throttler
   getThrottlerStatus,
+  getAdminAudit,
+  settleLedgerTicket,
   // Admin — match control
   initMatch,
   startMatch,

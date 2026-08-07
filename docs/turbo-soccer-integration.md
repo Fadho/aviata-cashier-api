@@ -1,9 +1,11 @@
 # Turbo Soccer Pro — API Integration Guide
 
-> **Version:** 1.6.5 | **Date:** 2026-06-27
-> **Latest:** Settlement integration refreshed — instant `MARKET_SETTLED` and full-time `MATCH_SETTLED` payloads, HMAC raw-body verification, idempotent local ticket updates, and results polling reconciliation
+> **Version:** 1.7.0 | **Date:** 2026-07-13
+> **Latest:** Admin-scoped engine authorization, v1.7 back-office configuration, audit history, and audited manual settlement corrections
 > **Base path:** `/cashier/v1/turbo-soccer/`  
 > All authenticated routes require a Bearer JWT obtained from `POST /cashier/v1/auth/login`.
+
+For the dedicated administrator and operational reference, see [TURBO_SOCCER_BACKOFFICE_INTEGRATION.md](./TURBO_SOCCER_BACKOFFICE_INTEGRATION.md).
 
 ```
 Authorization: Bearer <access_token>
@@ -1697,9 +1699,16 @@ GET  /cashier/v1/turbo-soccer/admin/margins
 GET  /cashier/v1/turbo-soccer/admin/margins/preview?margin=1.10
 PUT  /cashier/v1/turbo-soccer/admin/match/:matchId/margin
      Body: { "margin": 1.10 }    // range: 1.00–1.30
+GET  /cashier/v1/turbo-soccer/admin/match/:matchId/margins
+GET  /cashier/v1/turbo-soccer/admin/match/:matchId/markets/:marketId/margin
+PUT  /cashier/v1/turbo-soccer/admin/match/:matchId/markets/:marketId/margin
+     Body: { "margin": 1.14 }
+DELETE /cashier/v1/turbo-soccer/admin/match/:matchId/markets/:marketId/margin
 ```
 
 `preview` returns a probability → odds table at the given margin without modifying any match.
+
+Individual-market overrides take precedence over match-wide margins. `DELETE` removes the exact override and restores inheritance from a group override, the match margin, or the engine default. Supported market identifiers are returned by `GET /admin/margins`.
 
 ---
 
@@ -1716,6 +1725,9 @@ GET    /cashier/v1/turbo-soccer/admin/leagues/:id
 DELETE /cashier/v1/turbo-soccer/admin/leagues/:id
 GET    /cashier/v1/turbo-soccer/admin/leagues/:id/margin
 PUT    /cashier/v1/turbo-soccer/admin/leagues/:id/margin   Body: { "margin": 1.08 }
+GET    /cashier/v1/turbo-soccer/admin/leagues/:id/markets/:marketId/margin
+PUT    /cashier/v1/turbo-soccer/admin/leagues/:id/markets/:marketId/margin   Body: { "margin": 1.14 }
+DELETE /cashier/v1/turbo-soccer/admin/leagues/:id/markets/:marketId/margin
 GET    /cashier/v1/turbo-soccer/admin/leagues/:id/schedule
 POST   /cashier/v1/turbo-soccer/admin/leagues/:id/schedule  (generate round-robin)
 ```
@@ -1726,15 +1738,19 @@ POST   /cashier/v1/turbo-soccer/admin/leagues/:id/schedule  (generate round-robi
 **Create league body:**
 ```json
 {
-  "id": "vpl-premier",
-  "name": "Virtual Premier League",
+  "leagueId": "NIGHT_LEAGUE",
+  "leagueName": "Night League",
   "teams": ["Manchester City", "Liverpool FC", "Arsenal", "Chelsea FC"],
-  "matchIntervalMinutes": 5,
-  "margin": 1.08
+  "matchDurationMin": 9,
+  "preMatchDurationMin": 2,
+  "margin": 1.08,
+  "startDate": "2026-07-13T20:00:00.000Z"
 }
 ```
 
-The engine assigns up to 10 `LEAGUE-*` slots round-robin across active leagues. Each slot has a stable ID (`LEAGUE-001` through `LEAGUE-010`) used as `matchId` in all bet requests.
+Team names must be unique and the team count must be even. New and deleted leagues are durable immediately but report `restartRequired: true` because runner lifecycle changes apply after an engine restart.
+
+League-market overrides take precedence over the league-wide margin and apply immediately to active runners. `DELETE` removes the exact override so the market inherits its parent group or league margin.
 
 ---
 
@@ -1751,17 +1767,16 @@ POST /cashier/v1/turbo-soccer/admin/accumulator/validate
 **Validate (parlay) body:**
 ```json
 {
-  "ticketId": "acca-001",
-  "cashierId": "665f1a2b3c4d5e6f7a8b9c0d",
-  "stake": 50,
-  "legs": [
-    { "matchId": "LEAGUE-001", "market": "match_winner", "selection": "home", "odds": 1.85 },
-    { "matchId": "LEAGUE-002", "market": "btts",          "selection": "GG",   "odds": 2.20 }
+  "stake": 1000,
+  "selections": [
+    { "odds": 2.0 },
+    { "odds": 1.5 },
+    { "odds": 1.8 }
   ]
 }
 ```
 
-Minimum 2 legs. Response includes `totalOdds`, `bonusMultiplier`, and `potentialPayout`.
+This is a policy dry run only. Configuration updates may contain `minOddsForBonus` (at least `1.00`), `shopMaxPayout` (positive), and `bonusTiers` keyed by positive integer leg counts.
 
 ---
 
@@ -1774,6 +1789,30 @@ GET /cashier/v1/turbo-soccer/admin/throttler/status
 ```
 
 Returns `lastDecayBroadcast`, `lastMajorEventTimestamp`, and `timeDecayIntervalMs`.
+
+### Audit history
+
+```http
+GET /cashier/v1/turbo-soccer/admin/audit?limit=50&action=MARGIN_UPDATE
+```
+
+Returns the newest append-only VF Engine administrator audit records. `limit` is optional (`1..100`) and `action` is an optional exact action filter.
+
+### Manual settlement correction
+
+```http
+POST /cashier/v1/turbo-soccer/ledger/ticket/:ticketId/settle
+```
+
+This administrator-only route is the sole VF Engine ledger endpoint exposed by this service. It is for verified corrections, not normal settlement. Supply a reason of at least five characters and either `finalScore` for a single-match ticket or `results` keyed by match ID for a multi-match ticket.
+
+```json
+{
+  "reason": "Correcting verified provider result",
+  "finalScore": { "home": 2, "away": 1 },
+  "htScore": { "home": 1, "away": 0 }
+}
+```
 
 ---
 
@@ -1818,6 +1857,7 @@ Webhook configuration lives on the VF Engine deployment through `SETTLEMENT_WEBH
 | Thermal print + reprint | Any authenticated user |
 | Void bet | `admin` or `super` (`manageGameConfig`) |
 | All `/admin/*` routes | `admin` or `super` (`manageGameConfig`) |
+| Manual settlement correction (`/ledger/ticket/:ticketId/settle`) | `admin` or `super` (`manageGameConfig`) |
 | Settlement webhook | No JWT — HMAC `X-Signature` only |
 
 ---

@@ -24,6 +24,10 @@ jest.mock('../../src/services/vfengine.service', () => ({
   getMargins: jest.fn(),
   previewMargin: jest.fn(),
   updateMatchMargin: jest.fn(),
+  getMatchMargins: jest.fn(),
+  getMatchMarketMargin: jest.fn(),
+  setMatchMarketMargin: jest.fn(),
+  resetMatchMarketMargin: jest.fn(),
   getLeagues: jest.fn(),
   getLeagueProgression: jest.fn(),
   persistLeagueProgression: jest.fn(),
@@ -34,10 +38,15 @@ jest.mock('../../src/services/vfengine.service', () => ({
   generateLeagueSchedule: jest.fn(),
   getLeagueMargin: jest.fn(),
   setLeagueMargin: jest.fn(),
+  getLeagueMarketMargin: jest.fn(),
+  setLeagueMarketMargin: jest.fn(),
+  resetLeagueMarketMargin: jest.fn(),
   getAccumulatorConfig: jest.fn(),
   updateAccumulatorConfig: jest.fn(),
   validateAccumulator: jest.fn(),
   getThrottlerStatus: jest.fn(),
+  getAdminAudit: jest.fn(),
+  settleLedgerTicket: jest.fn(),
   initMatch: jest.fn(),
   startMatch: jest.fn(),
   quickStartMatch: jest.fn(),
@@ -956,6 +965,166 @@ describe('GET /admin/leagues', () => {
       .get(`${BASE}/admin/leagues`)
       .set('Authorization', `Bearer ${cashierToken}`)
       .expect(httpStatus.FORBIDDEN);
+  });
+});
+
+describe('Back-office v1.7 routes', () => {
+  test('league market margin routes read, set, and reset an override', async () => {
+    vfengineService.getLeagueMarketMargin.mockResolvedValue({
+      status: 200,
+      data: { success: true, marketId: 'goals.over_under_25', effectiveMargin: 1.08 },
+    });
+    vfengineService.setLeagueMarketMargin.mockResolvedValue({
+      status: 200,
+      data: { success: true, marketId: 'goals.over_under_25', margin: 1.14 },
+    });
+    vfengineService.resetLeagueMarketMargin.mockResolvedValue({
+      status: 200,
+      data: { success: true, inheritedMargin: 1.08 },
+    });
+
+    await request(app)
+      .get(`${BASE}/admin/leagues/PREMIER/markets/goals.over_under_25/margin`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(httpStatus.OK);
+    await request(app)
+      .put(`${BASE}/admin/leagues/PREMIER/markets/goals.over_under_25/margin`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ margin: 1.14 })
+      .expect(httpStatus.OK);
+    await request(app)
+      .delete(`${BASE}/admin/leagues/PREMIER/markets/goals.over_under_25/margin`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(httpStatus.OK);
+
+    expect(vfengineService.getLeagueMarketMargin).toHaveBeenCalledWith('PREMIER', 'goals.over_under_25');
+    expect(vfengineService.setLeagueMarketMargin).toHaveBeenCalledWith('PREMIER', 'goals.over_under_25', 1.14);
+    expect(vfengineService.resetLeagueMarketMargin).toHaveBeenCalledWith('PREMIER', 'goals.over_under_25');
+  });
+
+  test('match market margin routes expose all overrides and exact-market controls', async () => {
+    vfengineService.getMatchMargins.mockResolvedValue({ status: 200, data: { success: true, overrides: {} } });
+    vfengineService.getMatchMarketMargin.mockResolvedValue({ status: 200, data: { success: true, margin: 1.1 } });
+    vfengineService.setMatchMarketMargin.mockResolvedValue({ status: 200, data: { success: true, margin: 1.12 } });
+    vfengineService.resetMatchMarketMargin.mockResolvedValue({ status: 200, data: { success: true } });
+
+    await request(app)
+      .get(`${BASE}/admin/match/MATCH-100/margins`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(httpStatus.OK);
+    await request(app)
+      .get(`${BASE}/admin/match/MATCH-100/markets/milestones.35/margin`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(httpStatus.OK);
+    await request(app)
+      .put(`${BASE}/admin/match/MATCH-100/markets/milestones.35/margin`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ margin: 1.12 })
+      .expect(httpStatus.OK);
+    await request(app)
+      .delete(`${BASE}/admin/match/MATCH-100/markets/milestones.35/margin`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(httpStatus.OK);
+
+    expect(vfengineService.getMatchMargins).toHaveBeenCalledWith('MATCH-100');
+    expect(vfengineService.getMatchMarketMargin).toHaveBeenCalledWith('MATCH-100', 'milestones.35');
+    expect(vfengineService.setMatchMarketMargin).toHaveBeenCalledWith('MATCH-100', 'milestones.35', 1.12);
+    expect(vfengineService.resetMatchMarketMargin).toHaveBeenCalledWith('MATCH-100', 'milestones.35');
+  });
+
+  test('market margin updates validate range and require admin permission', async () => {
+    await request(app)
+      .put(`${BASE}/admin/leagues/PREMIER/markets/btts/margin`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ margin: 1.31 })
+      .expect(httpStatus.BAD_REQUEST);
+    await request(app)
+      .put(`${BASE}/admin/leagues/PREMIER/markets/btts/margin`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send({ margin: 1.1 })
+      .expect(httpStatus.FORBIDDEN);
+
+    expect(vfengineService.setLeagueMarketMargin).not.toHaveBeenCalled();
+  });
+
+  test('GET /admin/audit forwards supported filters', async () => {
+    vfengineService.getAdminAudit.mockResolvedValue({
+      status: 200,
+      data: { success: true, entries: [{ action: 'MARGIN_UPDATE' }] },
+    });
+
+    const res = await request(app)
+      .get(`${BASE}/admin/audit?limit=25&action=MARGIN_UPDATE`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(httpStatus.OK);
+
+    expect(res.body.entries).toHaveLength(1);
+    expect(vfengineService.getAdminAudit).toHaveBeenCalledWith('25', 'MARGIN_UPDATE');
+  });
+
+  test('GET /admin/audit rejects invalid limits before proxying', async () => {
+    await request(app)
+      .get(`${BASE}/admin/audit?limit=101`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(httpStatus.BAD_REQUEST);
+
+    expect(vfengineService.getAdminAudit).not.toHaveBeenCalled();
+  });
+
+  test('POST /ledger/ticket/:ticketId/settle proxies an admin correction', async () => {
+    vfengineService.settleLedgerTicket.mockResolvedValue({
+      status: 200,
+      data: { success: true, ticketId: 'TKT-100', graded: 1 },
+    });
+    const body = {
+      reason: 'Verified provider correction',
+      finalScore: { home: 2, away: 1 },
+      htScore: { home: 1, away: 0 },
+    };
+
+    const res = await request(app)
+      .post(`${BASE}/ledger/ticket/TKT-100/settle`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(body)
+      .expect(httpStatus.OK);
+
+    expect(res.body.graded).toBe(1);
+    expect(vfengineService.settleLedgerTicket).toHaveBeenCalledWith('TKT-100', body);
+  });
+
+  test('manual settlement requires admin permission and a meaningful reason', async () => {
+    await request(app)
+      .post(`${BASE}/ledger/ticket/TKT-100/settle`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send({ reason: 'Verified correction', finalScore: { home: 1, away: 0 } })
+      .expect(httpStatus.FORBIDDEN);
+
+    await request(app)
+      .post(`${BASE}/ledger/ticket/TKT-100/settle`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ reason: 'bad', finalScore: { home: 1, away: 0 } })
+      .expect(httpStatus.BAD_REQUEST);
+  });
+
+  test('league creation enforces the v1.7 schema', async () => {
+    vfengineService.createLeague.mockResolvedValue({ status: 201, data: { success: true, restartRequired: true } });
+    const body = {
+      leagueId: 'NIGHT_LEAGUE',
+      leagueName: 'Night League',
+      teams: ['Arsenal', 'Chelsea', 'Liverpool FC', 'Manchester City'],
+      matchDurationMin: 9,
+      preMatchDurationMin: 2,
+      margin: 1.08,
+      startDate: '2026-07-13T20:00:00.000Z',
+    };
+
+    await request(app)
+      .post(`${BASE}/admin/leagues`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send(body)
+      .expect(httpStatus.CREATED);
+
+    expect(vfengineService.createLeague).toHaveBeenCalledWith(body);
   });
 });
 

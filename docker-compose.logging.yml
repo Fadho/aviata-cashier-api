@@ -1,0 +1,48 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "100m"
+    max-file: "3"
+
+services:
+  router01:
+    logging: *default-logging
+
+  router02:
+    logging: *default-logging
+
+  configsvr01:
+    logging: *default-logging
+
+  configsvr02:
+    logging: *default-logging
+
+  configsvr03:
+    logging: *default-logging
+
+  shard01-a:
+    logging: *default-logging
+
+  shard01-b:
+    logging: *default-logging
+
+  shard01-c:
+    logging: *default-logging
+
+  shard02-a:
+    logging: *default-logging
+
+  shard02-b:
+    logging: *default-logging
+
+  shard02-c:
+    logging: *default-logging
+
+  shard03-a:
+    logging: *default-logging
+
+  shard03-b:
+    logging: *default-logging
+
+  shard03-c:
+    logging: *default-logging
