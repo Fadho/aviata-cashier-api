@@ -373,6 +373,29 @@ describe('POST /bets/place', () => {
     expect(ticket).toBeNull();
   });
 
+  test('should place partner-launched cashier bets through VF Engine without partner API key', async () => {
+    cashierUser.thirdParty = true;
+    cashierUser.partnerCashierUsername = 'partner-player-123';
+    await cashierUser.save();
+
+    const partnerCashierToken = buildAccessToken(cashierUser._id);
+
+    const res = await request(app)
+      .post(`${BASE}/bets/place`)
+      .set('Authorization', `Bearer ${partnerCashierToken}`)
+      .send(body)
+      .expect(httpStatus.OK);
+
+    expect(res.body.bet_id).toBe('vf-bet-001');
+    expect(vfengineService.placeBet).toHaveBeenCalledWith({ ...body, cashierId: cashierUser._id.toHexString() });
+
+    const updatedWallet = await Wallets.findById(cashierWallet._id);
+    expect(Number(updatedWallet.balance)).toBe(900);
+
+    const ticket = await Tickets.findOne({ vfBetId: 'vf-bet-001' });
+    expect(ticket).toBeNull();
+  });
+
   test('should return 400 when stake exceeds wallet balance', async () => {
     body.stake = 9999;
     await request(app)

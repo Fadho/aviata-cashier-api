@@ -6,6 +6,8 @@ const config = require('./config');
 const { tokenTypes } = require('./tokens');
 const { User } = require('../models');
 const ApiKey = require('../models/apiKey.model');
+const { defaultPartnerApiScopes } = require('./partner');
+const logger = require('./logger');
 
 // ─── JWT Strategy ────────────────────────────────────────────────────────────
 
@@ -59,6 +61,10 @@ ApiKeyStrategy.prototype.authenticate = function (req) {
 
 const apiKeyVerify = async (rawKey, done) => {
   try {
+    if (typeof rawKey !== 'string' || !/^tw_api_[a-f0-9]{64}$/.test(rawKey)) {
+      return done(null, false, { message: 'Invalid API key' });
+    }
+
     const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
     const apiKeyDoc = await ApiKey.findOne({ keyHash, status: 'active' });
 
@@ -70,15 +76,18 @@ const apiKeyVerify = async (rawKey, done) => {
       return done(null, false, { message: 'API key expired' });
     }
 
-    // Fire-and-forget — don't block the request for a timestamp update
-    ApiKey.findByIdAndUpdate(apiKeyDoc._id, { lastUsedAt: new Date() }).exec();
-
+    // Reject disabled/non-partner accounts before recording key usage.
     const user = await User.findById(apiKeyDoc.partnerId).populate('wallets');
-    if (!user) {
-      return done(null, false, { message: 'Partner not found' });
+    if (!user || user.role !== 'admin' || user.thirdParty !== true || user.isActive === false) {
+      return done(null, false, { message: 'Active partner not found' });
     }
 
-    return done(null, user);
+    await ApiKey.findByIdAndUpdate(apiKeyDoc._id, { lastUsedAt: new Date() }).catch((error) => {
+      logger.warn(`Failed to record partner API key usage: ${error.message}`);
+    });
+
+    const scopes = apiKeyDoc.scopes && apiKeyDoc.scopes.length ? apiKeyDoc.scopes : defaultPartnerApiScopes;
+    return done(null, user, { apiKeyId: apiKeyDoc._id, scopes });
   } catch (err) {
     return done(err);
   }
@@ -89,4 +98,5 @@ const apiKeyStrategy = new ApiKeyStrategy(apiKeyVerify);
 module.exports = {
   jwtStrategy,
   apiKeyStrategy,
+  apiKeyVerify,
 };

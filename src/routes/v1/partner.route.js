@@ -91,6 +91,17 @@ const router = express.Router();
  *                 type: string
  *                 description: A human-readable label for this key.
  *                 example: production-key
+ *               scopes:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: ['*', game:launch, games:read, bets:write, bets:read]
+ *                 description: Defaults to `['*']` for a full-access partner key.
+ *               expiryDays:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 365
+ *                 default: 90
  *     responses:
  *       "201":
  *         description: API key created
@@ -243,8 +254,8 @@ const router = express.Router();
  *       4. The game authenticates automatically using the token in the URL.
  *       ```
  *
- *       > The `wallet` balance is **overwritten** (not incremented) on every call.
- *       > Send the player's current balance each time.
+ *       > The `wallet` balance is **overwritten** (not incremented) only when
+ *       > `wallet_version` is newer than the last accepted version.
  *     tags: [Partner]
  *     security:
  *       - apiKeyAuth: []
@@ -254,7 +265,7 @@ const router = express.Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required: [partner_cashier_username, wallet]
+ *             required: [partner_cashier_username, wallet, wallet_version]
  *             properties:
  *               partner_cashier_username:
  *                 type: string
@@ -266,6 +277,11 @@ const router = express.Router();
  *                 type: number
  *                 description: Current wallet balance to sync for this cashier session.
  *                 example: 500
+ *               wallet_version:
+ *                 type: integer
+ *                 minimum: 0
+ *                 description: Monotonically increasing balance version. Stale versions are rejected.
+ *                 example: 42
  *     responses:
  *       "200":
  *         description: Game session created
@@ -302,9 +318,32 @@ const router = express.Router();
  *             example:
  *               code: 401
  *               message: Invalid API key
+ *       "409":
+ *         description: Stale or conflicting wallet_version
  */
 
-router.route('/').post(auth(), partnerController.createApiKey);
+/**
+ * @swagger
+ * /partner/games:
+ *   get:
+ *     summary: List available partner games
+ *     description: |
+ *       Returns the supported games a partner can launch, along with any
+ *       partner-specific runtime settings and betting configuration already
+ *       configured for the authenticated partner.
+ *     tags: [Partner]
+ *     security:
+ *       - apiKeyAuth: []
+ *     responses:
+ *       "200":
+ *         description: Available games
+ *       "401":
+ *         description: Invalid or missing API key
+ *       "403":
+ *         description: API key does not have the required scope
+ */
+
+router.route('/').post(auth(), validate(partnerValidation.createApiKey), partnerController.createApiKey);
 
 router.route('/listPartnerKeys').get(auth(), partnerController.listApiKeys);
 
@@ -314,6 +353,10 @@ router
   .route('/thirdPartyCashierDetails')
   .post(auth(), validate(partnerValidation.getThirdPartyCashierDetails), partnerAuthController.thirdPartyCashierDetails);
 
-router.route('/game-launcher').post(apiKeyAuth(), validate(partnerValidation.launchGame), partnerAuthController.launchGame);
+router
+  .route('/game-launcher')
+  .post(apiKeyAuth('game:launch'), validate(partnerValidation.launchGame), partnerAuthController.launchGame);
+
+router.route('/games').get(apiKeyAuth('games:read'), partnerController.listAvailableGames);
 
 module.exports = router;

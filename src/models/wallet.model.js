@@ -26,6 +26,11 @@ const walletSchema = mongoose.Schema(
       required: true,
       default: false,
     },
+    partnerSyncVersion: {
+      type: Number,
+      default: -1,
+      min: -1,
+    },
     settlementCreditKeys: {
       type: [String],
       default: undefined,

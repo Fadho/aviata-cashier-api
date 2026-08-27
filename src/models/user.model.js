@@ -18,6 +18,13 @@ const userSchema = mongoose.Schema(
       unique: true,
       trim: true,
     },
+    // External username supplied by a partner. `username` remains globally
+    // unique for the rest of the platform; this value is tenant-scoped.
+    partnerCashierUsername: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
     email: {
       type: String,
       required: true,
@@ -135,6 +142,14 @@ const userSchema = mongoose.Schema(
 // add plugin that converts mongoose to json
 userSchema.plugin(toJSON);
 userSchema.plugin(paginate);
+
+userSchema.index(
+  { agentId: 1, partnerCashierUsername: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { partnerCashierUsername: { $type: 'string' } },
+  }
+);
 
 /**
  * Check if email is taken

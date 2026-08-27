@@ -1,6 +1,5 @@
 const httpStatus = require('http-status');
-const ApiError = require('../utils/ApiError');
-const { generateApiKey, deleteApiKey, getApiKeys } = require('../services/partner.service');
+const { generateApiKey, deleteApiKey, getApiKeys, getAvailableGames } = require('../services/partner.service');
 
 // Generate and manage API keys for partners, multi-keys per partner
 // to allow key rotation and revocation without downtime.
@@ -11,7 +10,8 @@ const { generateApiKey, deleteApiKey, getApiKeys } = require('../services/partne
  */
 const createApiKey = async (req, res, next) => {
   try {
-    const apiKey = await generateApiKey(req.user._id, req.body.keyName);
+    const { keyName, scopes, expiryDays } = req.body;
+    const apiKey = await generateApiKey(req.user, keyName, scopes, expiryDays);
     res.status(httpStatus.CREATED).send({ apiKey });
   } catch (error) {
     next(error);
@@ -27,7 +27,7 @@ const removeApiKey = async (req, res, next) => {
     // if (!apiKey) {
     //   throw new ApiError(httpStatus.BAD_REQUEST, 'API key is required');
     // }
-    await deleteApiKey(apiKeyId);
+    await deleteApiKey(req.user, apiKeyId);
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {
     next(error);
@@ -39,11 +39,20 @@ const removeApiKey = async (req, res, next) => {
  */
 const listApiKeys = async (req, res, next) => {
   try {
-    const apiKeys = await getApiKeys(req.user.id);
+    const apiKeys = await getApiKeys(req.user);
     res.status(httpStatus.OK).send({ apiKeys });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = { createApiKey, removeApiKey, listApiKeys };
+const listAvailableGames = async (req, res, next) => {
+  try {
+    const games = await getAvailableGames(req.user);
+    res.status(httpStatus.OK).send({ games });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { createApiKey, removeApiKey, listApiKeys, listAvailableGames };

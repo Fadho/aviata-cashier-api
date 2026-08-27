@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { toJSON, paginate } = require('./plugins');
+const { allowedPartnerApiScopes, defaultPartnerApiScopes } = require('../config/partner');
 
 const apiKeySchema = new mongoose.Schema(
   {
@@ -24,7 +24,8 @@ const apiKeySchema = new mongoose.Schema(
     },
     scopes: {
       type: [String],
-      default: [],
+      enum: allowedPartnerApiScopes,
+      default: defaultPartnerApiScopes,
     },
     expiresAt: {
       type: Date,
@@ -32,11 +33,16 @@ const apiKeySchema = new mongoose.Schema(
     lastUsedAt: {
       type: Date,
     },
+    revokedAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+apiKeySchema.index({ partnerId: 1, keyName: 1 });
 
 /**
  * @typedef ApiKey

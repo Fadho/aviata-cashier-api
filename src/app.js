@@ -123,6 +123,7 @@ app.use(compression());
 
 // enable cors
 const allowedOrigins = [
+  'https://sbe-partner-dashboard-gtsc2.ondigitalocean.app',
   'https://vfootball-cashier-ivgbp.ondigitalocean.app',
   'https://aviatorx.sbe2525.com',
   'https://sbe2525.com',

@@ -51,6 +51,7 @@ cp .env.example .env
 ## Table of Contents
 
 - [Features](#features)
+- [Partner Integration Guide](docs/PARTNER_INTEGRATION_GUIDE.md)
 - [Commands](#commands)
 - [Environment Variables](#environment-variables)
 - [Project Structure](#project-structure)

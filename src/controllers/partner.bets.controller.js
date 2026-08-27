@@ -22,6 +22,7 @@ const {
   // financialReportService,
 } = require('../services');
 const financialReportService = require('../services/financialReport.service');
+const turboSoccerService = require('../services/turboSoccer.service');
 const { Wallets, Player, User, Freebet, FreebetWinners } = require('../models');
 const axios = require('axios');
 const logger = require('../config/logger');
@@ -42,6 +43,17 @@ const createBetPlacedForThirdParty = catchAsync(async (req, res) => {
 
   if (!user.agentId || user.agentId.toString() !== agent._id.toString()) {
     throw new ApiError(httpStatus.FORBIDDEN, 'Unauthorized to place bet for this third party');
+  }
+
+  if (gameType === 'turbo-soccer') {
+    const userWallet = await walletService.getWalletById(user.wallets[0]);
+    if (!userWallet) {
+      throw new ApiError(httpStatus.NOT_FOUND, 'Cashier wallet not found');
+    }
+
+    const vfResponse = await turboSoccerService.placeBet(userWallet, req.body, cashierId);
+    res.status(httpStatus.OK).send(vfResponse);
+    return;
   }
 
   // Debit third-party wallet via the agent's configured endpoint

@@ -4,11 +4,11 @@ const { partnerService, tokenService } = require('../services');
 const config = require('../config/config');
 
 const loginUserWithToken = catchAsync(async (req, res) => {
-  const { username, currency, balance } = req.body;
+  const { username, currency } = req.body;
   const thirdPartyId = req.user.id;
   const user = await partnerService.loginUserWithToken(username, currency, thirdPartyId);
-  const tokens = await tokenService.generateAuthTokens(user);
-  res.send({ user, tokens });
+  const access = tokenService.generateAccessToken(user);
+  res.send({ user, tokens: { access } });
 });
 
 const thirdPartyCashierDetails = catchAsync(async (req, res) => {
@@ -19,11 +19,11 @@ const thirdPartyCashierDetails = catchAsync(async (req, res) => {
 });
 
 const launchGame = catchAsync(async (req, res) => {
-  const { partner_cashier_username, wallet } = req.body;
-  const cashier = await partnerService.launchGame(req.user, partner_cashier_username, wallet);
-  const tokens = await tokenService.generateAuthTokens(cashier);
-  const url = `${config.gameLauncherUrl}?token=${tokens.access.token}`;
-  res.status(httpStatus.OK).send({ token: tokens.access.token, url });
+  const { partner_cashier_username: partnerCashierUsername, wallet, wallet_version: walletVersion } = req.body;
+  const cashier = await partnerService.launchGame(req.user, partnerCashierUsername, wallet, walletVersion);
+  const access = tokenService.generateAccessToken(cashier);
+  const url = `${config.gameLauncherUrl}?token=${access.token}`;
+  res.status(httpStatus.OK).send({ token: access.token, url });
 });
 
 module.exports = {
