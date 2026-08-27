@@ -5,7 +5,7 @@ const moment = require('moment');
 
 const app = require('../../src/app');
 const setupTestDB = require('../utils/setupTestDB');
-const { User, Wallets, Tickets } = require('../../src/models');
+const { User, Wallets, Tickets, Player } = require('../../src/models');
 const config = require('../../src/config/config');
 const { tokenTypes } = require('../../src/config/tokens');
 const tokenService = require('../../src/services/token.service');
@@ -417,6 +417,53 @@ describe('POST /player — createBetPlacedForPlayer', () => {
         roundId: 'round-p1',
       })
       .expect(httpStatus.BAD_REQUEST);
+  });
+
+  test('returns 404 when player does not exist', async () => {
+    await request(app)
+      .post(`${BASE}/player`)
+      .send({
+        cashierId: cashierUser._id.toString(),
+        playerId: '42',
+        deviceId: new mongoose.Types.ObjectId().toString(),
+        roundId: 'round-missing-player',
+        gameType: 'aviatax',
+        stake: 20,
+      })
+      .expect(httpStatus.NOT_FOUND);
+  });
+
+  test('returns 201 after creating a valid player ticket', async () => {
+    const deviceId = new mongoose.Types.ObjectId();
+    await Player.create({
+      playerId: 1,
+      deviceId,
+      cashierId: cashierUser._id,
+      wallet: 100,
+      bonus: 0,
+    });
+
+    const res = await request(app)
+      .post(`${BASE}/player`)
+      .send({
+        cashierId: cashierUser._id.toString(),
+        playerId: '1',
+        deviceId: deviceId.toString(),
+        roundId: 'round-valid-player',
+        gameType: 'aviatax',
+        stake: 20,
+      })
+      .expect(httpStatus.CREATED);
+
+    expect(res.body).toMatchObject({
+      stake: 20,
+      playerId: '1',
+      roundId: 'round-valid-player',
+      gameType: 'aviatax',
+    });
+
+    const player = await Player.findOne({ playerId: 1, deviceId });
+    expect(player.wallet).toBe(80);
   });
 });
 

@@ -29,6 +29,54 @@ const { Wallets, Player, User, Freebet, FreebetWinners } = require('../models');
 const GameConfig = require('../models/gameConfig.model');
 const axios = require('axios');
 
+const runPlayerBetPostCommitEffects = async ({ cashier, cashierId, gameType, deviceId, stake, betPlaced }) => {
+  try {
+    if (!cashier.agentId) {
+      logger.warn(`Skipping player bet post-commit effects: cashier ${cashierId} has no agentId`);
+      return;
+    }
+
+    const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType);
+    if (!Array.isArray(jackpotContributions) || jackpotContributions.length === 0) {
+      logger.warn(`Skipping jackpot contributions for ticket ${betPlaced._id}: no jackpots for ${gameType}`);
+    } else {
+      const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
+      const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
+      const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
+
+      if (bronzeJackpot && silverJackpot && goldJackpot) {
+        await jackpotService.updateJackpotContributions(
+          bronzeJackpot._id,
+          bronzeJackpot.percentageContributions * stake,
+          silverJackpot._id,
+          silverJackpot.percentageContributions * stake,
+          goldJackpot._id,
+          goldJackpot.percentageContributions * stake,
+          deviceId,
+          gameType
+        );
+      } else {
+        logger.warn(`Skipping jackpot contributions for ticket ${betPlaced._id}: incomplete jackpot setup`);
+      }
+    }
+
+    const freebet = await freebetService.getAgentFreebets(cashier.agentId, gameType);
+    if (freebet && freebet.dropAmount > 1) {
+      await freebetService.updateFreebetContributions(
+        freebet._id,
+        freebet.percentageContributions * stake,
+        deviceId,
+        gameType,
+        betPlaced.roundId
+      );
+    }
+
+    await financialReportService.getAndUpdateStake(cashierId, gameType);
+  } catch (error) {
+    logger.error(`Player bet post-commit effects failed for ticket ${betPlaced._id}: ${error.message}`);
+  }
+};
+
 const createBetPlaced = catchAsync(async (req, res) => {
   const { result, selections, cashierId, potentialWinnings, roundId, playerId, deviceId } = req.body;
   let { stake } = req.body;
@@ -322,46 +370,11 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
         session
       );
 
-      res.status(httpStatus.CREATED).send(betPlaced);
-
-      // Get jackpot contributions
-      const jackpotContributions = await jackpotService.getAgentJackpots(cashier.agentId, gameType, session);
-      const bronzeJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Bronze');
-      const silverJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Silver');
-      const goldJackpot = jackpotContributions.find((obj) => obj.jackpotName === 'Gold');
-
-      // Update jackpot contributions
-      jackpotService.updateJackpotContributions(
-        bronzeJackpot._id,
-        bronzeJackpot.percentageContributions * stake,
-        silverJackpot._id,
-        silverJackpot.percentageContributions * stake,
-        goldJackpot._id,
-        goldJackpot.percentageContributions * stake,
-        deviceId,
-        gameType,
-        session
-      );
-
-      // Get jackpot contributions
-      const freebet = await freebetService.getAgentFreebets(cashier.agentId, gameType, session);
-
-      if (freebet.dropAmount > 1) {
-        // Update jackpot contributions
-        freebetService.updateFreebetContributions(
-          freebet._id,
-          freebet.percentageContributions * stake,
-          deviceId,
-          gameType,
-          betPlaced.roundId,
-          session
-        );
-      }
-
-      financialReportService.getAndUpdateStake(cashierId, gameType);
-
       await session.commitTransaction();
       session.endSession();
+
+      runPlayerBetPostCommitEffects({ cashier, cashierId, gameType, deviceId, stake, betPlaced });
+      res.status(httpStatus.CREATED).send(betPlaced);
       return; // success, exit loop
     } catch (error) {
       try {
@@ -375,6 +388,9 @@ const createBetPlacedForPlayer = catchAsync(async (req, res) => {
         attempt++;
         lastError = error;
         continue; // retry
+      }
+      if (error instanceof ApiError) {
+        throw error;
       }
       throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, `Error placing bet: ${error.message}`);
     }
