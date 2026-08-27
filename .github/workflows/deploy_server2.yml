@@ -26,7 +26,7 @@ jobs:
 
       - name: Build, tag and push Dockerfile
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD2 }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER2 }}@${{ secrets.SSH_HOST2 }} "cd ~/aviata-cashier-api && docker build -t cashier-service . && docker tag cashier-service registry.digitalocean.com/aviata/cashier-service && docker push registry.digitalocean.com/aviata/cashier-service"
+          sshpass -p "${{ secrets.SSH_PASSWORD2 }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER2 }}@${{ secrets.SSH_HOST2 }} "cd ~/aviata-cashier-api && docker build -t cashier-service . && docker tag cashier-service registry.digitalocean.com/aviata/cashier-service"
 
       - name: Docker Compose and scale
         run: |
