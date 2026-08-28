@@ -10,6 +10,7 @@ const createApiKey = {
       .min(1)
       .unique(),
     expiryDays: Joi.number().integer().min(1).max(365),
+    userId: Joi.string().custom(objectId).optional(),
   }),
 };
 
